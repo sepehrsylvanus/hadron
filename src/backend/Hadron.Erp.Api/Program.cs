@@ -1,6 +1,8 @@
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.ReferenceData.Api;
 using Hadron.Erp.Api.Modules.ReferenceData.Application;
+using Hadron.Erp.Api.Modules.Products.Api;
+using Hadron.Erp.Api.Modules.Products.Application;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,7 @@ var databaseConnectionString = DatabaseConnectionString.Create(builder.Configura
 builder.Services.AddDbContextFactory<HadronDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddScoped<ReferenceDataService>();
+builder.Services.AddScoped<ProductService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAuditEventSink, NoOpAuditEventSink>();
 
@@ -54,6 +57,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapReferenceDataEndpoints();
+app.MapProductEndpoints();
 
 app.Run();
 

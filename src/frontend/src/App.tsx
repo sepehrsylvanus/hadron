@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import hadronLogo from './assets/brand/hadron-logo-red.svg'
+import ProductMaster from './ProductMaster'
 
 type ReferenceType = { id: string; code: string; nameFa: string; nameEn: string }
 type ReferenceItem = {
@@ -16,7 +17,7 @@ const currencyType: ReferenceType = { id: 'currency', code: 'CURRENCY', nameFa: 
 const unitType: ReferenceType = { id: 'unit', code: 'UNIT', nameFa: 'واحد اندازه‌گیری', nameEn: 'Unit' }
 const emptyEditor: EditorState = { code: '', nameFa: '', nameEn: '', symbol: '', decimalPrecision: 0, sortOrder: 0 }
 
-function App() {
+function ReferenceDataPage() {
   const [types, setTypes] = useState<ReferenceType[]>([])
   const [selectedCode, setSelectedCode] = useState('COUNTRY')
   const [items, setItems] = useState<ReferenceItem[]>([])
@@ -161,6 +162,11 @@ function App() {
 async function problemMessage(response: Response) {
   const body = await response.json().catch(() => null) as { detail?: string; errors?: Record<string, string[]> } | null
   return body?.detail ?? (Object.values(body?.errors ?? {}).flat().join(' ') || 'عملیات انجام نشد.')
+}
+
+function App() {
+  const [page, setPage] = useState<'products' | 'reference'>('products')
+  return <><nav className="main-nav" dir="rtl"><button className={page === 'products' ? 'active' : ''} onClick={() => setPage('products')}>محصولات</button><button className={page === 'reference' ? 'active' : ''} onClick={() => setPage('reference')}>داده‌های مرجع</button></nav>{page === 'products' ? <ProductMaster /> : <ReferenceDataPage />}</>
 }
 
 export default App

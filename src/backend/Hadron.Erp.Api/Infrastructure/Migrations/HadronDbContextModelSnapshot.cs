@@ -20,7 +20,126 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            modelBuilder.HasSequence("product_number_seq", "catalog");
+
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaseUnitId");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("NormalizedCode")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "Code");
+
+                    b.ToTable("items", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_items_item_type", "\"ItemType\" = 'PRODUCT'");
+
+                            t.HasCheckConstraint("ck_items_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BusinessUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CriticalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ExcessStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ProductCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SafeStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SafetyStockQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.HasKey("ItemId");
+
+                    b.HasIndex("BusinessUnitId");
+
+                    b.HasIndex("ProductCategoryId");
+
+                    b.ToTable("products", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_products_safety_stock", "\"SafetyStockQty\" >= 0");
+
+                            t.HasCheckConstraint("ck_products_thresholds", "\"CriticalDays\" >= 0 AND \"CriticalDays\" <= \"SafeStartDays\" AND \"SafeStartDays\" <= \"ExcessStartDays\"");
+                        });
+                });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", b =>
                 {
@@ -316,6 +435,37 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_units_version", "\"Version\" >= 1");
                         });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("BaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessUnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Products.Domain.Item", "Item")
+                        .WithOne()
+                        .HasForeignKey("Hadron.Erp.Api.Modules.Products.Domain.Product", "ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", null)
+                        .WithMany()
+                        .HasForeignKey("ProductCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Item");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", b =>
