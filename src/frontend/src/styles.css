@@ -1,0 +1,54 @@
+:root {
+  --brand-red: #ce1628; --brand-gray: #636466; --brand-black: #000;
+  --brand-safety-green: #00a79d; --surface-page: #f5f6f7; --surface-panel: #fff;
+  --text-primary: #18191a; --text-secondary: #636466; --border-default: #d9dcdf;
+  --font-persian: Vazir, Tahoma, 'Segoe UI', Arial, sans-serif;
+  --font-english: 'Myriad Pro', 'Segoe UI', Arial, sans-serif;
+  font-family: var(--font-persian); color: var(--text-primary); background: var(--surface-page);
+  font-synthesis: none; text-rendering: optimizeLegibility;
+}
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--surface-page); }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+.app-shell { width: min(1400px, 100%); min-height: 100vh; margin: 0 auto; padding: 28px; }
+.app-header { display: flex; gap: 24px; align-items: center; margin-bottom: 28px; }
+.brand-logo { width: 116px; height: auto; }
+.eyebrow { margin: 0 0 4px; color: var(--brand-red); direction: ltr; font-family: var(--font-english); font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-align: right; text-transform: uppercase; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 1.75rem; }
+h2 { margin-bottom: 4px; font-size: 1.2rem; }
+.toolbar, .data-panel, .dialog { border: 1px solid var(--border-default); background: var(--surface-panel); }
+.toolbar { display: grid; grid-template-columns: 1.2fr 1.4fr auto auto; gap: 16px; align-items: end; padding: 20px; }
+label { display: grid; gap: 7px; color: var(--text-secondary); font-size: .85rem; font-weight: 500; }
+input, select { min-height: 42px; padding: 8px 11px; border: 1px solid var(--border-default); background: white; color: var(--text-primary); }
+input:focus, select:focus, button:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand-red) 55%, white); outline-offset: 1px; }
+input:disabled { background: #f0f1f2; color: var(--text-secondary); }
+.checkbox-label { display: flex; gap: 8px; align-items: center; min-height: 42px; white-space: nowrap; }
+.checkbox-label input { min-height: auto; }
+.button { min-height: 42px; padding: 8px 18px; border: 1px solid var(--border-default); background: white; color: var(--text-primary); }
+.button--primary { border-color: var(--brand-red); background: var(--brand-red); color: white; }
+.notice { margin: 14px 0 0; padding: 11px 14px; border: 1px solid; }
+.notice--success { border-color: color-mix(in srgb, var(--brand-safety-green) 40%, white); background: color-mix(in srgb, var(--brand-safety-green) 8%, white); color: #006d67; }
+.notice--error { border-color: color-mix(in srgb, var(--brand-red) 35%, white); background: color-mix(in srgb, var(--brand-red) 7%, white); color: #95101e; }
+.data-panel { margin-top: 18px; }
+.panel-title { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--border-default); }
+.panel-title p { margin-bottom: 0; color: var(--text-secondary); font-size: .82rem; }
+.panel-title > span { color: var(--text-secondary); font-size: .85rem; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: right; }
+th, td { padding: 13px 15px; border-bottom: 1px solid #eceeef; vertical-align: middle; }
+th { background: #f8f9fa; color: var(--brand-gray); font-size: .8rem; font-weight: 600; white-space: nowrap; }
+td { font-size: .88rem; }
+.status { display: inline-block; padding: 4px 9px; border-radius: 99px; font-size: .78rem; }
+.status--active { background: color-mix(in srgb, var(--brand-safety-green) 11%, white); color: #006d67; }
+.status--inactive { background: #eceeef; color: var(--brand-gray); }
+.actions { display: flex; gap: 8px; }
+.actions button { padding: 5px 8px; border: 0; background: transparent; color: #4b4c4e; }
+.actions button:hover { color: var(--brand-red); }
+.dialog-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 35%); }
+.dialog { width: min(520px, 100%); padding: 24px; box-shadow: 0 10px 30px rgb(0 0 0 / 15%); }
+.dialog form { display: grid; gap: 14px; margin-top: 18px; }
+.dialog-actions { display: flex; gap: 10px; margin-top: 6px; }
+@media (max-width: 850px) { .toolbar { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .app-shell { padding: 18px; } .app-header { align-items: flex-start; } .brand-logo { width: 88px; } .toolbar { grid-template-columns: 1fr; } .panel-title { align-items: flex-start; } }
