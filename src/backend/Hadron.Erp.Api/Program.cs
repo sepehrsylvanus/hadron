@@ -8,6 +8,8 @@ using Hadron.Erp.Api.Modules.Products.Application;
 using Hadron.Erp.Api.Platform.Audit;
 using Hadron.Erp.Api.Modules.Suppliers.Api;
 using Hadron.Erp.Api.Modules.Suppliers.Application;
+using Hadron.Erp.Api.Modules.Sourcing.Api;
+using Hadron.Erp.Api.Modules.Sourcing.Application;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +24,7 @@ builder.Services.AddScoped<ReferenceDataService>();
 builder.Services.AddScoped<MaterialItemService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<SupplierService>();
+builder.Services.AddScoped<SourcingService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAuditEventSink, NoOpAuditEventSink>();
 
@@ -66,6 +69,7 @@ app.MapReferenceDataEndpoints();
 app.MapMaterialItemEndpoints();
 app.MapProductEndpoints();
 app.MapSupplierEndpoints();
+app.MapSourcingEndpoints();
 
 app.Run();
 

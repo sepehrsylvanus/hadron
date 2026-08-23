@@ -26,6 +26,7 @@ h2 { margin-bottom: 4px; font-size: 1.2rem; }
 .product-filters { grid-template-columns: 1.4fr 1fr 1fr auto auto; }
 .supplier-filters { grid-template-columns: 1.4fr auto auto 1.5fr; }
 .material-filters { grid-template-columns: 1.4fr 1fr 1fr auto auto; }
+.sourcing-filters { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
 .inline-form { display: flex; gap: 8px; }
 label { display: grid; gap: 7px; color: var(--text-secondary); font-size: .85rem; font-weight: 500; }
 input, select { min-height: 42px; padding: 8px 11px; border: 1px solid var(--border-default); background: white; color: var(--text-primary); }
@@ -60,6 +61,9 @@ td { font-size: .88rem; }
 .product-dialog form { grid-template-columns: repeat(2, 1fr); }
 .supplier-dialog { width: min(820px, 100%); max-height: 90vh; overflow: auto; }
 .supplier-dialog form { grid-template-columns: repeat(2, 1fr); }
+.sourcing-dialog { width: min(900px, 100%); max-height: 90vh; overflow: auto; }
+.sourcing-dialog form { grid-template-columns: repeat(2, 1fr); }
+.cell-sub { display: block; margin-top: 4px; color: var(--text-secondary); direction: ltr; }
 .product-dialog textarea { min-height: 80px; padding: 8px; font: inherit; }
 .pager { display: flex; justify-content: center; gap: 16px; align-items: center; padding: 14px; }
 .dialog-actions { display: flex; gap: 10px; margin-top: 6px; }

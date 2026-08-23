@@ -3,6 +3,7 @@ using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
+using Hadron.Erp.Api.Modules.Sourcing.Domain;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
@@ -20,6 +21,8 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierPaymentProfile> SupplierPaymentProfiles => Set<SupplierPaymentProfile>();
     public DbSet<SupplierContact> SupplierContacts => Set<SupplierContact>();
+    public DbSet<SourcingOption> SourcingOptions => Set<SourcingOption>();
+    public DbSet<SourcingPrice> SourcingPrices => Set<SourcingPrice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +30,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
         modelBuilder.HasSequence<long>("part_number_seq", "catalog");
         modelBuilder.HasSequence<long>("component_number_seq", "catalog");
         modelBuilder.HasSequence<long>("supplier_number_seq", "procurement");
+        modelBuilder.HasSequence<long>("sourcing_option_number_seq", "procurement");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadronDbContext).Assembly);
     }
 }

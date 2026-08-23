@@ -28,6 +28,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             modelBuilder.HasSequence("product_number_seq", "catalog");
 
+            modelBuilder.HasSequence("sourcing_option_number_seq", "procurement");
+
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
@@ -500,6 +502,146 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("DestinationCustomsDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ForwarderToShipmentDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("IncotermId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPreferred")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("MinimumOrderQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid?>("ShippingModeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ShippingPeriodDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourcingNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SupplierLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncotermId");
+
+                    b.HasIndex("ItemBaseUnitId");
+
+                    b.HasIndex("ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sourcing_options_active_preferred_item")
+                        .HasFilter("\"IsActive\" AND \"IsPreferred\"");
+
+                    b.HasIndex("ShippingModeId");
+
+                    b.HasIndex("SourcingNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ItemId", "IsActive");
+
+                    b.HasIndex("SupplierId", "IsActive");
+
+                    b.ToTable("sourcing_options", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_sourcing_options_lead_times", "(\"SupplierLeadTimeDays\" IS NULL OR \"SupplierLeadTimeDays\" >= 0) AND (\"ForwarderToShipmentDays\" IS NULL OR \"ForwarderToShipmentDays\" >= 0) AND (\"ShippingPeriodDays\" IS NULL OR \"ShippingPeriodDays\" >= 0) AND (\"DestinationCustomsDays\" IS NULL OR \"DestinationCustomsDays\" >= 0)");
+
+                            t.HasCheckConstraint("ck_sourcing_options_moq", "\"MinimumOrderQuantity\" IS NULL OR \"MinimumOrderQuantity\" >= 0");
+
+                            t.HasCheckConstraint("ck_sourcing_options_preferred_active", "NOT \"IsPreferred\" OR \"IsActive\"");
+
+                            t.HasCheckConstraint("ck_sourcing_options_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("SourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("SourcingOptionId", "EffectiveFrom", "EffectiveTo");
+
+                    b.ToTable("sourcing_prices", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_sourcing_prices_period", "\"EffectiveTo\" IS NULL OR \"EffectiveTo\" >= \"EffectiveFrom\"");
+
+                            t.HasCheckConstraint("ck_sourcing_prices_unit_price", "\"UnitPrice\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.InternalPerson", b =>
                 {
                     b.Property<Guid>("Id")
@@ -784,6 +926,66 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("ReferenceType");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "Incoterm")
+                        .WithMany()
+                        .HasForeignKey("IncotermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ItemBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ItemBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "ShippingMode")
+                        .WithMany()
+                        .HasForeignKey("ShippingModeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Incoterm");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("ItemBaseUnit");
+
+                    b.Navigation("ShippingMode");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingPrice", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", "SourcingOption")
+                        .WithMany("Prices")
+                        .HasForeignKey("SourcingOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("SourcingOption");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "Country")
@@ -829,6 +1031,11 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("PaymentTerm");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>
+                {
+                    b.Navigation("Prices");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", b =>
