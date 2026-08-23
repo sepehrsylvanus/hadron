@@ -20,9 +20,11 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
             modelBuilder.HasSequence("product_number_seq", "catalog");
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            modelBuilder.HasSequence("supplier_number_seq", "procurement");
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
                 {
@@ -437,18 +439,237 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.InternalPerson", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("DisplayNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DisplayNameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive", "DisplayNameFa");
+
+                    b.ToTable("internal_people", "organization", t =>
+                        {
+                            t.HasCheckConstraint("ck_internal_people_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CountryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("ExpertLeadTimeScore")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ExpertQualityScore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("NormalizedName");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("SupplierNumber")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "Name");
+
+                    b.ToTable("suppliers", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_suppliers_lead_score", "\"ExpertLeadTimeScore\" IS NULL OR \"ExpertLeadTimeScore\" BETWEEN 1 AND 10");
+
+                            t.HasCheckConstraint("ck_suppliers_quality_score", "\"ExpertQualityScore\" IS NULL OR \"ExpertQualityScore\" BETWEEN 1 AND 10");
+
+                            t.HasCheckConstraint("ck_suppliers_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.SupplierContact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Mobile")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_supplier_contacts_active_primary")
+                        .HasFilter("\"IsActive\" AND \"IsPrimary\"");
+
+                    b.ToTable("supplier_contacts", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_supplier_contacts_primary_active", "NOT \"IsPrimary\" OR \"IsActive\"");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.SupplierPaymentProfile", b =>
+                {
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AdvancePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("BeforeShipmentPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("CreditAnchor")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("CreditDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("CreditPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<Guid?>("PaymentTermId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("SupplierId");
+
+                    b.HasIndex("PaymentTermId");
+
+                    b.ToTable("supplier_payment_profiles", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_supplier_credit", "(\"CreditPercent\" = 0 AND \"CreditDays\" IS NULL AND \"CreditAnchor\" IS NULL) OR (\"CreditPercent\" > 0 AND \"CreditDays\" > 0 AND \"CreditAnchor\" IN ('ORDERED','SHIPPED','WAREHOUSE_RECEIPT'))");
+
+                            t.HasCheckConstraint("ck_supplier_payment_percentages", "\"AdvancePercent\" BETWEEN 0 AND 100 AND \"BeforeShipmentPercent\" BETWEEN 0 AND 100 AND \"CreditPercent\" BETWEEN 0 AND 100");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
                 {
-                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", null)
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "BaseUnit")
                         .WithMany()
                         .HasForeignKey("BaseUnitId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("BaseUnit");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
                 {
-                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", null)
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "BusinessUnit")
                         .WithMany()
                         .HasForeignKey("BusinessUnitId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -459,13 +680,17 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", null)
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "ProductCategory")
                         .WithMany()
                         .HasForeignKey("ProductCategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("BusinessUnit");
+
                     b.Navigation("Item");
+
+                    b.Navigation("ProductCategory");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", b =>
@@ -477,6 +702,61 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ReferenceType");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.InternalPerson", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Country");
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.SupplierContact", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", "Supplier")
+                        .WithMany("Contacts")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.SupplierPaymentProfile", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "PaymentTerm")
+                        .WithMany()
+                        .HasForeignKey("PaymentTermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", "Supplier")
+                        .WithOne("PaymentProfile")
+                        .HasForeignKey("Hadron.Erp.Api.Modules.Suppliers.Domain.SupplierPaymentProfile", "SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PaymentTerm");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", b =>
+                {
+                    b.Navigation("Contacts");
+
+                    b.Navigation("PaymentProfile")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

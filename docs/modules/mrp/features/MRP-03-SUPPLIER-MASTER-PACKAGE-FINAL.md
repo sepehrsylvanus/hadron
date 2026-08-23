@@ -132,7 +132,15 @@ The Contact model in this Package must be lightweight and limited to Supplier ne
 
 MRP-03 must NOT build a full CRM or Party Management platform.
 
-Exact minimal Contact fields are proposed during Codex Analysis and must be approved before implementation.
+The approved minimal Contact fields are:
+
+- `FullName` required
+- `JobTitle` optional
+- `Email` optional
+- `Phone` optional
+- `Mobile` optional
+
+No contact method is required. A Supplier may have zero or many Contacts.
 
 The design must remain future-compatible with a broader Contact / Party module.
 
@@ -149,6 +157,9 @@ Rules:
 - only one active Primary Contact per Supplier
 - changing Primary Contact must not delete historical Contacts
 - inactive Contact cannot remain Primary
+- deactivating a Primary Contact clears `IsPrimary`
+- a partial unique database index enforces at most one active Primary Contact per Supplier
+- Contacts are never hard-deleted
 
 ---
 
@@ -164,14 +175,14 @@ Approved direction:
 
 `Option B`
 
-Use a lightweight Internal Person / Owner model or existing platform Person/User model if already available.
+Use the lightweight `organization.internal_people` Owner master.
 
 Rules:
 
 - required for Active Supplier
 - optional while Supplier is inactive if implementation needs to support incomplete preparation
-- must remain future-compatible with ERP User / Employee / Organization
-- do not build HR or full Identity in this Package
+- independently managed through a minimal API/UI because Supplier Owner requires a real source of truth
+- do not build HR, Employee, Department, payroll or Identity in this Package
 
 ---
 
@@ -278,13 +289,7 @@ If:
 Credit % = 0
 ```
 
-then Credit Days must be:
-
-- null
-or
-- 0
-
-according to the approved implementation convention.
+then Credit Days and Credit Anchor Event are canonicalized to `null`.
 
 The system must not allow contradictory combinations.
 
@@ -298,7 +303,7 @@ SHIPPED
 WAREHOUSE_RECEIPT
 ```
 
-If `Credit % > 0`, `Credit Days > 0` and Credit Anchor Event are both required. If `Credit % = 0`, Credit Anchor Event may be null. Future PO snapshots preserve this value; later Supplier-default changes must not rewrite history.
+If `Credit % > 0`, `Credit Days > 0` and Credit Anchor Event are both required. If `Credit % = 0`, Credit Days and Credit Anchor Event must be normalized to `null`. Future PO snapshots preserve this value; later Supplier-default changes must not rewrite history.
 
 `WAREHOUSE_RECEIPT` is an approved anchor event and uses the operational `Final Receipt Date` owned by MRP-13. First Receipt and Cancellation Date are not financial anchors; MRP-03 owns only the default event code and does not derive Receipt facts.
 
@@ -388,6 +393,8 @@ Supplier lifecycle:
 
 Rules:
 
+- creation always produces an Inactive Supplier
+- creation requires an active Country
 - baseline lifecycle uses deactivate/reactivate
 - Supplier used historically must not be hard deleted
 - inactive Supplier is excluded by default from new Sourcing/PO selections
@@ -401,10 +408,10 @@ Rules:
 At minimum an Active Supplier must have:
 
 - Supplier Name
-- Country
-- Hadron Owner
-- valid Default Payment Term
-- valid Payment Percentages totaling 100%
+- active Country
+- active Internal Person Hadron Owner
+- active Default Payment Term
+- valid Payment Percentages totaling exactly 100.00%
 - valid Credit Days rule
 
 Contact is not mandatory for activation unless later approved.
@@ -557,17 +564,18 @@ For historical data:
 
 ## 25. Person / Owner Integration
 
-MRP-03 must follow the Option B decision from MRP-01.
+MRP-03 follows the Option B decision from MRP-01 by owning the lightweight `organization.internal_people` boundary required for Supplier Owner selection.
 
-Codex must inspect the actual Repository before deciding whether to:
+`InternalPerson` contains:
 
-- reuse an existing Person/User structure
-or
-- create the minimum lightweight internal person boundary required
+- `Id : uuid`
+- `DisplayNameFa` required, maximum 200 characters
+- `DisplayNameEn` nullable, maximum 200 characters
+- `IsActive`
+- `Version : bigint`
+- `CreatedAtUtc` / `UpdatedAtUtc`
 
-It must not assume such infrastructure exists.
-
-It must not create a full HR or Identity platform.
+A minimal management API/UI is allowed. This boundary must not expand into HR, Employee, Department, payroll or Identity.
 
 ---
 
@@ -581,8 +589,9 @@ Requirements:
 - immutable
 - not user-overridable
 - gapless numbering not required
-
-Codex Analysis must propose the simplest robust PostgreSQL / EF Core-compatible mechanism, preferably consistent with Product Number generation if MRP-02 already established a reusable approved pattern.
+- generated from PostgreSQL sequence `procurement.supplier_number_seq`
+- formatted as `SUP-{value:D4}`
+- gaps are allowed; `MAX()+1` is prohibited
 
 ---
 
@@ -683,7 +692,7 @@ At minimum:
 - each payment percentage between 0 and 100
 - active Supplier payment percentages total exactly 100
 - Credit Days > 0 if Credit % > 0
-- Credit Days null/0 if Credit % = 0
+- Credit Days and Credit Anchor Event normalized to null if Credit % = 0
 - Expert Lead Time Score between 1 and 10 when supplied
 - Expert Quality Score between 1 and 10 when supplied
 - max one active Primary Contact per Supplier
@@ -695,7 +704,7 @@ At minimum:
 
 ## 33. Precision
 
-Payment percentages must use decimal/numeric.
+Payment percentages must use `numeric(5,2)`.
 
 Do not use binary floating point for:
 
@@ -833,17 +842,21 @@ The following are locked for MRP-03:
 
 ## 39. Open Questions
 
-No Business-critical open question blocks MRP-03.
+No Business-critical or implementation-blocking question remains for MRP-03. The Owner-approved MRP-03A baseline closes the Contact fields, Internal Person ownership, Supplier Number sequence, aggregate concurrency and duplicate-name warning decisions.
 
-Codex Analysis may raise technical questions about:
+## 40. Final Owner-Approved MRP-03A Baseline
 
-- exact lightweight Contact fields
-- reuse vs creation of lightweight Person/Owner structure
-- Supplier Number sequence implementation
-- concurrency strategy for Primary Contact uniqueness
-- normalized duplicate-name warning
-
-but may not change the locked business decisions.
+1. `organization.internal_people` is the lightweight Owner source of truth. It has its own `Version : bigint` concurrency token and the exact fields defined in §25.
+2. Supplier creation always produces an Inactive Supplier. Country is required at creation and must be an active `COUNTRY`. Owner and Payment Term may be null, and the payment total may be incomplete, while Inactive.
+3. Activation and Reactivation require active Country, active Internal Person Owner, active `PAYMENT_TERM`, percentages totaling exactly `100.00`, and valid credit rules.
+4. Advance, Before Shipment and Credit percentages use `numeric(5,2)` and each must always be between `0.00` and `100.00`.
+5. `Credit > 0` requires `CreditDays > 0` and an anchor from `ORDERED`, `SHIPPED`, or `WAREHOUSE_RECEIPT`. `Credit = 0` canonicalizes both `CreditDays` and the anchor to `null`. MRP-03 stores no Receipt dates.
+6. Supplier Number is server-generated from `procurement.supplier_number_seq`, formatted `SUP-{value:D4}`, immutable and unique. Gaps are allowed and `MAX()+1` is prohibited.
+7. Duplicate Supplier Name is warning-only and has no database uniqueness constraint.
+8. A Supplier may have zero or many Contacts. `FullName` is required; `JobTitle`, `Email`, `Phone`, and `Mobile` are optional. No contact method is mandatory.
+9. At most one active Primary Contact is enforced by a partial unique database index. An inactive Contact cannot be Primary; deactivation clears `IsPrimary`; Contacts have no hard delete.
+10. Supplier, Default Payment Profile and Contact lifecycle mutations all require `ExpectedVersion` and use the single `Supplier.Version : bigint` aggregate concurrency token. Successful mutations advance it; stale mutations return structured HTTP `409 Conflict` without a lost update.
+11. Reuse `IAuditEventSink` with the existing post-commit best-effort audit policy. Do not create Party, HR, Identity, Sourcing, PO or parallel Audit scope.
 
 ---
 
@@ -897,14 +910,13 @@ Required analysis:
 5. Supplier Name normalization and warning-level duplicate handling.
 6. Country integration from MRP-01.
 7. Lightweight Supplier Contact model:
-   - propose minimum useful fields
+   - use the finalized minimum fields
    - multiple Contacts
    - one active Primary Contact
    - no full CRM
 8. Hadron Owner:
    - Option B is locked
-   - inspect whether existing User/Person infrastructure can be reused
-   - otherwise propose minimum lightweight boundary
+   - use `organization.internal_people` as the approved lightweight boundary
    - no HR/full Identity
 9. Default Payment Profile model:
    - Payment Term
@@ -914,7 +926,7 @@ Required analysis:
    - Credit Days
    - Credit Anchor Event: ORDERED / SHIPPED / WAREHOUSE_RECEIPT
 10. Payment validation and activation rules.
-    Confirm Credit Anchor is required with Credit% > 0, may be null with Credit%=0, and WAREHOUSE_RECEIPT means operational Final Receipt Date without moving Receipt ownership into MRP-03.
+    Confirm Credit Anchor is required with Credit% > 0, Credit Days and Anchor are canonicalized to null with Credit%=0, and WAREHOUSE_RECEIPT means operational Final Receipt Date without moving Receipt ownership into MRP-03.
 11. Expert Lead Time Score and Expert Quality Score:
    - optional 1..10
    - explicitly separate from future system metrics
@@ -948,9 +960,9 @@ Testing proposal must cover at minimum:
 - payment percentages total exactly 100
 - invalid percentage rejected
 - Credit Days required if Credit > 0
-- Credit Days null/0 if Credit = 0
+- Credit Days null if Credit = 0
 - Credit Anchor required if Credit > 0
-- Credit Anchor may be null if Credit = 0
+- Credit Anchor null if Credit = 0
 - WAREHOUSE_RECEIPT uses operational Final Receipt Date; First Receipt and Cancellation Date are not anchors
 - score range 1..10
 - multiple Contacts
@@ -1026,6 +1038,9 @@ Supplier Number:
 - server-generated
 - not user-overridable
 - gapless not required
+- use PostgreSQL sequence `procurement.supplier_number_seq`
+- format `SUP-{value:D4}`
+- gaps allowed; never use `MAX()+1`
 
 SUPPLIER NAME
 - required
@@ -1033,27 +1048,38 @@ SUPPLIER NAME
 - implement only approved lightweight duplicate warning
 
 COUNTRY
-- required
+- required at Create
 - reuse MRP-01 Country
-- active Country required for new assignment
+- Country must be active at Create
 - historical inactive Country remains resolvable
 
 CONTACTS
 Implement the approved lightweight Supplier Contact model:
 - multiple Contacts per Supplier
+- zero Contacts allowed
+- FullName required
+- JobTitle/Email/Phone/Mobile optional
+- no contact method is mandatory
 - at most one active Primary Contact
+- enforce max one active Primary through a partial unique database index
 - Contact entity, not text list
-- Add/Edit/Deactivate
+- Add/Edit/Deactivate; no hard delete
 - set/change Primary
+- inactive Contact cannot be Primary
+- deactivating Primary clears IsPrimary
+- every Contact mutation requires ExpectedVersion and advances Supplier.Version
 
 Do not build CRM/full Party Management.
 
 HADRON OWNER
+- implement `organization.internal_people` as the lightweight Owner master
+- fields: Id uuid; DisplayNameFa required max 200; DisplayNameEn nullable max 200; IsActive; Version bigint; CreatedAtUtc/UpdatedAtUtc
+- provide only the minimal management API/UI needed to manage this source of truth
 - active Supplier requires Hadron Owner
-- follow Option B
-- reuse existing Person/User if approved and actually available
-- otherwise only minimal approved boundary
-- no HR/full Identity
+- Owner may be null while Supplier is Inactive
+- Owner must reference an active InternalPerson for Activation/Reactivation
+- InternalPerson mutations use its own ExpectedVersion/Version concurrency
+- no HR, Employee, Department, payroll or Identity
 
 DEFAULT PAYMENT PROFILE
 Implement:
@@ -1064,17 +1090,25 @@ Implement:
 - Credit Days
 - Credit Anchor Event: ORDERED / SHIPPED / WAREHOUSE_RECEIPT
 
-For Active Supplier:
-- Payment Term valid
-- each percentage 0..100
-- total = 100
+Always:
+- store percentages as numeric(5,2)
+- each percentage 0.00..100.00
+- Credit Days and Credit Anchor Event canonicalized to null when Credit % = 0
+
+While Supplier is Inactive:
+- Payment Term may be null
+- payment total may be incomplete
+
+For Activation/Reactivation:
+- Payment Term required and active
+- Country required and active
+- InternalPerson Owner required and active
+- total = exactly 100.00
 - Credit Days > 0 if Credit % > 0
-- Credit Days null/0 if Credit % = 0
 - Credit Anchor Event required if Credit % > 0
-- Credit Anchor Event may be null if Credit % = 0
 - WAREHOUSE_RECEIPT uses operational Final Receipt Date from MRP-13; do not create a Supplier-owned or manually editable receipt date
 
-Use decimal/numeric.
+MRP-03 owns no Receipt date.
 
 EXPERT SCORES
 Implement:
@@ -1093,7 +1127,7 @@ Supplier must be creatable without:
 
 LIFECYCLE
 Support:
-- create
+- create always as Inactive
 - edit
 - deactivate
 - reactivate
@@ -1146,25 +1180,50 @@ Reuse existing grid/form patterns.
 PERMISSIONS/AUDIT
 Reuse existing platform capabilities.
 Do not create parallel Identity or Audit systems.
+Reuse `IAuditEventSink` and its existing post-commit best-effort audit policy.
+
+CONCURRENCY
+- Supplier, Default Payment Profile and Contact lifecycle mutations use one Supplier.Version bigint aggregate token
+- every such mutation requires ExpectedVersion
+- successful mutation advances Supplier.Version
+- stale mutation returns structured HTTP 409 Conflict and must not silently overwrite data
+- InternalPerson uses its own Version bigint token
 
 TESTS
 At minimum:
 - Supplier Number unique
 - concurrent creation safe
+- exact `SUP-{sequence:D4}` formatting and sequence-based generation
+- gaps accepted and no `MAX()+1`
 - client cannot override Supplier Number
 - Supplier Name required
 - Supplier Name not hard-unique
+- duplicate Supplier Name produces warning only
 - Country required
+- Create always Inactive and rejects inactive/missing Country
+- Inactive Supplier permits null Owner, null Payment Term and incomplete payment total
 - active Supplier requires Owner
+- Activation/Reactivation rejects inactive Owner, Country or Payment Term
 - active Supplier requires valid Payment Term
 - percentages each 0..100
-- active payment total = 100
-- Credit Days rules
+- percentages persisted as numeric(5,2)
+- Activation/Reactivation payment total = exactly 100.00
+- Credit > 0 requires CreditDays > 0 and valid anchor
+- Credit = 0 canonicalizes CreditDays and anchor to null
+- only ORDERED/SHIPPED/WAREHOUSE_RECEIPT anchors accepted
+- MRP-03 stores no Receipt dates
 - Expert scores 1..10
+- zero Contacts supported
 - multiple Contacts supported
+- FullName required and optional contact methods accepted
 - max one active Primary Contact
+- database partial unique index prevents concurrent active Primary duplicates
 - Primary Contact belongs to Supplier
 - inactive Contact cannot remain Primary
+- deactivating Primary clears IsPrimary
+- no Contact hard delete
+- Supplier/Profile/Contact mutations require ExpectedVersion, advance Supplier.Version and return structured 409 when stale
+- InternalPerson lifecycle and its own Version concurrency
 - Supplier without Item
 - Active/Inactive lifecycle
 - inactive historical references resolve
@@ -1258,7 +1317,7 @@ Do not auto-fix.
 Audit:
 
 1. Scope
-   Confirm no premature Sourcing, PO, Cash Flow, CRM, HR, full Party, system-performance analytics.
+   Confirm no premature Sourcing, PO, Cash Flow, CRM, HR, Employee, Department, payroll, Identity, full Party, system-performance analytics or parallel Audit system.
 
 2. Identity
    - Internal ID system-controlled
@@ -1267,29 +1326,42 @@ Audit:
    - immutable
    - concurrency-safe
    - not client-overridable
+   - generated only from `procurement.supplier_number_seq`
+   - formatted `SUP-{value:D4}` with allowed gaps and no `MAX()+1`
 
 3. Supplier Name
    - required
    - not incorrectly hard-unique
-   - warning behavior matches approved design
+   - duplicate name is warning-only
 
 4. Country
    - MRP-01 reused
-   - required
+   - required and active at Create
    - active/inactive reference behavior correct
 
 5. Contacts
+   - zero or many contacts
    - multiple contacts
+   - FullName required
+   - JobTitle/Email/Phone/Mobile optional and no contact method required
    - Contact is Entity, not Text List
    - max one active Primary
+   - partial unique database index enforces max one active Primary
    - Primary belongs to Supplier
    - inactive Contact not Primary
+   - deactivating Primary clears IsPrimary
+   - no hard delete
+   - Contact mutations use ExpectedVersion and Supplier.Version
    - no unnecessary CRM architecture
 
 6. Hadron Owner
-   - Option B respected
-   - required for Active Supplier
-   - no parallel HR/Identity platform
+   - `organization.internal_people` is the real lightweight Owner source
+   - exact Id/DisplayNameFa/DisplayNameEn/IsActive/Version/timestamp model
+   - DisplayNameFa max 200 required; DisplayNameEn max 200 nullable
+   - minimal management API/UI only
+   - Owner optional while Inactive and active Owner required for Activation/Reactivation
+   - InternalPerson uses its own Version bigint stale-write protection
+   - no parallel HR/Employee/Department/payroll/Identity platform
 
 7. Payment Profile
    Verify:
@@ -1299,10 +1371,13 @@ Audit:
    - Credit %
    - Credit Days
    - Credit Anchor Event codes
-   - percentage ranges
-   - total 100 for Active Supplier
-   - Credit Days rules
-   - Credit Anchor conditional validation
+   - percentages use numeric(5,2) and each is always 0.00..100.00
+   - Payment Term may be null and payment total incomplete while Inactive
+   - Activation/Reactivation require active Payment Term and exact total 100.00
+   - Credit > 0 requires CreditDays > 0 and a valid anchor
+   - Credit = 0 canonicalizes CreditDays and anchor to null
+   - anchors are limited to ORDERED / SHIPPED / WAREHOUSE_RECEIPT
+   - MRP-03 stores no Receipt dates
    - WAREHOUSE_RECEIPT resolves only from operational Final Receipt Date; First Receipt is never the financial anchor
    - decimal/numeric precision
 
@@ -1315,7 +1390,8 @@ Audit:
    - no Item/Sourcing required for Supplier creation
 
 10. Lifecycle
-   - Active/Inactive
+   - Create always produces Inactive
+   - Activation/Reactivation require active Country, active InternalPerson Owner, active PAYMENT_TERM, exact payment total and valid credit rules
    - no destructive historical deletion
    - historical resolution
 
@@ -1337,7 +1413,10 @@ Audit:
    - constraints
    - indexes
    - foreign keys
-   - Primary Contact concurrency/integrity
+   - exact numeric(5,2) payment columns
+   - partial unique active-Primary Contact index
+   - Supplier/Profile/Contact share one Supplier.Version bigint aggregate concurrency token
+   - every aggregate mutation requires ExpectedVersion, advances Version on success and returns structured 409 when stale
    - migration safety
 
 13. API
@@ -1357,6 +1436,9 @@ Audit:
    - no unrelated expansion
 
 15. Permissions / Auditability
+   - existing `IAuditEventSink` reused
+   - audit remains post-commit best-effort
+   - no parallel audit platform
 
 16. Performance
    - N+1
@@ -1367,9 +1449,13 @@ Audit:
 17. Tests
    Verify meaningful assertions for all required cases, especially:
    - concurrent Supplier Number generation
-   - payment total validation
-   - Credit Days
-   - Primary Contact uniqueness
+   - Create always Inactive with required active Country
+   - inactive incomplete Owner/PaymentTerm/payment-total rules
+   - Activation/Reactivation completeness and active-reference rules
+   - numeric(5,2), exact payment total and Credit canonicalization
+   - zero/multiple Contacts and optional contact methods
+   - Primary Contact partial-index uniqueness and deactivation behavior
+   - Supplier aggregate and InternalPerson concurrency conflicts
 
 18. Specification Drift
    Compare:

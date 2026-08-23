@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import hadronLogo from './assets/brand/hadron-logo-red.svg'
 import ProductMaster from './ProductMaster'
+import SupplierMaster from './SupplierMaster'
 
 type ReferenceType = { id: string; code: string; nameFa: string; nameEn: string }
 type ReferenceItem = {
@@ -165,8 +166,8 @@ async function problemMessage(response: Response) {
 }
 
 function App() {
-  const [page, setPage] = useState<'products' | 'reference'>('products')
-  return <><nav className="main-nav" dir="rtl"><button className={page === 'products' ? 'active' : ''} onClick={() => setPage('products')}>محصولات</button><button className={page === 'reference' ? 'active' : ''} onClick={() => setPage('reference')}>داده‌های مرجع</button></nav>{page === 'products' ? <ProductMaster /> : <ReferenceDataPage />}</>
+  const [page, setPage] = useState<'products' | 'suppliers' | 'reference'>('products')
+  return <><nav className="main-nav" dir="rtl"><button className={page === 'products' ? 'active' : ''} onClick={() => setPage('products')}>محصولات</button><button className={page === 'suppliers' ? 'active' : ''} onClick={() => setPage('suppliers')}>تأمین‌کنندگان</button><button className={page === 'reference' ? 'active' : ''} onClick={() => setPage('reference')}>داده‌های مرجع</button></nav>{page === 'products' ? <ProductMaster /> : page === 'suppliers' ? <SupplierMaster /> : <ReferenceDataPage />}</>
 }
 
 export default App

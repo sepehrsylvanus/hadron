@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Hadron.Erp.IntegrationTests;
@@ -49,6 +50,7 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -115,9 +117,15 @@ public sealed class RecordingAuditEventSink : IAuditEventSink
 {
     private readonly List<AuditEvent> _events = [];
     private readonly object _gate = new();
+    public bool ThrowOnWrite { get; set; }
 
     public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
     {
+        if (ThrowOnWrite)
+        {
+            throw new InvalidOperationException("Simulated audit sink failure.");
+        }
+
         lock (_gate) _events.Add(auditEvent);
         return Task.CompletedTask;
     }
@@ -130,5 +138,6 @@ public sealed class RecordingAuditEventSink : IAuditEventSink
     public void Clear()
     {
         lock (_gate) _events.Clear();
+        ThrowOnWrite = false;
     }
 }
