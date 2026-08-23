@@ -50,6 +50,15 @@ MRP-04 باید Unified Item architecture را تا حدی تکمیل کند ک�
 
 این Feature نباید Unified Item را تبدیل به EAV یا Generic Entity Framework پیچیده کند.
 
+### OWNER-APPROVED MRP-04A IMPLEMENTATION BASELINE
+
+- existing `catalog.items` remains the shared Product / Part / Component root
+- Part and Component share `catalog.material_item_profiles`; separate duplicate profile tables are not created
+- shared Item ownership may move from the Product namespace to a Catalog namespace without changing Product schema or behavior
+- `Item.Version : bigint` is the single aggregate concurrency token
+- Part and Component numbering uses separate PostgreSQL sequences
+- no BOM, Sourcing, Inventory, File Storage or manually maintained Readiness behavior is implemented
+
 ---
 
 ## 3. Item Type Definitions
@@ -190,6 +199,10 @@ Rules for Part and Component:
 - Name is not Business Key
 - Name is not hard-unique
 - duplicate obvious names may warn but do not block save
+- duplicate-name warning comparison is scoped by `ItemType`: Part only against Part, Component only against Component
+- update warning queries exclude the current Item
+- null/empty `Name EN` is ignored by duplicate warning logic
+- no database uniqueness constraint exists for `Name FA` or `Name EN`
 
 ---
 
@@ -379,7 +392,7 @@ MRP-04 نباید Gross Weight را به‌عنوان intrinsic Item Master fiel
 
 ## 14. Image
 
-Image is optional.
+Image remains a future optional capability. MRP-04 does not persist an Image/File field.
 
 ### LOCKED DIRECTION
 
@@ -394,8 +407,9 @@ If file storage is not yet available:
 - Image feature must not block Part/Component creation
 - Codex must not invent a new storage platform solely for MRP-04
 - architecture should preserve future file-reference compatibility
+- no external URL, dangling File ID, binary content or persisted File field is introduced by MRP-04
 
-External URL may only be used as a temporary compatibility mechanism if explicitly approved by existing architecture.
+No external URL compatibility mechanism is approved for MRP-04.
 
 ---
 
@@ -616,7 +630,7 @@ Notes:
 | Base Unit | Required |
 | Supply Method | Required |
 | Net Weight kg | Optional / >= 0 |
-| Image/File Reference | Optional |
+| Image/File Reference | Deferred; no MRP-04 File field/platform |
 | Default Planning Scrap % | 0..100 |
 | Safety Stock Qty | >= 0 |
 | Critical Days | >= 0 |
@@ -642,7 +656,7 @@ Notes:
 | Base Unit | Required |
 | Supply Method | Required |
 | Net Weight kg | Optional / >= 0 |
-| Image/File Reference | Optional |
+| Image/File Reference | Deferred; no MRP-04 File field/platform |
 | Default Planning Scrap % | 0..100 |
 | Safety Stock Qty | >= 0 |
 | Critical Days | >= 0 |
@@ -667,7 +681,31 @@ If Product Code values from MRP-02 already exist, MRP-04 must inspect actual imp
 
 Do not silently break existing Product data.
 
-If the MRP-02 implementation used Product-specific uniqueness only, MRP-04 Analysis must report the migration impact before implementation.
+Actual MRP-02 already enforces normalized Code uniqueness on shared `catalog.items`. MRP-04 changes Part/Component Code nullability while preserving Product integrity as specified below.
+
+### OWNER-APPROVED DATABASE INTEGRITY
+
+`PRODUCT` must always satisfy:
+
+```text
+Code IS NOT NULL
+NormalizedCode IS NOT NULL
+```
+
+`PART` and `COMPONENT` may store null Code. For every Item Type:
+
+```text
+Code IS NULL iff NormalizedCode IS NULL
+```
+
+Global uniqueness is enforced by a filtered unique index:
+
+```text
+UNIQUE (NormalizedCode)
+WHERE NormalizedCode IS NOT NULL
+```
+
+The MRP-04 migration must preserve every existing Product Code and must not weaken Product required-Code database integrity. Product application validation also remains required.
 
 ---
 
@@ -690,6 +728,13 @@ Each numbering strategy must be:
 - non-user-overridable
 
 Exact sequence implementation should reuse approved MRP-02 pattern where appropriate.
+
+Approved sequence names:
+
+```text
+catalog.part_number_seq
+catalog.component_number_seq
+```
 
 Gapless numbering is not required.
 
@@ -904,11 +949,11 @@ MRP-04 must not offer simple UI Type switching.
 
 ## 37. Precision
 
-Use decimal/numeric for:
+Approved storage precision:
 
-- Net Weight
-- Scrap %
-- Safety Stock Qty
+- Net Weight: `numeric(18,6)`, nullable, value `>= 0`
+- Safety Stock Qty: `numeric(18,6)`, value `>= 0`
+- Default Planning Scrap %: `numeric(5,2)`, value between `0` and `100`
 
 Do not use binary floating point.
 
@@ -945,8 +990,9 @@ If existing file storage exists:
 If not:
 
 - do not implement MinIO/S3 solely for this Feature unless already approved in foundation
-- keep image optional
+- defer Image/File persistence
 - preserve a future File Reference integration point
+- do not persist an external URL, dangling UUID, file bytes or a placeholder File field in MRP-04
 
 Image handling must not block core Master Data.
 
@@ -1016,7 +1062,7 @@ MRP-04 is acceptable when:
 9. Supply Method machine meaning is system-controlled.
 10. Net Weight remains intrinsic Master Data.
 11. Gross Weight is not stored in Part/Component Master.
-12. Image is optional and does not force new storage infrastructure.
+12. Image/File persistence is deferred and no storage infrastructure or placeholder File field is created.
 13. Default Scrap % validates 0..100.
 14. Part/Component have independent Planning Policy.
 15. Product thresholds are not reused.
@@ -1052,7 +1098,7 @@ MRP-04 is acceptable when:
 14. Multi-Level Components are allowed.
 15. Net Weight remains in Master.
 16. Gross Weight removed from Master.
-17. Image optional with future File Reference direction.
+17. Image/File persistence deferred; MRP-04 creates no File field/platform and preserves future File Reference direction.
 18. Default Planning Scrap % in Master.
 19. BOM Line may later override Scrap where approved.
 20. Part/Component Planning Policy independent from Product.
@@ -1077,15 +1123,17 @@ The prior `Supply Method` open question is now CLOSED with:
 Buy / Make / Outsource / Hybrid
 ```
 
-Codex Analysis may raise technical questions about:
+MRP-04A raised and resolved the following technical questions:
 
-- exact Unified Item table strategy
-- safe migration to global Item Code uniqueness
-- numbering sequence reuse
-- file reference integration
-- concurrency constraints
+- exact Unified Item table strategy → existing `catalog.items` + `catalog.material_item_profiles`
+- safe migration to global Item Code uniqueness → nullable Code pair plus filtered unique NormalizedCode index while Product remains non-null
+- numbering sequence reuse → separate `catalog.part_number_seq` and `catalog.component_number_seq`
+- file reference integration → deferred; no File field/platform in MRP-04
+- concurrency constraints → one `Item.Version : bigint`
 
-but may not change locked Business decisions.
+These resolutions may not change locked Business decisions.
+
+MRP-04A technical questions listed above are CLOSED by the Owner-approved baseline in this Package. No Business-critical open question blocks MRP-04B.
 
 ---
 
@@ -1252,8 +1300,10 @@ Implement only the approved MRP-04 design.
 If MRP-04A contains unresolved material contradictions, STOP.
 
 UNIFIED ITEM
-- extend/complete only the approved Unified Item foundation
+- retain existing `catalog.items` as the shared root and extend only the approved Unified Item foundation
 - support Product / Part / Component
+- use one `catalog.material_item_profiles` table for both PART and COMPONENT profiles
+- shared Item ownership may move to a Catalog namespace only without unintended Product schema, API or behavior changes
 - do not create EAV architecture
 - do not implement BOM/Sourcing behavior
 
@@ -1275,11 +1325,21 @@ Numbers:
 - gapless not required
 
 ITEM CODE
-- optional
+- optional for PART/COMPONENT; required for PRODUCT remains unchanged
 - normalized
 - globally unique across Product/Part/Component if present
 - implement approved migration strategy from MRP-04A if existing Product data/constraints need adjustment
 - do not silently break Product data
+- database checks must enforce Product `Code IS NOT NULL` and `NormalizedCode IS NOT NULL`
+- for every Item Type enforce `Code IS NULL iff NormalizedCode IS NULL`
+- enforce global uniqueness with `UNIQUE (NormalizedCode) WHERE NormalizedCode IS NOT NULL`
+- preserve all existing Product Code data and Product required-Code database integrity
+
+DUPLICATE NAMES
+- warning only; no Name FA/EN database uniqueness
+- PART compares only against PART and COMPONENT only against COMPONENT
+- exclude the current Item on update
+- ignore null/empty Name EN
 
 FIELDS
 Implement approved Part/Component fields:
@@ -1289,7 +1349,7 @@ Implement approved Part/Component fields:
 - Base Unit
 - Supply Method
 - Net Weight kg
-- optional approved Image/File Reference boundary
+- no persisted Image/File field in MRP-04; preserve only future File Reference compatibility
 - Default Planning Scrap %
 - Safety Stock Qty
 - Critical Days
@@ -1316,6 +1376,10 @@ Validate:
 - Excess >= Safe
 
 Do not reuse Product thresholds.
+
+PRECISION
+- Net Weight kg and Safety Stock Qty use `numeric(18,6)`
+- Default Planning Scrap % uses `numeric(5,2)`
 
 SCRAP
 - default Scrap 0..100
@@ -1345,6 +1409,12 @@ LIFECYCLE
 - reactivate
 - no destructive historical deletion
 - no normal UI Item Type switching
+
+CONCURRENCY
+- `Item.Version : bigint` is the single Part/Component aggregate token
+- Edit/Deactivate/Reactivate require `ExpectedVersion`
+- success advances Version; stale mutation returns structured `409 / STALE_VERSION`
+- failed mutation changes no state/version and emits no successful audit
 
 READINESS
 - do not create manual Ready field
@@ -1403,7 +1473,10 @@ At minimum:
 - generated numbers cannot be client overridden
 - global Item Code uniqueness
 - optional blank Item Code allowed
+- Product required-Code database constraints remain effective after migration
+- Code/NormalizedCode null-pair database constraint
 - FA required / EN optional
+- Part-only and Component-only duplicate-name warnings, self-exclusion and empty Name EN handling
 - correct Category per Item Type
 - Unit required
 - Supply Method valid
@@ -1419,6 +1492,8 @@ At minimum:
 - no Component→Part direct field
 - no manual Ready flag
 - Item Type immutable
+- exact `numeric(18,6)` quantity/weight and `numeric(5,2)` Scrap persistence
+- one Item.Version stale-write behavior
 
 VERIFICATION
 Run applicable:
@@ -1521,6 +1596,9 @@ Audit:
 
 2. Unified Item
    - clean Product/Part/Component support
+   - existing `catalog.items` remains the shared root
+   - one `catalog.material_item_profiles` table supports PART/COMPONENT without duplicate profiles
+   - any Item ownership move to Catalog preserves Product schema, API and behavior
    - no EAV
    - no unnecessary generic architecture
    - Product compatibility preserved
@@ -1532,19 +1610,29 @@ Audit:
    - gapless not assumed
 
 4. Item Code
-   - optional
+   - optional for PART/COMPONENT and still required for PRODUCT
    - normalized
    - globally unique across Product/Part/Component
+   - Product database checks require non-null Code and NormalizedCode
+   - all Item Types enforce `Code IS NULL iff NormalizedCode IS NULL`
+   - filtered unique index is `UNIQUE (NormalizedCode) WHERE NormalizedCode IS NOT NULL`
    - migration from Product constraints/data safe
+   - existing Product Code data and required-Code integrity are preserved
    - Code not technical PK
 
-5. Type Semantics
+5. Duplicate Names
+   - warning only with no Name FA/EN database uniqueness
+   - PART compares only with PART and COMPONENT only with COMPONENT
+   - update excludes the current Item
+   - null/empty Name EN creates no warning
+
+6. Type Semantics
    - Part = direct Final Assembly item
    - Component = lower-level input
    - multi-level Components not blocked
    - no direct BOM relationships in Master
 
-6. Fields
+7. Fields
    - FA required
    - EN optional
    - Category correct per Type
@@ -1556,18 +1644,18 @@ Audit:
    - Planning Policy correct
    - Notes not machine logic
 
-7. Supply Method
+8. Supply Method
    - BUY / MAKE / OUTSOURCE / HYBRID
    - stable system meaning
    - no user-redefinable machine semantics
    - no fake routing logic added
 
-8. Planning Policy
+9. Planning Policy
    - independent from Product
    - Safety Stock >= 0
    - Critical <= Safe <= Excess
 
-9. Sourcing Boundary
+10. Sourcing Boundary
    Confirm Master does NOT contain:
    - Supplier
    - Price
@@ -1581,45 +1669,46 @@ Audit:
    - Customs Days
    - Preferred Supplier
 
-10. Inventory Boundary
+11. Inventory Boundary
     - no Initial Inventory field
     - no inventory transactions
 
-11. BOM Boundary
+12. BOM Boundary
     - no direct Component→Output Part field
     - no BOM lines
     - no BOM engine
 
-12. Readiness
+13. Readiness
     - no manual Ready flag
     - incomplete Item creation allowed
 
-13. Item Type
+14. Item Type
     - immutable in normal workflow
     - no casual Product↔Part↔Component conversion
 
-14. Image/File
-    - no new storage platform unless already approved
-    - image optional
+15. Image/File
+    - no new storage platform, external URL, dangling UUID, file bytes or placeholder File field
+    - File persistence is deferred while future File Reference compatibility is preserved
 
-15. Reference Data
+16. Reference Data
     - MRP-01 reused
     - no duplicates
     - inactive assignment/history rules correct
 
-16. Database Integrity
+17. Database Integrity
     - constraints
     - indexes
     - global Code uniqueness
     - migration safety
-    - numeric precision
+    - Net Weight/Safety Stock `numeric(18,6)` and Scrap `numeric(5,2)`
+    - one `Item.Version : bigint` aggregate concurrency token
 
-17. API
+18. API
     - safe use-case boundaries
     - server validation
     - no unrestricted dangerous CRUD
 
-18. UI
+19. UI
     - Brand Rules
     - RTL
     - Part/Component lists
@@ -1627,22 +1716,25 @@ Audit:
     - create/edit/deactivate/reactivate
     - no Sourcing/BOM/Inventory leakage
 
-19. Permissions/Auditability
+20. Permissions/Auditability
 
-20. Performance
+21. Performance
     - N+1
     - over-fetching
     - unnecessary polymorphic complexity
     - premature caching/infrastructure
 
-21. Tests
+22. Tests
     Verify meaningful assertions, especially:
     - concurrent numbering
     - global Item Code uniqueness
+    - Product required-Code and Code/NormalizedCode null-pair database integrity
+    - ItemType-scoped duplicate warnings, self-exclusion and empty Name EN handling
+    - Version advancement and stale Edit/lifecycle conflict
     - Item Type immutability
     - no Master leakage from future packages
 
-22. Specification Drift
+23. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -1699,7 +1791,7 @@ STOP.
 8. Part vs Component business role locked.
 9. Net Weight retained.
 10. Gross Weight removed from Master.
-11. Image optional with File Reference direction.
+11. Image/File persistence deferred with future File Reference direction; no File field/platform in MRP-04.
 12. Default Scrap % retained.
 13. Independent Material Planning Policy.
 14. Sourcing-specific data removed from Master.
@@ -1748,7 +1840,7 @@ This must be reflected in `DECISIONS.md` and removed/closed in `OPEN-QUESTIONS.m
 - Item Type switching disabled in normal UI.
 - Supply Method made a stable system-controlled classification.
 - Planning Readiness remains Derived.
-- Image support cannot force premature storage infrastructure.
+- Image/File persistence is deferred and cannot force premature storage infrastructure or a placeholder field.
 - Multi-level Components remain supported by future BOM architecture.
 
 ## Prompt Audit
