@@ -66,6 +66,9 @@ td { font-size: .88rem; }
 .cell-sub { display: block; margin-top: 4px; color: var(--text-secondary); direction: ltr; }
 .product-dialog textarea { min-height: 80px; padding: 8px; font: inherit; }
 .pager { display: flex; justify-content: center; gap: 16px; align-items: center; padding: 14px; }
+.item-picker { display: grid; gap: 10px; min-width: 280px; margin: 0; padding: 12px; border: 1px solid var(--border-default); }
+.item-picker legend { padding: 0 6px; color: var(--text-secondary); font-size: .82rem; }
+.item-picker .pager { padding: 4px 0 0; font-size: .8rem; }
 .dialog-actions { display: flex; gap: 10px; margin-top: 6px; }
 @media (max-width: 850px) { .toolbar { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .app-shell { padding: 18px; } .app-header { align-items: flex-start; } .brand-logo { width: 88px; } .toolbar { grid-template-columns: 1fr; } .panel-title { align-items: flex-start; } }

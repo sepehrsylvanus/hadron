@@ -4,6 +4,7 @@ import ProductMaster from './ProductMaster'
 import SupplierMaster from './SupplierMaster'
 import MaterialItemMaster from './MaterialItemMaster'
 import SourcingMaster from './SourcingMaster'
+import BomMaster from './BomMaster'
 
 type ReferenceType = { id: string; code: string; nameFa: string; nameEn: string }
 type ReferenceItem = {
@@ -168,8 +169,8 @@ async function problemMessage(response: Response) {
 }
 
 function App() {
-  const [page, setPage] = useState<'products' | 'parts' | 'components' | 'suppliers' | 'sourcing' | 'reference'>('products')
-  return <><nav className="main-nav" dir="rtl"><button className={page === 'products' ? 'active' : ''} onClick={() => setPage('products')}>محصولات</button><button className={page === 'parts' ? 'active' : ''} onClick={() => setPage('parts')}>قطعات</button><button className={page === 'components' ? 'active' : ''} onClick={() => setPage('components')}>کامپوننت‌ها</button><button className={page === 'suppliers' ? 'active' : ''} onClick={() => setPage('suppliers')}>تأمین‌کنندگان</button><button className={page === 'sourcing' ? 'active' : ''} onClick={() => setPage('sourcing')}>تأمین‌یابی</button><button className={page === 'reference' ? 'active' : ''} onClick={() => setPage('reference')}>داده‌های مرجع</button></nav>{page === 'products' ? <ProductMaster /> : page === 'parts' ? <MaterialItemMaster itemType="PART" /> : page === 'components' ? <MaterialItemMaster itemType="COMPONENT" /> : page === 'suppliers' ? <SupplierMaster /> : page === 'sourcing' ? <SourcingMaster /> : <ReferenceDataPage />}</>
+  const [page, setPage] = useState<'products' | 'parts' | 'components' | 'suppliers' | 'sourcing' | 'bom' | 'reference'>('products')
+  return <><nav className="main-nav" dir="rtl"><button className={page === 'products' ? 'active' : ''} onClick={() => setPage('products')}>محصولات</button><button className={page === 'parts' ? 'active' : ''} onClick={() => setPage('parts')}>قطعات</button><button className={page === 'components' ? 'active' : ''} onClick={() => setPage('components')}>کامپوننت‌ها</button><button className={page === 'suppliers' ? 'active' : ''} onClick={() => setPage('suppliers')}>تأمین‌کنندگان</button><button className={page === 'sourcing' ? 'active' : ''} onClick={() => setPage('sourcing')}>تأمین‌یابی</button><button className={page === 'bom' ? 'active' : ''} onClick={() => setPage('bom')}>BOM</button><button className={page === 'reference' ? 'active' : ''} onClick={() => setPage('reference')}>داده‌های مرجع</button></nav>{page === 'products' ? <ProductMaster /> : page === 'parts' ? <MaterialItemMaster itemType="PART" /> : page === 'components' ? <MaterialItemMaster itemType="COMPONENT" /> : page === 'suppliers' ? <SupplierMaster /> : page === 'sourcing' ? <SourcingMaster /> : page === 'bom' ? <BomMaster /> : <ReferenceDataPage />}</>
 }
 
 export default App

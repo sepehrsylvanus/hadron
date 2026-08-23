@@ -22,6 +22,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("bom_revision_number_seq", "engineering");
+
             modelBuilder.HasSequence("component_number_seq", "catalog");
 
             modelBuilder.HasSequence("part_number_seq", "catalog");
@@ -31,6 +33,153 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
             modelBuilder.HasSequence("sourcing_option_number_seq", "procurement");
 
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BomRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChildBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChildItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<decimal?>("ScrapOverridePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<decimal>("UsageQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildBaseUnitId");
+
+                    b.HasIndex("ChildItemId");
+
+                    b.HasIndex("BomRevisionId", "ChildItemId")
+                        .IsUnique();
+
+                    b.ToTable("bom_lines", "engineering", t =>
+                        {
+                            t.HasCheckConstraint("ck_bom_lines_scrap", "\"ScrapOverridePercent\" IS NULL OR \"ScrapOverridePercent\" BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("ck_bom_lines_sort", "\"SortOrder\" >= 0");
+
+                            t.HasCheckConstraint("ck_bom_lines_usage", "\"UsageQty\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedByActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("BaseOutputQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid?>("CopiedFromRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly?>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("ObsoletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ObsoletedByActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ParentBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParentItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RevisionCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("RevisionNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CopiedFromRevisionId");
+
+                    b.HasIndex("ParentBaseUnitId");
+
+                    b.HasIndex("RevisionCode")
+                        .IsUnique();
+
+                    b.HasIndex("ParentItemId", "Status", "EffectiveFrom", "EffectiveTo");
+
+                    b.ToTable("bom_revisions", "engineering", t =>
+                        {
+                            t.HasCheckConstraint("ck_bom_revisions_base_output", "\"BaseOutputQty\" > 0");
+
+                            t.HasCheckConstraint("ck_bom_revisions_dates", "\"EffectiveTo\" IS NULL OR \"EffectiveFrom\" IS NULL OR \"EffectiveTo\" >= \"EffectiveFrom\"");
+
+                            t.HasCheckConstraint("ck_bom_revisions_released_from", "\"Status\" = 'DRAFT' OR \"EffectiveFrom\" IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_bom_revisions_status", "\"Status\" IN ('DRAFT','APPROVED','OBSOLETE')");
+
+                            t.HasCheckConstraint("ck_bom_revisions_version", "\"Version\" >= 1");
+                        });
+                });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
                 {
@@ -859,6 +1008,59 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", "BomRevision")
+                        .WithMany("Lines")
+                        .HasForeignKey("BomRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ChildBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ChildBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "ChildItem")
+                        .WithMany()
+                        .HasForeignKey("ChildItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BomRevision");
+
+                    b.Navigation("ChildBaseUnit");
+
+                    b.Navigation("ChildItem");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", "CopiedFromRevision")
+                        .WithMany()
+                        .HasForeignKey("CopiedFromRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ParentBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ParentBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "ParentItem")
+                        .WithMany()
+                        .HasForeignKey("ParentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CopiedFromRevision");
+
+                    b.Navigation("ParentBaseUnit");
+
+                    b.Navigation("ParentItem");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "BaseUnit")
@@ -1031,6 +1233,11 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("PaymentTerm");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>
