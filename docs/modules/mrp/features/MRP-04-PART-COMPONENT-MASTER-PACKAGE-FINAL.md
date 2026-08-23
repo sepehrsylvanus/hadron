@@ -108,7 +108,7 @@ Relationship بین این Levelها در BOM تعریف می‌شود، نه د
 - machine-oriented
 - not user-entered
 
-### Part Number
+### Part Official Item Code
 
 Example:
 
@@ -126,6 +126,8 @@ Rules:
 - concurrency-safe
 - not user-entered
 - gapless numbering is NOT required
+- shown read-only after creation
+- used for search, sort and display
 
 ---
 
@@ -140,7 +142,7 @@ Rules:
 - machine-oriented
 - not user-entered
 
-### Component Number
+### Component Official Item Code
 
 Example:
 
@@ -158,30 +160,24 @@ Rules:
 - concurrency-safe
 - not user-entered
 - gapless numbering is NOT required
+- shown read-only after creation
+- used for search, sort and display
 
 ---
 
-## 6. Part / Component Code
+## 6. Part / Component Official Item Code
 
-`Item Code` برای Part و Component:
+`Item.BusinessNumber` تنها Official Item Code برای Product، Part و Component است.
 
-- Optional
-- User-entered
-- If present, must be unique
-- Trimmed
-- Normalized
+- Part: `PRT-{sequence:D4}`
+- Component: `CMP-{sequence:D4}`
+- server-generated
+- globally unique
+- immutable
+- never user-entered
+- never editable
 
-### LOCKED DECISION
-
-Uniqueness باید در سطح Unified Item بررسی شود.
-
-یعنی اگر یک Code روی Product استفاده شده باشد، Part یا Component نباید همان Code را دوباره استفاده کند.
-
-Reason:
-
-Technical clarity across ERP.
-
-Code نباید Technical Primary Key باشد.
+`Item.Code` و `Item.NormalizedCode` هیچ معنای تجاری مستقلی ندارند و برای archival و removal deprecate شده‌اند. هیچ Code فعال دومی مجاز نیست.
 
 ---
 
@@ -622,8 +618,7 @@ Notes:
 | Field | Rule |
 |---|---|
 | Internal ID | System / immutable |
-| Part Number | Auto / unique / immutable |
-| Item Code | Optional / globally unique if present |
+| Official Item Code (`Item.BusinessNumber`) | PRT / auto / globally unique / immutable |
 | Name FA | Required |
 | Name EN | Optional |
 | Part Category | Required |
@@ -648,8 +643,7 @@ Notes:
 | Field | Rule |
 |---|---|
 | Internal ID | System / immutable |
-| Component Number | Auto / unique / immutable |
-| Item Code | Optional / globally unique if present |
+| Official Item Code (`Item.BusinessNumber`) | CMP / auto / globally unique / immutable |
 | Name FA | Required |
 | Name EN | Optional |
 | Component Category | Required |
@@ -669,49 +663,44 @@ Notes:
 
 ---
 
-## 26. Item Code Global Uniqueness
+## 26. Official Item Code Integrity and Legacy Archive
 
-Global Item Code uniqueness applies across:
+`Item.BusinessNumber` is globally unique across:
 
 - Product
 - Part
 - Component
 
-If Product Code values from MRP-02 already exist, MRP-04 must inspect actual implementation and propose safe migration/constraint strategy.
-
-Do not silently break existing Product data.
-
-Actual MRP-02 already enforces normalized Code uniqueness on shared `catalog.items`. MRP-04 changes Part/Component Code nullability while preserving Product integrity as specified below.
+Do not silently lose existing deprecated Code values.
 
 ### OWNER-APPROVED DATABASE INTEGRITY
 
-`PRODUCT` must always satisfy:
+The final active model must always satisfy:
 
 ```text
-Code IS NOT NULL
-NormalizedCode IS NOT NULL
+BusinessNumber IS NOT NULL
+BusinessNumber is globally unique
+BusinessNumber matches the ItemType prefix and sequence format
+BusinessNumber is immutable
 ```
 
-`PART` and `COMPONENT` may store null Code. For every Item Type:
+Before deprecated fields are dropped, every non-null historical value must be copied to:
 
 ```text
-Code IS NULL iff NormalizedCode IS NULL
+catalog.item_legacy_codes
+  ItemId
+  LegacyCode
+  LegacyNormalizedCode
+  ArchivedAtUtc
 ```
 
-Global uniqueness is enforced by a filtered unique index:
-
-```text
-UNIQUE (NormalizedCode)
-WHERE NormalizedCode IS NOT NULL
-```
-
-The MRP-04 migration must preserve every existing Product Code and must not weaken Product required-Code database integrity. Product application validation also remains required.
+The archive is migration/history-only. It has no normal UI, business logic, search identity or duplicate current code meaning. After archival, `Item.Code` and `Item.NormalizedCode` are removed from the active model. A second automatic Code must not be created.
 
 ---
 
-## 27. Number Generation
+## 27. Official Item Code Generation
 
-Number prefixes:
+Official Item Code prefixes:
 
 ```text
 Product:   PRD-
@@ -719,7 +708,7 @@ Part:      PRT-
 Component: CMP-
 ```
 
-Each numbering strategy must be:
+Each Official Item Code generation strategy must be:
 
 - server-side
 - concurrency-safe
@@ -736,7 +725,7 @@ catalog.part_number_seq
 catalog.component_number_seq
 ```
 
-Gapless numbering is not required.
+Gapless sequence allocation is not required.
 
 ---
 
@@ -800,11 +789,10 @@ Follow:
 
 System-generated:
 
-- Part Number / Component Number
+- Part / Component Official Item Code
 
 User-entered:
 
-- optional Code
 - Name FA
 - Name EN
 - Category
@@ -965,9 +953,7 @@ Days fields may use appropriate integer type.
 
 Required support:
 
-- indexed Part Number
-- indexed Component Number
-- globally indexed normalized Item Code
+- indexed Official Item Code (`Item.BusinessNumber`)
 - active filtering
 - Category filtering
 - Supply Method filtering
@@ -1052,9 +1038,9 @@ MRP-04 must NOT implement:
 MRP-04 is acceptable when:
 
 1. Unified Item cleanly supports Product/Part/Component.
-2. Part and Component have separate auto Numbers.
-3. Numbers are server-generated, immutable and concurrency-safe.
-4. Item Code is optional but globally unique if provided.
+2. Part and Component have separate generated Official Item Code sequences.
+3. Official Item Codes are server-generated, globally unique, immutable and concurrency-safe.
+4. No manual or second active Item Code exists.
 5. Name FA required / EN optional.
 6. Correct Category source used per Item Type.
 7. Base Unit required.
@@ -1083,10 +1069,10 @@ MRP-04 is acceptable when:
 ## 43. Locked Decisions
 
 1. Part and Component use Unified Item.
-2. Part Number = `PRT-*`.
-3. Component Number = `CMP-*`.
-4. Item Code optional.
-5. Item Code globally unique across Product/Part/Component if present.
+2. Part Official Item Code = `PRT-{sequence:D4}`.
+3. Component Official Item Code = `CMP-{sequence:D4}`.
+4. `Item.BusinessNumber` is the single Official Item Code.
+5. Official Item Code is globally unique across Product/Part/Component; no second active Item Code is allowed.
 6. Name FA required.
 7. Name EN optional.
 8. One Part Category / Component Category.
@@ -1126,7 +1112,7 @@ Buy / Make / Outsource / Hybrid
 MRP-04A raised and resolved the following technical questions:
 
 - exact Unified Item table strategy → existing `catalog.items` + `catalog.material_item_profiles`
-- safe migration to global Item Code uniqueness → nullable Code pair plus filtered unique NormalizedCode index while Product remains non-null
+- safe Item identity migration → archive non-null deprecated Code values in `catalog.item_legacy_codes`, then remove Code/NormalizedCode from the active model
 - numbering sequence reuse → separate `catalog.part_number_seq` and `catalog.component_number_seq`
 - file reference integration → deferred; no File field/platform in MRP-04
 - concurrency constraints → one `Item.Version : bigint`
@@ -1181,9 +1167,9 @@ Required analysis:
 1. Understanding of Product / Part / Component terminology and boundary.
 2. Actual Repository findings.
 3. Proposed smallest clean Unified Item design compatible with existing Product implementation.
-4. Part and Component identity/numbering.
-5. Global optional Item Code uniqueness across Product/Part/Component.
-6. If existing Product Code uniqueness is product-only, report exact migration/constraint impact.
+4. Part and Component Official Item Code generation and immutability.
+5. Global uniqueness of the single `Item.BusinessNumber` identity across Product/Part/Component.
+6. Legacy `Item.Code`/`Item.NormalizedCode` archival and removal impact.
 7. Name FA/EN.
 8. Category and Unit integration from MRP-01.
 9. Supply Method:
@@ -1222,11 +1208,12 @@ Required analysis:
 31. Explicit non-scope.
 
 Testing proposal must cover at minimum:
-- Part Number uniqueness/concurrency
-- Component Number uniqueness/concurrency
-- client cannot override generated numbers
-- global Item Code uniqueness
-- optional Item Code
+- Part Official Item Code uniqueness/concurrency
+- Component Official Item Code uniqueness/concurrency
+- client cannot supply or override generated Official Item Codes
+- API and DB immutability
+- no manual or second active Item Code
+- legacy Code archival before active-column removal
 - required FA name
 - optional EN
 - correct Category per Type
@@ -1249,8 +1236,8 @@ Output:
 1. Understanding
 2. Repository Findings
 3. Unified Item Proposal
-4. Identity / Numbering
-5. Item Code Strategy
+4. Identity / Official Item Code
+5. Legacy Code Archive and Removal Strategy
 6. Data Model
 7. Supply Method
 8. Planning Policy
@@ -1310,13 +1297,13 @@ UNIFIED ITEM
 IDENTITY
 Part:
 - Internal ID
-- server-generated Part Number
+- server-generated Part Official Item Code (`PRT-{sequence:D4}`)
 
 Component:
 - Internal ID
-- server-generated Component Number
+- server-generated Component Official Item Code (`CMP-{sequence:D4}`)
 
-Numbers:
+Official Item Codes:
 - unique
 - immutable
 - concurrency-safe
@@ -1325,15 +1312,13 @@ Numbers:
 - gapless not required
 
 ITEM CODE
-- optional for PART/COMPONENT; required for PRODUCT remains unchanged
-- normalized
-- globally unique across Product/Part/Component if present
-- implement approved migration strategy from MRP-04A if existing Product data/constraints need adjustment
-- do not silently break Product data
-- database checks must enforce Product `Code IS NOT NULL` and `NormalizedCode IS NOT NULL`
-- for every Item Type enforce `Code IS NULL iff NormalizedCode IS NULL`
-- enforce global uniqueness with `UNIQUE (NormalizedCode) WHERE NormalizedCode IS NOT NULL`
-- preserve all existing Product Code data and Product required-Code database integrity
+- `Item.BusinessNumber` is the single Official Item Code across PRODUCT/PART/COMPONENT
+- generated server-side from PRD/PRT/CMP sequences, globally unique and immutable
+- absent from Create/Update input contracts and shown read-only after creation
+- search, sort and display use Official Item Code
+- `Item.Code` and `Item.NormalizedCode` are deprecated; no second active Item Code is permitted
+- preserve every non-null deprecated value in `catalog.item_legacy_codes` with ItemId, LegacyCode, LegacyNormalizedCode and ArchivedAtUtc before dropping active columns
+- legacy archive is migration/history-only and must not participate in UI, business logic or search
 
 DUPLICATE NAMES
 - warning only; no Name FA/EN database uniqueness
@@ -1468,13 +1453,13 @@ Do not create parallel infrastructure.
 
 TESTS
 At minimum:
-- Part Number uniqueness/concurrency
-- Component Number uniqueness/concurrency
-- generated numbers cannot be client overridden
-- global Item Code uniqueness
-- optional blank Item Code allowed
-- Product required-Code database constraints remain effective after migration
-- Code/NormalizedCode null-pair database constraint
+- Part Official Item Code uniqueness/concurrency
+- Component Official Item Code uniqueness/concurrency
+- generated Official Item Codes cannot be supplied or overridden by clients
+- global Official Item Code uniqueness and correct PRD/PRT/CMP format
+- API and direct-DB immutability
+- no manual Code input and no second active Item Code
+- migration archives non-null legacy Code values before removing Code/NormalizedCode
 - FA required / EN optional
 - Part-only and Component-only duplicate-name warnings, self-exclusion and empty Name EN handling
 - correct Category per Item Type
@@ -1531,7 +1516,7 @@ Final report:
 - Unified Item
 - Part
 - Component
-- Item Code
+- Official Item Code and legacy archive
 - Supply Method
 - Planning Policy
 - API
@@ -1604,21 +1589,19 @@ Audit:
    - Product compatibility preserved
 
 3. Identity
-   - Part Number auto/immutable/concurrency-safe
-   - Component Number auto/immutable/concurrency-safe
+   - Part Official Item Code auto/immutable/concurrency-safe in PRT format
+   - Component Official Item Code auto/immutable/concurrency-safe in CMP format
    - client cannot override
    - gapless not assumed
 
 4. Item Code
-   - optional for PART/COMPONENT and still required for PRODUCT
-   - normalized
-   - globally unique across Product/Part/Component
-   - Product database checks require non-null Code and NormalizedCode
-   - all Item Types enforce `Code IS NULL iff NormalizedCode IS NULL`
-   - filtered unique index is `UNIQUE (NormalizedCode) WHERE NormalizedCode IS NOT NULL`
-   - migration from Product constraints/data safe
-   - existing Product Code data and required-Code integrity are preserved
-   - Code not technical PK
+   - `Item.BusinessNumber` is the single Official Item Code across Product/Part/Component
+   - globally unique, correctly formatted and immutable in API and DB
+   - absent from Create/Update input and shown read-only after creation
+   - no active `Item.Code`/`Item.NormalizedCode` and no second active Item Code
+   - migration archives non-null legacy values in `catalog.item_legacy_codes` before column removal
+   - archive has no normal UI, business logic or search identity
+   - UUID remains the technical identity
 
 5. Duplicate Names
    - warning only with no Name FA/EN database uniqueness
@@ -1727,8 +1710,9 @@ Audit:
 22. Tests
     Verify meaningful assertions, especially:
     - concurrent numbering
-    - global Item Code uniqueness
-    - Product required-Code and Code/NormalizedCode null-pair database integrity
+    - global Official Item Code uniqueness and PRD/PRT/CMP generation
+    - API/direct-DB immutability and no manual Item Code input
+    - legacy archive preservation and absence of a second active Item Code
     - ItemType-scoped duplicate warnings, self-exclusion and empty Name EN handling
     - Version advancement and stale Edit/lifecycle conflict
     - Item Type immutability
@@ -1781,9 +1765,9 @@ STOP.
 
 تمام ۱۶ تصمیم تأییدشده Package 04 پوشش داده شده‌اند:
 
-1. Part/Component Internal ID + auto Number.
-2. Item Code optional and unique if present.
-3. Global Item Code uniqueness across Product/Part/Component.
+1. Part/Component Internal ID + auto Official Item Code.
+2. No manual or second active Item Code.
+3. `Item.BusinessNumber` is globally unique across Product/Part/Component.
 4. FA required / EN optional.
 5. Separate Part Category / Component Category.
 6. Base Unit required.
@@ -1836,7 +1820,8 @@ This must be reflected in `DECISIONS.md` and removed/closed in `OPEN-QUESTIONS.m
 - `Initial Inventory Qty` removed from Master.
 - Supplier/Price/Currency/MOQ/Lead-Time data fully moved to Sourcing boundary.
 - Component does not store `Output Part`.
-- Item Code uniqueness made global across the Unified Item domain.
+- `Item.BusinessNumber` made the single globally unique Official Item Code across the Unified Item domain.
+- Deprecated Item Code values are preserved only in `catalog.item_legacy_codes` before active-column removal.
 - Item Type switching disabled in normal UI.
 - Supply Method made a stable system-controlled classification.
 - Planning Readiness remains Derived.
@@ -1848,7 +1833,7 @@ This must be reflected in `DECISIONS.md` and removed/closed in `OPEN-QUESTIONS.m
 ### MRP-04A
 PASS
 
-Analysis-only, includes migration impact for existing Product Code constraints and actual Repository inspection.
+Analysis-only, includes Official Item Code generation/immutability and legacy Code archival/removal impact based on actual Repository inspection.
 
 ### MRP-04B
 PASS

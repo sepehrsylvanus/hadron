@@ -872,7 +872,7 @@ Item + Warehouse
 
 Suggested columns:
 
-- Item Number/Code
+- Official Item Code (`Item.BusinessNumber`)
 - Item Name
 - Item Type
 - Warehouse

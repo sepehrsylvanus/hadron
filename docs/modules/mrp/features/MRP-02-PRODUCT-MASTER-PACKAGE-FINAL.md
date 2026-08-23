@@ -46,7 +46,7 @@ Codex نباید در این Package موارد زیر را بسازد:
 
 ## 3. Product Identity
 
-هر Product دو شناسه مجزا دارد.
+هر Product یک شناسه فنی و یک Official Item Code دارد.
 
 ### Internal Technical ID
 
@@ -55,9 +55,9 @@ Codex نباید در این Package موارد زیر را بسازد:
 - machine-oriented
 - not user-entered
 
-### Product Number
+### Official Item Code
 
-Business-facing Product ID مثل:
+`Item.BusinessNumber` تنها کد رسمی و user-facing محصول است، مثل:
 
 ```text
 PRD-0001
@@ -73,29 +73,22 @@ Rules:
 - not user-entered
 - concurrency-safe
 - gapless numbering is NOT required
+- shown read-only after creation
+- used for search, sort and display
 
 ---
 
-## 4. Product Code
+## 4. Deprecated Item Code Fields
 
-`Product Code` یک Business Code دستی است.
+`Item.Code` و `Item.NormalizedCode` هیچ معنای تجاری مستقلی ندارند و برای حذف deprecate شده‌اند.
 
 Rules:
 
-- Required
-- Unique
-- User-entered
-- Trimmed
-- Normalized
-- تغییر آن بعد از استفاده در BOM/Transactions باید در آینده Controlled باشد
-
-Example:
-
-```text
-C1011-W
-```
-
-Product Code نباید Technical Primary Key باشد.
+- هیچ Code دومی در Create دریافت نمی‌شود.
+- هیچ Code دومی در ordinary Edit قابل تغییر نیست.
+- `Item.BusinessNumber` تنها Official Item Code است.
+- هر مقدار non-null قدیمی پیش از حذف ستون‌ها در `catalog.item_legacy_codes` آرشیو می‌شود.
+- archive فقط migration/history است و در UI، business logic، search یا current identity استفاده نمی‌شود.
 
 ---
 
@@ -264,8 +257,7 @@ Notes:
 | Field | Rule |
 |---|---|
 | Internal ID | System / immutable |
-| Product Number | Auto / unique / immutable |
-| Product Code | Required / unique |
+| Official Item Code (`Item.BusinessNumber`) | Auto / globally unique / immutable |
 | Product Name FA | Required |
 | Product Name EN | Optional |
 | Product Category | Required |
@@ -311,11 +303,10 @@ Do not introduce another grid library only for this Feature.
 
 System-generated:
 
-- Product Number
+- Official Item Code (`PRD-{sequence:D4}`)
 
 User-entered:
 
-- Product Code
 - Product Name FA
 - Product Name EN
 - Category
@@ -349,7 +340,7 @@ Rules:
 
 Hard Block:
 
-- duplicate Product Code
+- duplicate generated Official Item Code
 
 Warning only:
 
@@ -360,7 +351,7 @@ No hard DB uniqueness on product names.
 
 ---
 
-## 19. Product Number Generation
+## 19. Official Item Code Generation
 
 Requirements:
 
@@ -375,15 +366,16 @@ Codex Analysis must propose the simplest robust PostgreSQL / EF Core-compatible 
 
 ---
 
-## 20. Product Code Change
+## 20. Official Item Code Immutability
 
-Product Code is not technical identity.
+`Item.BusinessNumber` is not the technical identity; `Item.Id` remains the UUID identity.
 
 Baseline:
 
-- may be editable before downstream usage
-- after downstream usage, change must be Controlled and auditable
-- MRP-02 must not create speculative BOM/transaction tables just to enforce future usage detection
+- Official Item Code is never user-entered.
+- It is never editable through ordinary API/UI operations.
+- Application and database protections must reject attempted changes.
+- No second active Item Code is permitted.
 
 ---
 
@@ -405,7 +397,7 @@ Do not create a parallel Identity system.
 Important Product changes should be compatible with audit:
 
 - Create
-- Product Code change
+- attempted Official Item Code change
 - Name change
 - Category change
 - Base Unit change
@@ -430,7 +422,7 @@ Use cases:
 
 Do not expose dangerous unrestricted generic CRUD.
 
-Client cannot supply Internal ID or Product Number.
+Client cannot supply Internal ID or Official Item Code.
 
 ---
 
@@ -438,8 +430,8 @@ Client cannot supply Internal ID or Product Number.
 
 Server-side validation at minimum:
 
-- Product Code required
-- Product Code unique
+- Official Item Code is generated server-side
+- Official Item Code is globally unique and immutable
 - Product Name FA required
 - Product Category required
 - Base Unit required
@@ -449,7 +441,7 @@ Server-side validation at minimum:
 - Excess Start Days >= Safe Start Days
 - referenced Category/Unit/Business Unit exists
 - active reference value required for new assignment
-- Product Number cannot be supplied/overridden
+- Official Item Code cannot be supplied/overridden
 
 ---
 
@@ -465,8 +457,7 @@ Binary floating point must not be used for Business-critical values.
 
 Support:
 
-- indexed Product Code
-- indexed Product Number
+- indexed Official Item Code
 - efficient Active filtering
 - efficient Category filtering
 - efficient Business Unit filtering where useful
@@ -525,8 +516,8 @@ MRP-02 must NOT implement:
 
 1. Product uses minimal approved Unified Item architecture.
 2. Internal ID is system-controlled.
-3. Product Number is auto-generated, unique and immutable.
-4. Product Code is required and unique.
+3. Official Item Code is auto-generated, globally unique and immutable.
+4. No manual or second active Item Code exists.
 5. Product Name FA is required.
 6. Product Name EN is optional.
 7. One Product Category.
@@ -542,8 +533,8 @@ MRP-02 must NOT implement:
 17. Product Name is not hard-unique.
 18. MRP-01 Reference Data reused.
 19. Server-side validation exists.
-20. Product Number concurrency/uniqueness tested.
-21. Product Code uniqueness tested.
+20. Official Item Code concurrency/uniqueness tested.
+21. API/DB immutability and absence of a second active Item Code tested.
 22. No future MRP features prematurely implemented.
 
 ---
@@ -551,9 +542,9 @@ MRP-02 must NOT implement:
 ## 30. Locked Decisions
 
 1. Unified Item starts here only to the extent Product needs it.
-2. Internal Technical ID separate from Product Number.
-3. Product Number auto-generated, unique, immutable, non-user-entered.
-4. Product Code user-entered, required and unique.
+2. Internal Technical ID separate from Official Item Code.
+3. Official Item Code is `Item.BusinessNumber`, auto-generated, globally unique, immutable and non-user-entered.
+4. `Item.Code` and `Item.NormalizedCode` are deprecated for archival and removal; no second active Item Code is allowed.
 5. Product Name FA required.
 6. Product Name EN optional.
 7. One primary Product Category.
@@ -577,7 +568,7 @@ MRP-02 must NOT implement:
 
 No Business-critical open question blocks MRP-02.
 
-The former technical questions about Product Number generation, Product Code normalization, duplicate-name warning behavior and optimistic concurrency were resolved by the Owner-approved MRP-02A baseline in §32. No implementation-blocking technical question remains.
+The former technical questions about Official Item Code generation, duplicate-name warning behavior and optimistic concurrency were resolved by the Owner-approved baseline in §32. No implementation-blocking technical question remains.
 
 ---
 
@@ -594,17 +585,17 @@ catalog.items
 └── catalog.products (1:1)
 ```
 
-`Item` owns `Id`, `ItemType`, `BusinessNumber`, `Code`, `NormalizedCode`, `NameFa`, nullable `NameEn`, `BaseUnitId`, `IsActive`, nullable `Notes`, `Version`, `CreatedAtUtc` and `UpdatedAtUtc`.
+`Item` owns `Id`, `ItemType`, `BusinessNumber`, `NameFa`, nullable `NameEn`, `BaseUnitId`, `IsActive`, nullable `Notes`, `Version`, `CreatedAtUtc` and `UpdatedAtUtc`. `BusinessNumber` is the single Official Item Code. The deprecated `Code` and `NormalizedCode` fields are not part of the final active model.
 
 `Product` owns `ItemId`, `ProductCategoryId`, nullable `BusinessUnitId`, `SafetyStockQty`, `CriticalDays`, `SafeStartDays` and `ExcessStartDays`.
 
 MRP-02 supports only Product. It must not implement Part, Component, EAV or generic metadata.
 
-### 32.2 Identity, Numbering and Code
+### 32.2 Identity and Official Item Code
 
-`ProductNumber` is the Product-facing name of `Item.BusinessNumber`. It is generated from PostgreSQL sequence `catalog.product_number_seq` and formatted server-side as `PRD-{sequenceValue:D4}`, including `PRD-0001` and `PRD-10000`. It is server-generated, immutable, unique, concurrency-safe and absent from create/update contracts. Gaps and non-rollback of consumed sequence values are accepted. `MAX()+1` is prohibited.
+`Item.BusinessNumber` is the Product Official Item Code. It is generated from PostgreSQL sequence `catalog.product_number_seq` and formatted server-side as `PRD-{sequenceValue:D4}`, including `PRD-0001` and `PRD-10000`. It is server-generated, immutable, globally unique, concurrency-safe, absent from create/update contracts and shown read-only after creation. Gaps and non-rollback of consumed sequence values are accepted. `MAX()+1` is prohibited. Search, sort and display use this value.
 
-Product Code is required, has maximum length 64, is trimmed and normalized with `ToUpperInvariant`, is stored canonically in uppercase and is globally unique through `Item.NormalizedCode`. It is separate from UUID and Product Number. During MRP-02 it may change only through controlled Edit with `ExpectedVersion`, uniqueness validation, aggregate Version advancement and successful audit old/new values. No speculative `IsUsed`, BOM or transaction structure is permitted. The owning future Package must add a downstream-use guard before introducing Product dependencies.
+`Item.Code` and `Item.NormalizedCode` have no independent business meaning and are deprecated for removal. Before they are dropped, every non-null historical value must be copied to `catalog.item_legacy_codes` with `ItemId`, `LegacyCode`, `LegacyNormalizedCode` and `ArchivedAtUtc`. This archive is migration/history-only: no normal UI, business logic, search identity or duplicate current code concept may consume it.
 
 ### 32.3 Canonical Storage Types and Limits
 
@@ -612,8 +603,7 @@ Product Code is required, has maximum length 64, is trimmed and normalized with 
 |---|---|
 | Id / BaseUnitId / ProductCategoryId / BusinessUnitId / ItemId | `uuid` |
 | ItemType | `varchar(20)` |
-| BusinessNumber | `varchar(32)` |
-| Code / NormalizedCode | `varchar(64)` |
+| BusinessNumber — Official Item Code | `varchar(32)` |
 | NameFa | `varchar(200)`, required |
 | NameEn | `varchar(200)`, nullable |
 | SafetyStockQty | `numeric(18,6)` |
@@ -652,11 +642,11 @@ Equality is valid. Product may exist without BOM. `HasBOM`, `Ready` and `Plannin
 
 The aggregate has one concurrency token: `Item.Version : bigint`. Reads return Version; Edit/Deactivate/Reactivate require `ExpectedVersion`; every successful Item or Product-profile mutation advances the same Version; stale mutation returns HTTP `409 / STALE_VERSION`. Item and Product changes persist atomically. No second Product Version is allowed.
 
-MRP-02 reuses `IAuditEventSink` for Product `CREATE`, `EDIT`, `DEACTIVATE` and `REACTIVATE`, with `EntityType = Product` and `EntityId = Item.Id`. Applicable old/new values, UTC timestamp, actor, correlation ID and reason are included. Events are emitted only after successful persistence. Validation, duplicate Code, stale Version, failed reactivation and failed persistence must not emit a successful Product mutation event. Audit persistence remains out of scope.
+MRP-02 reuses `IAuditEventSink` for Product `CREATE`, `EDIT`, `DEACTIVATE` and `REACTIVATE`, with `EntityType = Product` and `EntityId = Item.Id`. Applicable old/new values, UTC timestamp, actor, correlation ID and reason are included. Events are emitted only after successful persistence. Validation, attempted Official Item Code mutation, stale Version, failed reactivation and failed persistence must not emit a successful Product mutation event. Audit persistence remains out of scope.
 
 ### 32.7 Database, API, UI and Permissions
 
-Database integrity requires unique Business Number, globally unique `Item.NormalizedCode`, `Version >= 1`, `SafetyStockQty >= 0`, threshold-order checks, required columns, Product `ItemId` as one-to-one PK/FK, restrictive foreign keys, no name uniqueness and no hard delete. ReferenceValue subtype membership is application-enforced. MRP-02 adds only a forward migration and must not rewrite MRP-01 migrations.
+Database integrity requires globally unique and immutable BusinessNumber in the `PRD-{sequence:D4}` format, `Version >= 1`, `SafetyStockQty >= 0`, threshold-order checks, required columns, Product `ItemId` as one-to-one PK/FK, restrictive foreign keys, no name uniqueness and no hard delete. Deprecated Code values are archived before column removal. ReferenceValue subtype membership is application-enforced. Only a forward migration is allowed; earlier migrations must not be rewritten.
 
 Explicit APIs are:
 
@@ -669,9 +659,9 @@ POST /api/products/{id}/deactivate
 POST /api/products/{id}/reactivate
 ```
 
-List supports `search`, `includeInactive`, `productCategoryId`, `businessUnitId`, `page` and bounded `pageSize` with maximum 100. Create/update contracts do not allow client control of Internal ID, Product Number, Item Type or IsActive. Update includes `ExpectedVersion`. No DELETE, unrestricted PATCH or generic CRUD exists. Responses include resolved reference summaries and activity state.
+List supports `search`, `includeInactive`, `productCategoryId`, `businessUnitId`, `page` and bounded `pageSize` with maximum 100. Create/update contracts do not allow client control of Internal ID, Official Item Code, Item Type or IsActive. Update includes `ExpectedVersion`. No DELETE, unrestricted PATCH or generic CRUD exists. Responses include the read-only Official Item Code, resolved reference summaries and activity state.
 
-The UI is Persian-first and RTL and provides Product list, server-side paging/search, Active/Inactive, Product Category and Business Unit filters, Add/Edit, Product detail, Deactivate/Reactivate, read-only Product Number, editable Product Code, active reference selectors, inactive historical reference display, duplicate-name warnings and structured errors. No AG Grid dependency or global shell redesign is required; a minimal navigation addition is sufficient.
+The UI is Persian-first and RTL and provides Product list, server-side paging/search, Active/Inactive, Product Category and Business Unit filters, Add/Edit, Product detail, Deactivate/Reactivate, one read-only Official Item Code shown after creation, active reference selectors, inactive historical reference display, duplicate-name warnings and structured errors. Create/Edit has no manual Item Code field. No AG Grid dependency or global shell redesign is required; a minimal navigation addition is sufficient.
 
 Future permission concepts remain `catalog.product.view` and `catalog.product.manage`. MRP-02 must not implement parallel Identity or fake authorization and must use central authorization only when it exists.
 
@@ -710,9 +700,9 @@ Required analysis:
 1. Understanding
 2. Actual Repository Findings
 3. Smallest clean Unified Item design needed for Product now
-4. Internal ID / Product Number / Product Code separation
-5. Concurrency-safe Product Number generation
-6. Product Code normalization, uniqueness and future controlled rename boundary
+4. Internal ID / Official Item Code separation
+5. Concurrency-safe `PRD-{sequence:D4}` Official Item Code generation
+6. Official Item Code API/DB immutability and removal of the deprecated Code pair
 7. Product field design
 8. MRP-01 Reference Data integration
 9. Product creation without BOM; no manual HasBOM
@@ -729,10 +719,11 @@ Required analysis:
 20. Explicit non-scope
 
 Tests proposed must cover at minimum:
-- Product Number uniqueness
+- Official Item Code uniqueness and PRD format
 - concurrent Product creation
-- Product Code uniqueness
-- Product Code normalization
+- no manual Item Code input
+- API and DB immutability
+- no second active Item Code
 - required FA name
 - optional EN name
 - required Category
@@ -796,12 +787,12 @@ If MRP-02A contains unresolved material contradictions, STOP.
 
 FINAL OWNER-APPROVED MRP-02A BASELINE:
 - implement `catalog.items` + `catalog.products` 1:1 exactly as defined in Feature Specification §32
-- Item owns common identity/Code/names/Base Unit/lifecycle/Version/timestamps; Product owns Category/Business Unit/Safety Stock/thresholds
+- Item owns UUID identity, single Official Item Code/names/Base Unit/lifecycle/Version/timestamps; Product owns Category/Business Unit/Safety Stock/thresholds
 - support Product only; no Part/Component behavior, EAV or generic metadata
-- generate Product-facing `Item.BusinessNumber` from PostgreSQL sequence `catalog.product_number_seq` as `PRD-{sequenceValue:D4}`
-- Product Number is server-only, immutable, unique, concurrency-safe, gap-tolerant and absent from mutation contracts; never use `MAX()+1`
-- Product Code maximum length is 64; trim, `ToUpperInvariant`, canonical uppercase storage and global uniqueness through `Item.NormalizedCode`
-- controlled Product Code Edit requires ExpectedVersion, uniqueness validation, Version advancement and audit old/new values
+- generate the single Product Official Item Code in `Item.BusinessNumber` from PostgreSQL sequence `catalog.product_number_seq` as `PRD-{sequenceValue:D4}`
+- Official Item Code is server-only, immutable, globally unique, concurrency-safe, gap-tolerant, absent from mutation contracts and never generated with `MAX()+1`
+- deprecate and remove `Item.Code` / `Item.NormalizedCode`; never introduce a second generated or user-entered Item Code
+- before removal archive every non-null legacy value in `catalog.item_legacy_codes` (`ItemId`, `LegacyCode`, `LegacyNormalizedCode`, `ArchivedAtUtc`) with no UI/business/search use
 - use exact §32.3 storage types and limits, including `SafetyStockQty numeric(18,6)`, nullable Name EN, Notes max 2000 and no Unit DecimalPrecision
 - use one aggregate token `Item.Version : bigint`; every Item/Product-profile mutation advances it and stale mutation returns structured `409 / STALE_VERSION`
 - persist Item/Product atomically and create only a forward migration; never rewrite MRP-01 migrations
@@ -814,10 +805,10 @@ UNIFIED ITEM
 
 IDENTITY
 - internal system ID
-- server-generated Product Number
-- user-entered Product Code
+- server-generated Official Item Code
+- no manual or second Item Code
 
-Product Number:
+Official Item Code:
 - unique
 - immutable
 - server-generated
@@ -826,7 +817,6 @@ Product Number:
 - gapless not required
 
 FIELDS
-- Product Code
 - Product Name FA
 - Product Name EN
 - Product Category
@@ -841,7 +831,7 @@ FIELDS
 - timestamps
 
 VALIDATION
-- Product Code required/unique
+- generated Official Item Code follows `PRD-{sequence:D4}`, is globally unique and immutable
 - FA name required
 - EN optional
 - active Category required for new assignment
@@ -851,7 +841,7 @@ VALIDATION
 - Critical >= 0
 - Safe >= Critical
 - Excess >= Safe
-- client cannot set Product Number or Internal ID
+- client cannot set Official Item Code or Internal ID
 
 LIFECYCLE
 - create
@@ -898,7 +888,7 @@ Implement only approved:
 - validation
 - error handling
 
-Database integrity must include unique Business Number, globally unique Item NormalizedCode, Version >= 1, Safety Stock >= 0, threshold ordering, Product ItemId 1:1 PK/FK, restrictive FKs, required fields, no Name uniqueness and no hard delete. ReferenceValue subtype membership remains application-enforced.
+Database integrity must include globally unique and DB-immutable BusinessNumber in PRD format, Version >= 1, Safety Stock >= 0, threshold ordering, Product ItemId 1:1 PK/FK, restrictive FKs, required fields, no Name uniqueness and no hard delete. Archive the deprecated Code pair before dropping it. ReferenceValue subtype membership remains application-enforced.
 
 Do not introduce speculative frameworks.
 
@@ -912,7 +902,7 @@ Implement approved:
 - add/edit/deactivate/reactivate
 - approved Product detail UX
 - server-side paging with maximum pageSize 100
-- read-only Product Number and editable Product Code
+- one read-only Official Item Code shown after creation; no Code input in Create/Edit
 - active assignment selectors, inactive historical reference display, duplicate-name warnings and structured errors
 
 Follow UI-BRAND-RULES.md.
@@ -923,14 +913,14 @@ PERMISSIONS/AUDIT
 Reuse existing platform capabilities.
 Do not build parallel Identity/Audit systems.
 Retain future permission concepts `catalog.product.view` and `catalog.product.manage`; do not implement fake authorization while central authorization is absent.
-Reuse `IAuditEventSink` with EntityType Product and EntityId Item.Id for CREATE/EDIT/DEACTIVATE/REACTIVATE. Emit only after successful persistence. Validation, duplicate Code, stale Version, failed reactivation and persistence failure must not emit a successful Product event.
+Reuse `IAuditEventSink` with EntityType Product and EntityId Item.Id for CREATE/EDIT/DEACTIVATE/REACTIVATE. Emit only after successful persistence. Validation, attempted Official Item Code mutation, stale Version, failed reactivation and persistence failure must not emit a successful Product event.
 
 TESTS
 At minimum:
-- unique Product Number
-- concurrent creation does not duplicate Product Number
-- client cannot set/change Product Number
-- Product Code uniqueness/normalization
+- unique Official Item Code
+- concurrent creation does not duplicate Official Item Code
+- client cannot set/change Official Item Code
+- no manual Code field and no second active Item Code
 - FA required
 - EN optional
 - Category required
@@ -944,9 +934,10 @@ At minimum:
 - Product without BOM
 - no manual HasBOM
 - Product Names not hard-unique
-- UUID server-generated; Product Number follows PRD format, permits gaps, cannot be overridden and never uses MAX()+1
-- Product Code max 64, canonical uppercase storage, global Item uniqueness, controlled rename and stale rename
-- failed Code rename emits no successful audit
+- UUID server-generated; Official Item Code follows PRD format, permits gaps, cannot be overridden and never uses MAX()+1
+- direct API and direct DB attempts to change Official Item Code are blocked
+- failed Official Item Code mutation emits no successful audit
+- migration archives non-null legacy Code values and removes Code/NormalizedCode from the active model
 - exact decimal Safety Stock, all max lengths and equal thresholds
 - wrong Category/Business Unit ReferenceType rejected
 - inactive unchanged historical references remain resolvable
@@ -1042,18 +1033,18 @@ Audit:
 2. Unified Item
    - exact `catalog.items` + `catalog.products` 1:1 boundary from §32
    - Item owns common fields and the only aggregate Version; Product owns only Product-specific fields
-   - exact canonical types/limits, including Code 64, names 200, Notes 2000 and Safety Stock `numeric(18,6)`
+   - exact canonical types/limits, including Official Item Code 32, names 200, Notes 2000 and Safety Stock `numeric(18,6)`
    - no overbuilt future Part/Component behavior
    - no EAV/generic metadata and no second Product Version
 
 3. Identity
    - Internal ID system-controlled
-   - Product Number distinct from Product Code
-   - Product Number from `catalog.product_number_seq`, formatted `PRD-{sequenceValue:D4}`, auto-generated/immutable/concurrency-safe/gap-tolerant
-   - Product Number absent from mutation contracts; no `MAX()+1`; uniqueness survives concurrent creation
-   - Product Code max 64, trimmed, `ToUpperInvariant`, canonical uppercase and globally unique through Item NormalizedCode
-   - controlled Code rename requires ExpectedVersion, Version advancement and audit old/new values
-   - Product Code not technical primary identity
+   - Internal UUID distinct from the single Official Item Code
+   - Official Item Code is `Item.BusinessNumber`, generated from `catalog.product_number_seq` as `PRD-{sequenceValue:D4}` and is immutable/concurrency-safe/gap-tolerant
+   - Official Item Code absent from mutation contracts; no `MAX()+1`; uniqueness survives concurrent creation
+   - no manual Product Code, no active `Item.Code`/`Item.NormalizedCode` and no second active Item Code
+   - API and DB prevent Official Item Code mutation
+   - non-null legacy Code values are preserved only in `catalog.item_legacy_codes`
 
 4. Fields / Rules
    - FA required
@@ -1093,7 +1084,8 @@ Audit:
    - Product never warns against itself; no database name uniqueness
 
 9. Database Integrity
-   - unique Business Number and globally unique Item NormalizedCode
+   - globally unique, correctly formatted and DB-immutable BusinessNumber
+   - legacy archive exists as migration/history only and deprecated Code columns are removed
    - Version >= 1, Safety Stock >= 0 and threshold-order constraints
    - Product ItemId 1:1 PK/FK, restrictive foreign keys and required columns
    - exact numeric precision and field lengths; no Unit DecimalPrecision
@@ -1105,7 +1097,7 @@ Audit:
 10. API
    - safe use-case boundaries
    - server-side validation
-   - no client override of Product Number/Internal ID
+   - no client override of Official Item Code/Internal ID
    - only explicit GET list/detail, POST create, PUT update and POST deactivate/reactivate endpoints
    - bounded server-side paging with maximum pageSize 100 and approved filters
    - no client control of ItemType/IsActive; no DELETE, unrestricted PATCH or generic CRUD
@@ -1118,7 +1110,7 @@ Audit:
    - grid usability
    - filters
    - add/edit/deactivate/reactivate
-   - Product Number read-only, Product Code editable
+   - one read-only Official Item Code; no manual Code field in Create/Edit
    - active reference selectors and inactive historical reference display
    - duplicate warning and structured error display
    - no AG Grid dependency, global shell redesign or more than minimal navigation addition
@@ -1129,7 +1121,7 @@ Audit:
    - future concepts remain `catalog.product.view` / `catalog.product.manage`; no fake/parallel Identity
    - reuse `IAuditEventSink`, EntityType Product and EntityId Item.Id
    - CREATE/EDIT/DEACTIVATE/REACTIVATE emitted only after successful persistence
-   - validation, duplicate Code, stale Version, failed Reactivate and failed persistence emit no successful mutation event
+   - validation, attempted Official Item Code mutation, stale Version, failed Reactivate and failed persistence emit no successful mutation event
    - no Audit persistence platform
 
 13. Performance
@@ -1142,8 +1134,8 @@ Audit:
 
 14. Tests
    - verify assertions are meaningful
-   - execute every identity, Code, field, reference, reactivation, duplicate-name, lifecycle, scope and regression case required by §32 and Prompt 02B
-   - pay special attention to concurrent Product Number generation, no MAX()+1 and client non-override
+   - execute every identity, Official Item Code, field, reference, reactivation, duplicate-name, lifecycle, scope and regression case required by §32 and Prompt 02B
+   - pay special attention to concurrent PRD Code generation, API/DB immutability, no MAX()+1 and client non-override
    - verify active-reference Reactivate success and separate inactive Category/Unit/Business Unit failures
    - verify failed Reactivate preserves Version and failed mutations emit no successful audit
    - verify duplicate-name self-exclusion and warning-only success semantics
@@ -1191,8 +1183,8 @@ STOP.
 
 تمام ۱۲ تصمیم تأییدشده Product Master پوشش داده شده‌اند:
 
-1. Internal ID + auto Product Number
-2. Product Code required + unique
+1. Internal ID + auto Official Item Code
+2. No manual or second active Item Code
 3. FA required / EN optional
 4. One Product Category
 5. Base Unit required
@@ -1218,10 +1210,11 @@ STOP.
 
 ## Architecture Corrections Applied
 
-- Product Number از Product Code به‌طور صریح جدا شد.
-- Product Number generation باید concurrency-safe باشد.
+- UUID فنی از Official Item Code به‌طور صریح جداست.
+- Official Item Code generation باید concurrency-safe باشد.
 - Gapless sequence requirement حذف شد.
-- Product Code technical PK نیست تا Controlled Rename آینده ممکن بماند.
+- `Item.BusinessNumber` تنها Official Item Code و در API/DB immutable است.
+- `Item.Code`/`Item.NormalizedCode` فقط پس از archival تاریخی حذف می‌شوند.
 - Product Name hard uniqueness ممنوع شد.
 - Product Master اجازه ایجاد رکورد بدون BOM را دارد.
 - No-BOM state با boolean دستی ذخیره نمی‌شود.

@@ -739,7 +739,7 @@ not a giant wide sheet with repeated column groups per Product.
 
 Recommended additional columns:
 
-- Product Code/Number
+- Official Item Code (`Item.BusinessNumber`, read-only `PRD-{sequence:D4}`)
 - Product Category
 - Business Unit
 - BOM Readiness / Warning
@@ -1322,6 +1322,7 @@ Required analysis:
 5. Ensure correct Jalali month lengths and leap-year handling.
 6. Forecast relational model:
    - Product
+   - Product identity resolves and displays only the read-only Official Item Code from `Item.BusinessNumber`; do not consume deprecated `Item.Code`/`Item.NormalizedCode`
    - Period
    - Forecast Revision
    - Official Current Forecast
@@ -1462,6 +1463,7 @@ Rules:
 FORECAST
 Implement approved:
 - Product + Period Forecast structure
+- Product references use UUID internally and expose `Item.BusinessNumber` as the only read-only Official Item Code; do not add, accept or derive a second Product Code
 - immutable Forecast Revisions
 - Forecast Qty >= 0
 - one Official Current Forecast per Product+Period
@@ -1735,6 +1737,8 @@ Audit:
 
 3. Forecast Model
    - Product+Period grain
+   - Product UUID is the relationship key and `Item.BusinessNumber` is the only displayed/searched Official Item Code
+   - no dependency on deprecated `Item.Code`/`Item.NormalizedCode` and no second active Product Code
    - Qty >= 0
    - decimal/numeric
    - immutable Revision history

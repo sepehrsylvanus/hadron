@@ -61,8 +61,8 @@ Product Master برای نگهداری مشخصات پایه محصول نهای
 
 Baseline fields:
 
-- Product ID / شناسه محصول
-- Product Code / کد محصول
+- Technical Product ID / شناسه فنی UUID محصول
+- Official Item Code / کد رسمی خودکار محصول (`PRD-{sequence:D4}`)
 - Product Name (FA) / نام فارسی محصول
 - Product Name (EN) / نام انگلیسی محصول
 - Product Category / گروه محصول
@@ -106,8 +106,8 @@ Baseline fields:
 
 Baseline fields پیشنهادی کسب‌وکاری:
 
-- Part ID / شناسه قطعه
-- Part Code / کد قطعه
+- Technical Part ID / شناسه فنی UUID قطعه
+- Official Item Code / کد رسمی خودکار قطعه (`PRT-{sequence:D4}`)
 - Part Name / نام قطعه
 - Category / گروه
 - Unit / واحد
@@ -146,7 +146,11 @@ PCB + LED + Capacitor + IC + ...
 
 Componentها نیز اطلاعاتی مشابه Part دارند، اما Timeline تأمین آن‌ها زودتر شروع می‌شود؛ چون ابتدا Componentها باید تأمین و سپس به Part تبدیل شوند.
 
+هر Component دارای UUID فنی داخلی و یک Official Item Code خودکار در قالب `CMP-{sequence:D4}` است.
+
 سیستم باید بتواند تشخیص دهد که برای سفارش/ساخت یک Part مانند PCBA، زنجیره تأمین Components قبلی نیز باید برنامه‌ریزی شود.
+
+در Product، Part و Component، `Item.BusinessNumber` تنها Official Item Code است. کاربر آن را در Create وارد یا در Edit تغییر نمی‌دهد و هیچ Code فعال دومی وجود ندارد. مقادیر تاریخی `Item.Code`/`Item.NormalizedCode` فقط پیش از حذف در `catalog.item_legacy_codes` آرشیو می‌شوند و archive در UI، business logic یا search استفاده نمی‌شود.
 
 ---
 

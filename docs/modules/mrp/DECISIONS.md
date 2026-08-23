@@ -270,7 +270,7 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ## DEC-035 — Item Identity and Codes
 
-**Decision:** Technical ID از Business Number/Code جداست. Product Number و Part/Component Number server-generated و immutable هستند؛ Product Code required/unique و Item Code برای Part/Component optional ولی در صورت وجود globally unique است.  
+**Decision:** `Item.Id` تنها Technical UUID identity داخلی است. `Item.BusinessNumber` تنها Official Item Code و user-facing برای Product/Part/Component است و به‌ترتیب با `PRD-{sequence:D4}`، `PRT-{sequence:D4}` و `CMP-{sequence:D4}` به‌صورت server-generated، globally unique و immutable ساخته می‌شود. کاربر آن را در Create وارد یا در Edit تغییر نمی‌دهد؛ پس از ایجاد read-only نمایش داده می‌شود و search/sort/display از آن استفاده می‌کنند. `Item.Code` و `Item.NormalizedCode` معنای تجاری مستقلی ندارند و برای removal deprecate شده‌اند. پیش از حذف، مقادیر non-null در `catalog.item_legacy_codes` با `ItemId`, `LegacyCode`, `LegacyNormalizedCode`, `ArchivedAtUtc` آرشیو می‌شوند؛ این archive فقط migration/history است و current identity، UI، business logic یا search نیست. هیچ Code فعال یا خودکار دومی مجاز نیست.
 **Status:** LOCKED  
 **Source Package:** MRP-02, MRP-04
 

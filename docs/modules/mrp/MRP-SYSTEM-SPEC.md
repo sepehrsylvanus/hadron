@@ -136,12 +136,26 @@ Reference Data به سه دسته تقسیم می‌شود.
 
 ---
 
+## 5.4 Canonical Item Identity
+
+`Item.Id` is the internal UUID technical identity. `Item.BusinessNumber` is the single Official Item Code used for user-facing search, sort and display:
+
+```text
+PRODUCT   → PRD-{sequence:D4}
+PART      → PRT-{sequence:D4}
+COMPONENT → CMP-{sequence:D4}
+```
+
+The Official Item Code is server-generated, globally unique and immutable. It is absent from Create/Edit input and shown read-only after creation. `Item.Code` and `Item.NormalizedCode` are deprecated for removal and must not form a second active identity. Before removal, non-null historical values are archived in migration/history-only `catalog.item_legacy_codes` (`ItemId`, `LegacyCode`, `LegacyNormalizedCode`, `ArchivedAtUtc`) with no UI, business-logic or search use.
+
+---
+
 # 6. Product Master
 
 Product Master حداقل شامل:
 
 - Technical Product ID
-- Product Code
+- Official Item Code (`Item.BusinessNumber`, `PRD-{sequence:D4}`)
 - Product Name FA
 - Product Name EN
 - Product Category
@@ -276,7 +290,7 @@ Part یک Item از نوع `Part` است و مستقیماً در Final Assembly
 
 Intrinsic/master attributes ممکن است شامل:
 
-- Part Code
+- Official Item Code (`Item.BusinessNumber`, `PRT-{sequence:D4}`)
 - Name
 - Category
 - Unit
@@ -296,6 +310,8 @@ Supplier/Price/Currency/Route-specific fields باید از Sourcing Model بی�
 Component یک Item از نوع `Component` است که برای تولید Part/Subassembly مصرف می‌شود.
 
 Intrinsic/master attributes مشابه Part هستند.
+
+Official Item Code آن `Item.BusinessNumber` با قالب `CMP-{sequence:D4}` است.
 
 Component باید بتواند در Multi-Level BOM ظاهر شود و Supply/Inventory/Sourcing مستقل داشته باشد.
 

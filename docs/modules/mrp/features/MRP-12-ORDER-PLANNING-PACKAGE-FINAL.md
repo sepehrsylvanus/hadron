@@ -1092,7 +1092,7 @@ MRP-12 only prepares this integration boundary.
 
 Baseline fields:
 
-- Item Number / Code
+- Official Item Code (`Item.BusinessNumber`)
 - Item Name
 - Supplier / Selected Source
 - Recommendation State

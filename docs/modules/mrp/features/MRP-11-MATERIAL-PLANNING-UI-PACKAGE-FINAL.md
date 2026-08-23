@@ -145,7 +145,7 @@ If future Finished Goods planning is introduced, it may receive its own explicit
 
 Required baseline fields:
 
-- Item Number / Code
+- Official Item Code (`Item.BusinessNumber`)
 - Item Name
 - Item Type
 - Category
