@@ -260,6 +260,7 @@ ERP Hadron Tavan/
 │   ├── MIGRATION.md
 │   ├── DEPLOYMENT.md
 │   ├── AI_ARCHITECTURE.md
+│   ├── ui/
 │   ├── modules/
 │   └── ADR/
 │
@@ -996,6 +997,7 @@ docs/TESTING.md
 docs/MIGRATION.md
 docs/DEPLOYMENT.md
 docs/AI_ARCHITECTURE.md
+docs/ui/HADRON-ERP-UX-ARCHITECTURE.md
 docs/modules/
 docs/ADR/
 ```
@@ -1281,7 +1283,21 @@ Do not repeat the entire project architecture in every response.
 
 Hadron Tavan has an official Brand Identity Guideline.
 
-The authoritative brand reference is:
+The canonical authority hierarchy for Hadron ERP is:
+
+1. Business and domain behavior: canonical module specifications, `docs/modules/mrp/DECISIONS.md`, and other locked Decisions.
+2. Enterprise UX, navigation, shell, page patterns, and interaction behavior: `docs/ui/HADRON-ERP-UX-ARCHITECTURE.md`.
+3. Digital visual UI, brand expression, design tokens, colors, logo, typography, spacing, and components: `docs/brand/HADRON-DIGITAL-DESIGN-SYSTEM-v1.0.pdf`.
+
+`docs/brand/Hadron-Brand-Guidelines.pdf` remains the underlying corporate brand source incorporated by the Digital Design System. For ERP digital implementation, follow the Digital Design System and its governance rules.
+
+Before any UI/UX analysis, implementation, audit, or redesign, read the relevant canonical business specification and Decisions, then the UX Architecture, the Digital Design System, and `docs/brand/UI-BRAND-RULES.md`.
+
+The product title is exactly `Hadron ERP System`. MRP is a workspace/business area inside Hadron ERP System. Package identifiers such as `MRP-01` through `MRP-14` are development/governance references and must never become user-facing navigation.
+
+SAP Fiori patterns govern enterprise UX behavior and interaction patterns only. Do not copy SAP visual branding, colors, or visual identity; all visual expression remains Hadron.
+
+The underlying corporate brand reference is:
 
 `docs/brand/Hadron-Brand-Guidelines.pdf`
 
@@ -1321,7 +1337,7 @@ Priority order:
 6. Hadron brand identity
 7. visual decoration
 
-The Brand Guideline is the source of truth for:
+The Hadron Digital Design System is the source of truth for ERP digital implementation of:
 
 - logo usage
 - logo clear space
@@ -1334,6 +1350,8 @@ The Brand Guideline is the source of truth for:
 - visual tone
 - use of patterns
 - brand personality
+
+It preserves the underlying official identity rules from the corporate Brand Guideline according to its own governance section.
 
 Key visual characteristics of the Hadron interface should be:
 
@@ -1380,17 +1398,20 @@ Do not redraw, recreate or approximate the Hadron logo with text or CSS.
 
 Use the official asset.
 
-Before creating the first production UI design system, review:
+Before creating or changing the production UI design system, review:
 
-`docs/brand/Hadron-Brand-Guidelines.pdf`
+- `docs/ui/HADRON-ERP-UX-ARCHITECTURE.md`
+- `docs/brand/HADRON-DIGITAL-DESIGN-SYSTEM-v1.0.pdf`
+- `docs/brand/UI-BRAND-RULES.md`
+- `docs/brand/Hadron-Brand-Guidelines.pdf` where the Digital Design System identifies an underlying official brand rule
 
-and create/update:
+and update, when required:
 
 `docs/brand/UI-BRAND-RULES.md`
 
 The `UI-BRAND-RULES.md` file should contain the web-specific interpretation of the Brand Guideline so that routine frontend tasks do not need to repeatedly load the full PDF.
 
-If there is a conflict between `UI-BRAND-RULES.md` and the official PDF, the PDF is authoritative.
+If there is a conflict between `UI-BRAND-RULES.md` and the Hadron Digital Design System PDF, the Digital Design System PDF is authoritative. UX structure and interaction conflicts are resolved by the UX Architecture, while neither UX nor visual documents may override canonical business rules.
 
 Changes to global:
 

@@ -2,13 +2,21 @@
 
 ## 1. Authority and Purpose
 
-This document translates the official Hadron Tavan Brand Identity into practical rules for the Hadron ERP user interface.
+This document is the concise implementation companion for the Hadron ERP digital visual system. It does not replace the canonical authorities.
 
-The authoritative source is:
+The canonical authority hierarchy is:
 
-`docs/brand/Hadron-Brand-Guidelines.pdf`
+1. Business/domain behavior: canonical module specifications and locked Decisions.
+2. Enterprise UX, navigation, shell, page patterns, and interaction behavior: `docs/ui/HADRON-ERP-UX-ARCHITECTURE.md`.
+3. Digital visual UI, brand expression, design tokens, colors, logo, typography, spacing, and components: `docs/brand/HADRON-DIGITAL-DESIGN-SYSTEM-v1.0.pdf`.
 
-The official Brand Guideline always has higher authority than this document.
+The Digital Design System is authoritative over this file for ERP visual implementation. `docs/brand/Hadron-Brand-Guidelines.pdf` remains the underlying corporate brand source incorporated by that system, including official identity facts governed there.
+
+SAP Fiori patterns govern enterprise UX behavior and interaction patterns only. They do not supply Hadron ERP colors, typography, logo treatment, visual components, or brand expression.
+
+The product title is `Hadron ERP System`. MRP is a workspace/business area inside it. MRP package numbers are development traceability identifiers and must never appear as user-facing navigation.
+
+Before UI work, read the relevant canonical business specification and Decisions, then the UX Architecture and Digital Design System. No UX or visual rule may alter MRP business behavior.
 
 This document contains two different types of rules:
 
@@ -1328,7 +1336,7 @@ Once approved, these screens become practical UI references for future modules.
 
 # 53. Final Rule
 
-The official Hadron Brand Guideline is always the visual authority.
+The Hadron Digital Design System is the canonical visual authority for ERP digital implementation. It incorporates and governs use of the underlying official Hadron Brand Guideline.
 
 The ERP must translate that identity into software without changing its essence.
 
@@ -1336,11 +1344,11 @@ The desired visual result should reflect the official Hadron principles:
 
 **Professional, precise, calm, controlled, modern, trustworthy, minimal and engineered.**
 
-Where this document introduces rules that are not explicitly present in the official Brand Guideline, they must be treated as:
+Where this document introduces rules that are not explicitly present in the canonical Digital Design System or its underlying Brand Guideline, they must be treated as:
 
 **ERP UI INTERPRETATION**
 
-and must never override an official brand rule.
+and must never override the canonical Digital Design System.
 
 ---
 
