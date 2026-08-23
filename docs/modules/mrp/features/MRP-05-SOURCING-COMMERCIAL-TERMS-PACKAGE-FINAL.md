@@ -159,6 +159,8 @@ Rules:
 - Supplier must remain historically resolvable if later deactivated.
 - New Planning-ready sourcing must not use an inactive Supplier.
 - Supplier details must not be duplicated into the Sourcing record except for intentional historical snapshots in future transactional modules.
+- `ItemId` and `SupplierId` are assigned at Sourcing Option creation and are immutable afterward.
+- Changing the Item/Supplier relationship requires creating a new Sourcing Option; historical Price/route meaning must not be rewritten by relinking an existing option.
 
 MRP-05 references Supplier Master from MRP-03.
 
@@ -197,6 +199,11 @@ Rules:
 
 - maximum one active Preferred external Sourcing Option per Item
 - inactive Sourcing Option cannot remain Preferred
+- `IsPreferred` is not accepted as a client-editable field in ordinary Create/Update; Create always defaults it to `false`
+- Preferred changes occur only through the dedicated Preferred command
+- the target option must be Active but does not need to be Planning Ready
+- switching uses Item-row transactional locking plus a partial unique database index for active Preferred uniqueness
+- stale expected Preferred state returns structured `409 / PREFERRED_STATE_CHANGED`
 - Sourcing Option with inactive Supplier cannot be Planning Ready
 - incomplete Preferred option must not silently be treated as usable by MRP
 - future MRP should surface a warning if Preferred exists but is not Planning Ready
@@ -284,6 +291,10 @@ For the current MRP baseline:
 
 - Unit Price is expressed per Item Base Unit.
 - MOQ is expressed in Item Base Unit.
+- `ItemBaseUnitId` is captured by the server from the Item at Sourcing Option creation and is immutable.
+- `ItemBaseUnitId` is not client-selectable and is not a supplier order-UOM.
+- If the Item Base Unit later differs from the captured value, the Sourcing Option is `BLOCKED` with reason `BASE_UNIT_CHANGED`.
+- No conversion or historical rewrite is performed; a new Sourcing Option is required for the new Base Unit context.
 
 Example:
 
@@ -357,10 +368,10 @@ Rules:
 - Effective From is required.
 - Effective To may be open-ended.
 - Effective To must not be before Effective From.
-- overlapping active effective periods for the same Sourcing Option must be prevented.
+- Effective From and Effective To are inclusive business dates.
+- overlapping effective periods for the same Sourcing Option must be prevented by a PostgreSQL `btree_gist` exclusion constraint.
+- if `btree_gist` cannot be created in the target environment, implementation must STOP and must not silently weaken database integrity.
 - at a specific planning date there should be at most one applicable Price per Sourcing Option.
-
-Exact database enforcement strategy is proposed during MRP-05A.
 
 ---
 
@@ -377,6 +388,8 @@ Current Price
 =
 Price History record valid on evaluation date
 ```
+
+The calculation requires an explicit `evaluationDate`. The frontend may default it to the current Tehran business date, but it must send the date explicitly. The API must return the exact `evaluationDate` used.
 
 ---
 
@@ -413,7 +426,7 @@ MOQ belongs to Sourcing Option because it is Supplier/route-specific.
 Rules:
 
 - expressed in Item Base Unit
-- decimal/numeric
+- stored as `numeric(18,6)`
 - >= 0
 - 0 means no effective minimum quantity if business chooses to use zero
 - historical PO quantity is not changed by later MOQ changes
@@ -705,6 +718,8 @@ Rules:
 - inactive option excluded from future source selection
 - inactive option cannot remain Preferred
 - Price History remains historically preserved
+- reactivation requires only fundamental compatibility: active Item, active Supplier, compatible Supply Method, matching captured Base Unit and valid assigned references
+- missing current Price, MOQ or route-completeness data does not block reactivation; the derived result is `INCOMPLETE_DATA`
 
 ---
 
@@ -758,16 +773,18 @@ Required Route Data
 
 Exact validation expression may account for legitimate non-applicable route fields, but must not silently treat missing required planning data as ready.
 
-Possible derived states:
+Approved derived states and precedence:
 
 ```text
-Ready
-Incomplete Data
-Blocked
-Inactive
+INACTIVE
+→ BLOCKED
+→ INCOMPLETE_DATA
+→ READY
 ```
 
-The exact UI label set is determined in MRP-05A without changing the locked principle.
+The evaluation stops at the first applicable state in that precedence. Stable machine-readable reason codes are required. At minimum, Base Unit drift uses `BASE_UNIT_CHANGED`; other missing/blocked causes must also use stable codes rather than display text.
+
+Readiness requires an explicit `evaluationDate`. The frontend may default to Tehran today but must send it explicitly, and every API response containing readiness/current Price must return the date used.
 
 ---
 
@@ -909,6 +926,7 @@ Item
   └── Sourcing Option
           │
           ├── Supplier
+          ├── Item Base Unit Snapshot
           ├── Preferred
           ├── MOQ
           ├── Shipping Mode
@@ -1009,7 +1027,7 @@ Setting a Sourcing Option as Preferred must enforce:
 
 If another Preferred exists, the operation must be atomic and unambiguous.
 
-Codex Analysis should propose the safest UX/database approach.
+The approved approach is a dedicated command using Item-row transactional locking, expected Preferred state and a partial unique active-Preferred index. A stale expected state returns `409 / PREFERRED_STATE_CHANGED`.
 
 ---
 
@@ -1032,7 +1050,7 @@ Do not create parallel Identity infrastructure.
 Important changes must be compatible with Audit:
 
 - create Sourcing Option
-- Supplier change where allowed
+- attempted or created Item/Supplier relationship; ordinary relinking is prohibited
 - Preferred change
 - MOQ change
 - route change
@@ -1085,7 +1103,7 @@ At minimum:
 - max one active Preferred external option per Item
 
 ### Price
-- Unit Price >= 0
+- Unit Price stored as `numeric(18,6)` and >= 0; zero remains valid
 - Currency required
 - Effective From required
 - Effective To >= Effective From when provided
@@ -1096,6 +1114,10 @@ At minimum:
 - must be derived
 - cannot be client-forced to Ready
 - missing required planning data must produce non-ready state
+- precedence is `INACTIVE → BLOCKED → INCOMPLETE_DATA → READY`
+- stable machine-readable reason codes are returned
+- Item Base Unit mismatch produces `BLOCKED / BASE_UNIT_CHANGED`
+- readiness/current Price uses explicit `evaluationDate` and returns it in the API response
 
 ---
 
@@ -1103,10 +1125,12 @@ At minimum:
 
 Use decimal/numeric for:
 
-- Unit Price
-- MOQ
+- Unit Price: `numeric(18,6)`
+- MOQ: `numeric(18,6)`
 
 Do not use binary floating point.
+
+Zero is valid for both Price and MOQ under the canonical `>= 0` rules.
 
 Lead-time days use integer Calendar Days.
 
@@ -1115,6 +1139,10 @@ Lead-time days use integer Calendar Days.
 ## 53. Date Rules
 
 Price Effective dates use canonical Gregorian storage.
+
+Effective period endpoints are inclusive.
+
+Readiness and current-Price calculation require an explicit Gregorian `evaluationDate`. The frontend may initialize it to Tehran today, but it must transmit the value and the API must echo the value used.
 
 Jalali display/input may be supported by shared UI/date infrastructure.
 
@@ -1161,7 +1189,7 @@ Concurrency-sensitive operations include:
 
 These rules must remain correct under concurrent requests.
 
-Codex Analysis must propose the smallest robust PostgreSQL/EF Core strategy.
+Preferred switching uses Item-row transactional locking and a partial unique index over active Preferred options. The command verifies the expected current Preferred state and returns `409 / PREFERRED_STATE_CHANGED` when stale. Price-period overlap is protected by the approved PostgreSQL `btree_gist` exclusion constraint.
 
 ---
 
@@ -1262,6 +1290,14 @@ MRP-05 is acceptable when:
 28. Server-side validation exists.
 29. Concurrency-sensitive Preferred/Price rules are tested.
 30. No real Sourcing/Price data is fabricated.
+31. `ItemBaseUnitId` is server-captured/immutable and Base Unit drift produces `BLOCKED / BASE_UNIT_CHANGED` without conversion or rewrite.
+32. `ItemId` and `SupplierId` are immutable after Create.
+33. Create/Update cannot set `IsPreferred`; the dedicated command is atomic and stale Preferred state returns `409 / PREFERRED_STATE_CHANGED`.
+34. Reactivation permits incomplete commercial data while enforcing fundamental compatibility.
+35. Readiness precedence and machine-readable reason codes are stable.
+36. Readiness/current Price uses and returns explicit `evaluationDate`.
+37. Inclusive Price periods are protected by the approved `btree_gist` exclusion constraint.
+38. Price and MOQ are `numeric(18,6)` and zero remains valid.
 
 ---
 
@@ -1297,6 +1333,15 @@ The following are locked for MRP-05:
 26. Preferred does not force future MRP to ignore alternatives.
 27. Future PO snapshots Price/Currency/Payment assumptions.
 28. Historical downstream data cannot be rewritten by later master changes.
+29. `ItemBaseUnitId` is server-captured and immutable; later mismatch is `BLOCKED / BASE_UNIT_CHANGED` with no conversion or historical rewrite.
+30. Sourcing `ItemId` and `SupplierId` are immutable after Create; relationship change requires a new Sourcing Option.
+31. `IsPreferred` defaults false and is changed only by a dedicated command; the target must be Active but need not be Planning Ready.
+32. Preferred switching uses Item-row transactional locking plus a partial unique active-Preferred index; stale state is `409 / PREFERRED_STATE_CHANGED`.
+33. Reactivation checks fundamental compatibility but permits missing Price/MOQ/route completeness as `INCOMPLETE_DATA`.
+34. Readiness precedence is `INACTIVE → BLOCKED → INCOMPLETE_DATA → READY` with stable machine-readable reason codes.
+35. Readiness/current Price requires explicit `evaluationDate`; the frontend sends it and the API returns it.
+36. Inclusive Price periods use PostgreSQL `btree_gist` exclusion integrity; implementation stops if that integrity cannot be installed.
+37. Price and MOQ use `numeric(18,6)` and accept zero.
 
 ---
 
@@ -1308,10 +1353,9 @@ The following implementation details may be resolved in Codex Analysis without c
 
 - exact relational table layout
 - optional human-readable Sourcing Number
-- database mechanism for non-overlapping Price ranges
-- atomic Preferred-source switching
-- exact derived Readiness label names
 - UI integration into Item/Supplier detail pages
+
+The Price-range mechanism, Preferred switching strategy, Readiness state precedence and Base Unit snapshot semantics are CLOSED by the Owner-approved MRP-05A baseline above.
 
 ---
 
@@ -1505,6 +1549,7 @@ SOURCING OPTION
 Implement approved:
 - Item reference
 - Supplier reference
+- server-captured immutable Item Base Unit reference
 - Preferred
 - Active/Inactive
 - MOQ
@@ -1519,11 +1564,22 @@ Allow:
 - multiple Suppliers per Item
 - multiple options for same Supplier + Item
 
+Identity/relationship rules:
+- `ItemId` and `SupplierId` are immutable after Create; relationship change requires a new Sourcing Option
+- `ItemBaseUnitId` is captured from the Item by the server, is immutable and is not accepted from the client
+- later Item Base Unit mismatch produces `BLOCKED / BASE_UNIT_CHANGED`
+- do not convert quantities or rewrite historical Sourcing/Price data
+- `IsPreferred` is not accepted in Create/Update and Create defaults it to `false`
+
 PREFERRED
 Enforce:
 - max one active Preferred external option per Item
 - inactive option cannot remain Preferred
-- operation is concurrency-safe/atomic according to MRP-05A
+- Preferred changes only through the dedicated command
+- target must be Active but need not be Planning Ready
+- use Item-row transactional locking plus a partial unique index for active Preferred uniqueness
+- command verifies expected current Preferred state
+- stale Preferred state returns structured `409 / PREFERRED_STATE_CHANGED`
 
 ITEM COMPATIBILITY
 External Sourcing baseline:
@@ -1542,18 +1598,24 @@ Implement:
 - Effective To
 
 Rules:
-- Price >= 0
+- Price uses `numeric(18,6)` and is >= 0; zero is valid
 - Currency required
 - Effective From required
 - Effective To >= Effective From
-- no overlapping effective periods for same option
-- current Price derived by evaluation date
+- Effective From/To are inclusive
+- no overlapping effective periods for same option, enforced by PostgreSQL `btree_gist` exclusion constraint
+- if `btree_gist` cannot be created, STOP; do not replace it with weaker application-only integrity
+- current Price derived by explicit `evaluationDate`
 - historical prices preserved
 
 Do not add a manually synchronized Current Price field unless the approved Analysis demonstrates a compelling architectural reason.
 
 PRICE / MOQ UNIT
 Use Item Base Unit in v1.
+
+- Price and MOQ use `numeric(18,6)`
+- zero is valid for Price and MOQ
+- use the server-captured immutable `ItemBaseUnitId`
 
 Do not implement supplier packaging/order-UOM conversion.
 
@@ -1601,6 +1663,18 @@ Do not create user-editable Ready checkbox/status.
 
 Incomplete Sourcing may be saved.
 
+Approved precedence:
+
+```text
+INACTIVE → BLOCKED → INCOMPLETE_DATA → READY
+```
+
+- return stable machine-readable reason codes
+- Base Unit mismatch is `BLOCKED / BASE_UNIT_CHANGED`
+- calculation requires explicit `evaluationDate`
+- frontend may default to Tehran today but must send the date explicitly
+- API must return the `evaluationDate` used
+
 Planning-ready evaluation must consider approved required data including:
 - Active option
 - Active Supplier
@@ -1613,6 +1687,13 @@ Planning-ready evaluation must consider approved required data including:
 - required route data
 
 Use 0 for intentionally non-applicable duration, null/missing for unknown.
+
+REACTIVATION
+- require active Item and active Supplier
+- require compatible Supply Method
+- require captured Item Base Unit to match current Item Base Unit
+- require assigned references to be valid
+- missing Price, MOQ or route-completeness data does not block reactivation and yields `INCOMPLETE_DATA`
 
 HISTORICAL INTEGRITY
 Do not cascade-delete:
@@ -1674,21 +1755,31 @@ At minimum:
 - max one active Preferred
 - concurrent Preferred update integrity
 - inactive option not Preferred
+- Create/Update cannot set Preferred and Create defaults false
+- Preferred target Active but not Planning Ready is allowed
+- stale Preferred state returns `409 / PREFERRED_STATE_CHANGED`
+- Item-row locking plus partial unique index preserves one active Preferred
+- ItemId/SupplierId immutability
+- server-captured immutable ItemBaseUnitId
+- Base Unit mismatch => `BLOCKED / BASE_UNIT_CHANGED` with no conversion/rewrite
 - Price requires Currency
 - Price period validity
-- overlap prevention
-- current Price derivation
+- inclusive Price boundary behavior
+- `btree_gist` database overlap prevention, including concurrent requests
+- current Price derivation from explicit `evaluationDate` and API echo
 - historical Price preservation
-- MOQ >= 0
+- Price/MOQ exact `numeric(18,6)` persistence, negative rejection and zero acceptance
 - lead-time stage validation
 - Total Lead Time derived
 - Incomplete save allowed
 - Readiness derived
+- Readiness precedence and stable reason codes
 - client cannot force Ready
 - missing Price => not Ready
 - inactive Supplier/Item => not Ready
 - pure MAKE external-source rule
 - historical inactive reference resolution
+- reactivation fundamental checks and incomplete commercial-data allowance
 - no Sourcing payment override fields
 - no future-module leakage
 
@@ -1794,10 +1885,20 @@ Audit:
    - multiple Suppliers per Item
    - multiple same Supplier+Item route options
    - no Item+Supplier uniqueness bug
+   - ItemId and SupplierId immutable after Create
+   - relationship change requires a new Sourcing Option
+   - ItemBaseUnitId captured by server, immutable and not client-supplied
+   - Base Unit mismatch produces `BLOCKED / BASE_UNIT_CHANGED` without conversion/history rewrite
 
 3. Preferred
    - max one active Preferred external option per Item
    - inactive option not Preferred
+   - IsPreferred absent from Create/Update and defaults false
+   - only the dedicated command changes Preferred
+   - target Active but not necessarily Planning Ready
+   - Item-row transactional locking correct
+   - partial unique active-Preferred index exists
+   - stale state returns `409 / PREFERRED_STATE_CHANGED`
    - concurrency/atomicity correct
    - Preferred not treated as mandatory exclusion of alternatives
 
@@ -1808,16 +1909,17 @@ Audit:
 5. Price
    - belongs to Sourcing
    - Currency required
-   - Price >= 0
+   - Price is `numeric(18,6)`, Price >= 0 and zero is valid
    - Item Base Unit baseline
-   - Effective dates
-   - no overlap
+   - inclusive Effective dates
+   - PostgreSQL `btree_gist` exclusion constraint prevents overlap
+   - implementation did not silently weaken integrity if extension creation failed
    - historical preservation
-   - current Price derived
+   - current Price derived from explicit `evaluationDate` and API returns that date
 
 6. MOQ
    - Sourcing-specific
-   - >= 0
+   - `numeric(18,6)`, >= 0 and zero is valid
    - Item Base Unit
 
 7. Route
@@ -1857,6 +1959,11 @@ Audit:
     - incomplete save allowed
     - missing required data => not Ready
     - inactive Supplier/Item => not Ready
+    - precedence is `INACTIVE → BLOCKED → INCOMPLETE_DATA → READY`
+    - stable machine-readable reason codes are returned
+    - explicit `evaluationDate` is required and returned
+    - Reactivation enforces active Item/Supplier, compatible Supply Method, matching Base Unit and valid assigned references
+    - missing Price/MOQ/route completeness may Reactivate as `INCOMPLETE_DATA`
 
 12. Historical Integrity
     - deactivation does not destroy historical Price/Sourcing resolution
@@ -1865,9 +1972,9 @@ Audit:
 13. Database Integrity
     - foreign keys
     - indexes
-    - Price-range integrity
-    - Preferred uniqueness/concurrency
-    - numeric precision
+    - inclusive Price-range integrity through `btree_gist`
+    - Preferred Item-row locking plus partial unique index
+    - exact Price/MOQ `numeric(18,6)` precision
     - migration safety
 
 14. API
@@ -1896,9 +2003,14 @@ Audit:
 
 18. Tests
     Verify meaningful assertions especially:
-    - Price overlap
-    - concurrent Preferred changes
-    - Derived Readiness
+    - inclusive Price overlap and concurrent database exclusion
+    - concurrent Preferred changes and stale-state 409
+    - Preferred not client-editable
+    - Item/Supplier/Base Unit immutability
+    - Base Unit mismatch reason
+    - Reactivation fundamental-vs-incomplete boundary
+    - Derived Readiness precedence/reason codes/evaluationDate
+    - Price/MOQ zero and precision
     - historical Price preservation
 
 19. Specification Drift
