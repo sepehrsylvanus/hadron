@@ -231,11 +231,23 @@ This applies to:
 
 Any allowed administrative correction to historical data would require a separate controlled correction process and is not part of normal MRP-06 UI.
 
+The only approved operational exception is the explicit atomic effectivity closure defined in §51. It may change only `Effective To` on exactly one preceding open-ended Approved Revision while approving its confirmed successor. It does not permit editing released BOM content, quantities, units, Lines or other effectivity fields.
+
 ---
 
 ## 10. Obsolete Revision
 
 Obsoleting a Revision must not delete it.
+
+Operational effective resolution uses only `APPROVED` Revisions.
+
+Historical resolution may resolve `APPROVED` or `OBSOLETE` Revisions by business date. Obsoleting a current or future Revision therefore requires an explicit `Retire From Date`. Where the Revision would otherwise remain effective on or after that date, the controlled Obsolete transaction closes its `Effective To` to:
+
+```text
+Retire From Date - 1 calendar day
+```
+
+The closure, status transition and audit event must be atomic. Released historical ranges must remain non-overlapping. Obsolete must not erase or rewrite the period during which the Revision was historically effective.
 
 Historical:
 
@@ -269,6 +281,8 @@ Rules:
 - For a given Parent Item and business date, at most one Approved BOM Revision may be effective.
 
 Approved effective ranges for the same Parent must not overlap.
+
+Released historical ranges across `APPROVED` and `OBSOLETE` Revisions must also remain non-overlapping.
 
 ---
 
@@ -434,6 +448,21 @@ BOM Line must not independently redefine the Child Item Base Unit.
 
 Usage Qty uses the Child Item Base Unit defined in Item Master.
 
+MRP-06 stores server-captured immutable unit snapshots:
+
+- `ParentBaseUnitId` on the BOM Revision
+- `ChildBaseUnitId` on each BOM Line
+
+Clients cannot assign or edit these snapshots. They preserve the unit meaning of `Base Output Qty` and `Usage Qty` without creating an alternate Unit source of truth.
+
+If the current Item Base Unit no longer matches its captured snapshot:
+
+```text
+BASE_UNIT_CHANGED
+```
+
+must block operational BOM use. The system must not convert quantities, rewrite history or silently refresh snapshots.
+
 Unit Conversion is not part of MRP-06.
 
 If future engineering requires alternate BOM units, that must be introduced through an explicit Unit Conversion capability, not hidden inside BOM.
@@ -487,6 +516,10 @@ Approval MUST be blocked
 until the BOM graph is acyclic.
 
 Cycle detection must consider the full relevant multi-level BOM graph, not only direct self-reference.
+
+Cycle validation is effective-date-aware. Approval evaluates the candidate Revision against the released graph for every effective-date segment that may apply during the candidate range. Revision boundaries partition the relevant range; a representative business date from each stable segment is checked with full recursive traversal.
+
+Approval and Obsolete operations participate in one shared transaction-level BOM graph lock. This serializes released-graph changes so concurrent operations cannot introduce a reciprocal or multi-level cycle between separate Parent Items.
 
 ---
 
@@ -542,28 +575,20 @@ Use decimal/numeric.
 
 ### LOCKED DECISION
 
-MRP-06 does NOT lock or implement the final material-requirement Scrap formula.
-
-Two possible future models include:
+The higher canonical MRP Decisions lock the v1 material-requirement formula as:
 
 ```text
-Usage × (1 + Scrap %)
+Planned Requirement
+=
+Base Requirement × (1 + Scrap % / 100)
 ```
 
-or:
-
-```text
-Usage / (1 - Scrap %)
-```
-
-The exact formula will be resolved before the MRP Calculation Engine.
-
-MRP-06 only stores:
+MRP-06 must NOT calculate or apply this formula. It only stores and resolves:
 
 - Item Default Planning Scrap %
 - optional BOM Line Override %
 
-and preserves NULL vs explicit 0 semantics.
+and preserves NULL vs explicit 0 semantics for the future Planning Engine.
 
 ---
 
@@ -623,6 +648,10 @@ May have both:
 ### BUY
 
 Does not require a planning BOM for normal external procurement.
+
+A BUY Item may still have a BOM as engineering or historical data. MRP-06 must not block its creation, revisioning, approval or historical resolution solely because its current Supply Method is BUY.
+
+Future normal BUY planning stops at the BUY Item and does not explode that BOM. MRP-06 does not implement that Planning behavior.
 
 MRP-06 does not choose which route HYBRID will use.
 
@@ -793,8 +822,10 @@ Before status changes to Approved, at minimum validate:
 - no overlapping Approved effective Revision for same Parent
 - no circular dependency
 - Child Items were valid selections under active-item rules when revision was prepared/approved
+- current Parent/Child Base Units match their immutable snapshots
+- any confirmed predecessor closure satisfies §51 exactly
 
-Exact transaction/locking strategy is proposed in Analysis.
+Approval uses the shared transaction-level BOM graph lock. Validation, optional confirmed predecessor closure, candidate Approval and audit persistence boundary must execute as one atomic transaction.
 
 ---
 
@@ -845,6 +876,10 @@ Behavior:
 - returns one Approved effective Revision
 - returns no result if none exists
 - must never return two ambiguous overlapping revisions
+
+This is operational resolution and therefore considers `APPROVED` only.
+
+Historical resolution is a separate explicit use case. It may return `APPROVED` or `OBSOLETE` for a business date, while preserving the status and exact released effective range in the response.
 
 Exact API/domain design is proposed during Analysis.
 
@@ -1011,8 +1046,10 @@ Required use cases include:
 - manage Draft Lines
 - validate Draft
 - approve Draft
-- obsolete Revision
-- resolve effective Revision by date
+- approve Draft, optionally with the explicit confirmed predecessor closure contract from §51
+- obsolete Revision with explicit Retire From Date
+- resolve operational effective Approved Revision by date
+- resolve historical released Approved/Obsolete Revision by date
 - check cycle/structural validation
 
 Avoid dangerous unrestricted generic CRUD.
@@ -1047,6 +1084,8 @@ At minimum:
 - at least one Line
 - no circular dependency
 - no ambiguity in effectivity
+- Base Unit snapshots still match current Parent/Child Base Units
+- explicit predecessor identity/version/confirmation when closing an open-ended predecessor
 
 ---
 
@@ -1072,7 +1111,7 @@ New Draft Revision
 
 Obsolete does not mean deleted.
 
-Exact handling of replacing future Approved Revisions must preserve non-overlapping effectivity and historical trace.
+Obsolete requires an explicit Retire From Date. Operational resolution excludes Obsolete; historical resolution preserves it for dates inside its released historical range. The controlled retirement transaction closes a current/future open range where necessary and preserves non-overlapping released history.
 
 ---
 
@@ -1087,9 +1126,25 @@ REV-1: 2026-01-01 → 2026-09-30
 REV-2: 2026-10-01 → open
 ```
 
-Whether Approval may automatically propose closing the previous open-ended Revision is an implementation/UX proposal for MRP-06A.
+### LOCKED DECISION
 
-It must never silently rewrite effectivity without user-visible confirmation.
+Successor Approval may close exactly one preceding open-ended `APPROVED` Revision to:
+
+```text
+New Effective From - 1 calendar day
+```
+
+only when the Approval command supplies all of:
+
+- explicit user confirmation
+- `PreviousRevisionId`
+- `ExpectedPreviousVersion`
+
+The preceding Revision remains `APPROVED`. Its Lines and all other released content remain immutable.
+
+The system must verify that the supplied Revision is the same Parent's single immediately preceding open-ended Approved Revision and that the proposed closure is not earlier than its Effective From. Previous closure and successor Approval occur in one transaction under the shared BOM graph lock. Both Version values advance according to the approved aggregate concurrency policy, and stale state returns structured conflict without partial mutation.
+
+No predecessor is discovered and rewritten silently. No more than one predecessor may be closed. Every other overlap is blocked by application validation and the database released-range exclusion constraint.
 
 ---
 
@@ -1101,8 +1156,10 @@ Concurrency-sensitive operations include:
 - BOM Approval
 - effective-range overlap protection
 - cycle validation against concurrently approved revisions
+- explicit predecessor closure during successor Approval
+- Obsolete retirement and released-range closure
 
-Codex Analysis must propose the smallest robust PostgreSQL/EF Core strategy.
+Approval and Obsolete use the same transaction-level BOM graph lock. Revision rows and referenced Item rows are locked deterministically inside the transaction. Effective-range and cycle validation must be repeated after acquiring the lock. Database exclusion remains the final protection against released-range overlap.
 
 ---
 
@@ -1116,6 +1173,8 @@ Expected database-level protections where practical:
 - numeric constraints
 - status integrity
 - indexes for Parent + Status + effective dates
+- immutable server-captured Parent/Child Base Unit foreign keys
+- non-overlapping released historical ranges for Approved/Obsolete Revisions
 
 Application/domain validation still handles graph-level rules such as recursive cycle detection.
 
@@ -1214,7 +1273,7 @@ MRP-06 is acceptable when:
 12. No manual Current BOM flag.
 13. Base Output Qty > 0.
 14. Usage Qty > 0.
-15. Usage uses Child Base Unit.
+15. Usage uses the server-captured immutable Child Base Unit snapshot; Parent and Child snapshot drift blocks operational use with `BASE_UNIT_CHANGED`.
 16. Duplicate Child lines are prevented.
 17. Direct self-reference is prevented.
 18. Recursive cycles block Approval.
@@ -1222,7 +1281,7 @@ MRP-06 is acceptable when:
 20. Scrap Override preserves NULL vs 0 semantics.
 21. Scrap formula is NOT implemented.
 22. Product/MAKE/OUTSOURCE/HYBRID BOM compatibility is preserved.
-23. BUY does not require BOM.
+23. BUY does not require BOM, but BUY BOM is allowed as engineering/history data and MRP-06 does not block it.
 24. HYBRID route selection is deferred.
 25. New BOM selection uses active Items.
 26. Historical inactive Items remain visible.
@@ -1232,6 +1291,10 @@ MRP-06 is acceptable when:
 30. Server-side validation exists.
 31. Concurrency-sensitive Approval/effectivity rules are tested.
 32. No Planning/Inventory/PO logic leaks into MRP-06.
+33. Confirmed successor Approval may atomically close exactly one preceding open-ended Approved range using predecessor identity and Expected Version; other overlaps are blocked.
+34. Operational resolution uses Approved only; historical resolution may use Approved/Obsolete without overlapping released history.
+35. Obsolete retirement requires explicit Retire From Date and preserves historical effectivity.
+36. Effective-date-aware cycle validation and shared Approval/Obsolete locking prevent concurrent released-graph cycles.
 
 ---
 
@@ -1253,59 +1316,45 @@ The following are locked for MRP-06:
 12. Base Output Qty exists and defaults to 1.
 13. Base Output Qty > 0.
 14. Usage Qty > 0.
-15. Usage Qty uses Child Base Unit.
+15. Usage Qty uses `ParentBaseUnitId` and `ChildBaseUnitId` server-captured immutable snapshots; drift produces `BASE_UNIT_CHANGED` without conversion or historical rewrite.
 16. Duplicate Child per Revision prohibited.
 17. Circular BOM prohibited.
 18. Draft may warn on cycle; Approval must block.
 19. Scrap Override optional.
 20. NULL Scrap Override means Item default.
 21. 0 Scrap Override means explicit zero.
-22. Scrap formula deferred to Planning Engine.
+22. The canonical v1 formula is additive, but MRP-06 does not calculate it and only owns NULL/default/explicit-zero Scrap resolution.
 23. Product may have BOM.
 24. MAKE may use BOM.
 25. OUTSOURCE may use BOM where lower-level inputs must be planned.
 26. HYBRID may have BOM and external Sourcing.
-27. BUY does not require planning BOM.
+27. BUY does not require planning BOM, but its BOM is allowed as engineering/history data; future normal BUY planning does not explode it.
 28. BOM does not choose HYBRID route.
 29. New revision child selections use Active Items.
 30. Historical inactive Items remain resolvable.
 31. Component Count is Derived.
 32. No manual Current BOM flag.
 33. No downstream Planning logic is implemented here.
+34. Successor Approval may close exactly one confirmed preceding open-ended Approved Revision to New Effective From minus one day, using Previous Revision ID and Expected Previous Version in one transaction; the predecessor remains Approved and other overlaps are blocked.
+35. Operational resolution uses Approved only; historical resolution may resolve Approved/Obsolete by business date while released ranges remain non-overlapping.
+36. Obsolete retirement requires explicit Retire From Date and controlled atomic range closure where needed.
+37. Approval and Obsolete share transaction-level released-graph locking, and cycle validation is effective-date-aware.
 
 ---
 
 ## 60. Open Questions
 
-The previous open question concerning:
+The previous questions concerning BOM Revision/effectivity, successor closure, Obsolete resolution, Base Unit drift, BUY BOM compatibility, cycle locking and Scrap formula are CLOSED.
 
-`BOM Revision / Effective Dating`
-
-is now CLOSED.
-
-The following remains intentionally OPEN for the future Planning Engine:
-
-`Exact Scrap Formula`
-
-Specifically, MRP-06 does not decide between:
+Canonical v1 Scrap formula:
 
 ```text
-Usage × (1 + Scrap %)
+Base Requirement × (1 + Scrap % / 100)
 ```
 
-and:
+MRP-06 does not calculate it. MRP-06 stores and resolves only the default/override boundary, including NULL versus explicit zero.
 
-```text
-Usage / (1 - Scrap %)
-```
-
-Other technical implementation details may be resolved by MRP-06A without changing Business Rules:
-
-- Revision numbering mechanism
-- database strategy for non-overlapping effective periods
-- exact cycle-detection implementation
-- whether Change Reason is mandatory at approval
-- whether approval may propose closing a previous open-ended Revision
+There are no remaining MRP-06 business blockers. Minor technical choices such as revision-code formatting and optional Revision Notes presentation may be completed in 06B without changing these locked rules.
 
 ---
 
@@ -1374,9 +1423,11 @@ Required analysis:
 11. Safest PostgreSQL/EF Core approach to preventing overlapping Approved effective ranges per Parent.
 12. Future Approved revisions.
 13. Effective BOM resolution by business date.
+   - operational = APPROVED only
+   - historical = APPROVED / OBSOLETE
 14. Confirm no manual Current BOM flag.
 15. Base Output Qty.
-16. Usage Qty and Child Base Unit.
+16. Usage Qty and server-captured immutable Parent/Child Base Unit snapshots.
 17. Duplicate Child prevention.
 18. Circular dependency detection:
    - direct self-reference
@@ -1387,7 +1438,7 @@ Required analysis:
 20. Scrap Override:
    - NULL = Item default
    - 0 = explicit zero
-   - do NOT decide/apply final Scrap formula
+   - canonical additive formula is already locked, but MRP-06 must not calculate/apply it
 21. Supply Method compatibility:
    - Product
    - MAKE
@@ -1399,7 +1450,7 @@ Required analysis:
 24. Component Count derived.
 25. Empty Draft vs Approved BOM rules.
 26. Revision Notes / Change Reason recommendation.
-27. Whether Approval may safely propose closing a previous open-ended revision; do not silently change history.
+27. Verify the locked explicit successor closure contract and Obsolete retirement semantics: confirmation + PreviousRevisionId + ExpectedPreviousVersion, exactly one predecessor, explicit RetireFromDate, operational versus historical resolution, one atomic transaction, non-overlapping released history and no silent rewrite.
 28. API/application use cases.
 29. UI:
    - Revision list
@@ -1440,12 +1491,16 @@ Testing proposal must cover at minimum:
 - Scrap range
 - active Item selection
 - historical inactive Item resolution
+- Base Unit snapshot drift and `BASE_UNIT_CHANGED`
 - empty Draft allowed
 - empty Approved rejected
 - Component Count not stored
 - no Current BOM flag
 - no Scrap calculation formula
 - no Planning/Inventory leakage
+- explicit predecessor closure and stale Previous Version
+- Obsolete RetireFromDate and historical Approved/Obsolete resolution
+- effective-date-aware cycle checks under concurrent Approval/Obsolete locking
 
 Output:
 1. Understanding
@@ -1506,6 +1561,7 @@ If MRP-06A contains unresolved material contradictions, STOP.
 BOM REVISION
 Implement approved:
 - Parent Item
+- server-captured immutable ParentBaseUnitId snapshot
 - Revision identity
 - Status
 - Base Output Qty
@@ -1533,6 +1589,7 @@ Do not enable other relationships.
 LINES
 Implement:
 - Child Item
+- server-captured immutable ChildBaseUnitId snapshot
 - Usage Qty
 - Scrap Override %
 - approved display order if needed
@@ -1540,6 +1597,9 @@ Implement:
 Rules:
 - Usage Qty > 0
 - Child Base Unit is authoritative
+- clients cannot assign or edit unit snapshots
+- current Base Unit mismatch returns/produces `BASE_UNIT_CHANGED` and blocks operational use
+- no conversion, silent snapshot refresh or historical rewrite
 - duplicate Child in same Revision prohibited
 - direct self-reference prohibited
 
@@ -1559,16 +1619,21 @@ EFFECTIVE DATES
 - Effective From required for Approval
 - Effective To optional
 - To >= From
-- no overlapping Approved effective ranges for same Parent
+- no overlapping released Approved/Obsolete historical ranges for same Parent
 - future Approved revisions supported
-- effective Revision resolved by business date
+- operational effective Revision resolves APPROVED only by business date
+- historical resolution may resolve APPROVED/OBSOLETE by business date
 - no manual Current BOM field
+- successor Approval may close exactly one preceding open-ended APPROVED Revision to NewEffectiveFrom - 1 day only with explicit confirmation, PreviousRevisionId and ExpectedPreviousVersion
+- predecessor closure and successor Approval are one atomic transaction; predecessor remains APPROVED and other overlaps are blocked
+- Obsolete current/future Revision requires explicit RetireFromDate and controlled atomic EffectiveTo closure to RetireFromDate - 1 where necessary
 
 CYCLE VALIDATION
 - Draft may be saved with warning if approved design allows it
 - Approval MUST fail for any recursive cycle
-- implement approved full-graph cycle detection
+- implement approved effective-date-aware full-graph cycle detection across every stable segment of the candidate effective range
 - do not limit to direct self-reference
+- Approval and Obsolete use the same transaction-level released-graph lock
 
 SCRAP
 Store:
@@ -1578,7 +1643,7 @@ Semantics:
 - NULL = Item default
 - 0 = explicit zero
 
-Do NOT implement final Scrap requirement formula.
+The canonical v1 formula is `Base Requirement × (1 + Scrap % / 100)`, but MRP-06 must NOT calculate or apply it.
 
 SUPPLY METHOD BOUNDARY
 Respect:
@@ -1586,7 +1651,8 @@ Respect:
 - MAKE BOM supported
 - OUTSOURCE BOM supported where lower-level inputs need planning
 - HYBRID may coexist with Sourcing
-- BUY does not require BOM
+- BUY BOM is allowed as engineering/history data and must not be blocked by MRP-06
+- future normal BUY planning does not explode the BOM
 
 Do NOT implement Make-vs-Buy route selection.
 
@@ -1609,6 +1675,16 @@ Approval validation must include approved:
 - effective-date validity
 - no overlapping Approved Revision
 - no cycle
+- Parent/Child Base Unit snapshots still match current Item Base Units
+- confirmed predecessor identity/version is validated before any optional closure
+- all validation, optional predecessor closure and Approval are atomic
+
+OBSOLETE
+- require explicit RetireFromDate
+- operational resolution excludes Obsolete
+- historical resolution preserves Approved/Obsolete effectivity
+- controlled range closure and status transition are atomic under the shared graph lock
+- released historical ranges remain non-overlapping
 
 APPROVED UI
 Approved revision read-only.
@@ -1655,12 +1731,18 @@ At minimum:
 - future Approved revision
 - effective-range overlap prevention
 - effective BOM resolution by date
+- confirmed predecessor closure, stale ExpectedPreviousVersion, exactly-one-predecessor rule and rollback
+- operational Approved-only resolution and historical Approved/Obsolete resolution
+- Obsolete RetireFromDate and historical effectivity preservation
 - Base Output Qty validation
 - decimal Usage
 - Usage > 0
+- immutable Parent/Child Base Unit snapshots and Base Unit drift
 - duplicate Child rejection
 - direct self-reference rejection
 - recursive cycle detection
+- effective-date segmented cycle detection
+- concurrent reciprocal Approval and Approval/Obsolete locking
 - Draft cycle warning/save according to approved analysis
 - Approval blocked on cycle
 - Scrap NULL vs 0
@@ -1672,6 +1754,7 @@ At minimum:
 - no manual Component Count
 - no Current BOM field
 - no Scrap formula
+- BUY BOM allowed without implementing BUY explosion
 - no Planning/Inventory/PO leakage
 - concurrency around Approval/effectivity
 
@@ -1801,9 +1884,14 @@ Audit:
 
 6. Effective Dating
    - From/To rules
-   - no overlap per Parent
+   - no overlap across released Approved/Obsolete historical ranges per Parent
    - future Approved revisions
-   - effective lookup by business date
+   - operational lookup uses APPROVED only
+   - historical lookup may resolve APPROVED/OBSOLETE by business date
+   - explicit successor confirmation, PreviousRevisionId and ExpectedPreviousVersion
+   - exactly one preceding open-ended Approved Revision closes to NewEffectiveFrom - 1 in the same transaction and remains Approved
+   - every other overlap is blocked; no silent predecessor rewrite
+   - Obsolete current/future retirement requires explicit RetireFromDate and controlled atomic closure
    - no manual Current BOM flag
    - date storage rules
 
@@ -1814,6 +1902,8 @@ Audit:
 8. BOM Lines
    - Usage > 0
    - Child Base Unit
+   - ParentBaseUnitId and ChildBaseUnitId are server-captured immutable snapshots
+   - drift produces BASE_UNIT_CHANGED without conversion or history rewrite
    - duplicate Child prohibited
    - no hidden Component Count
 
@@ -1822,17 +1912,20 @@ Audit:
    - recursive cycles
    - Draft warning behavior
    - Approval block
-   - full graph considered
+   - effective-date-aware full graph considered for every stable segment
+   - Approval/Obsolete share transaction-level graph locking
+   - concurrent reciprocal approvals cannot introduce a cycle
 
 10. Scrap
     - NULL vs 0 semantics
     - valid range
     - Item default fallback boundary
-    - no final Scrap formula implemented
+    - canonical additive formula is not calculated or applied by MRP-06
 
 11. Supply Method
     - Product / MAKE / OUTSOURCE / HYBRID compatibility
-    - BUY not forced to BOM
+    - BUY BOM is allowed as engineering/history data
+    - no BUY planning explosion is implemented
     - HYBRID route selection not implemented
 
 12. Active/Inactive Items
@@ -1844,7 +1937,8 @@ Audit:
     - Approved may not
 
 14. Historical Integrity
-    - Approved/Obsolete records preserved
+   - Approved/Obsolete records preserved
+   - historical released effectivity remains non-overlapping and resolvable
     - no destructive cascades
 
 15. Database Integrity
@@ -1854,6 +1948,7 @@ Audit:
     - unique Child per Revision
     - migration safety
     - numeric precision
+    - Base Unit snapshot foreign keys/immutability
 
 16. API
     - safe use-case boundaries
@@ -1883,9 +1978,13 @@ Audit:
 20. Tests
     Verify meaningful assertions especially:
     - effective-date overlap/concurrency
+    - successor predecessor-closure confirmation/version/rollback
+    - Obsolete RetireFromDate and operational/historical resolution split
     - immutable Approved revisions
-    - recursive cycle detection
+    - effective-date-aware recursive cycle detection and concurrent graph locking
+    - Base Unit drift
     - Scrap NULL vs 0
+    - BUY BOM permitted without planning leakage
 
 21. Specification Drift
     Compare:
@@ -1932,7 +2031,7 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۱۷ تصمیم تأییدشده Package 06 پوشش داده شده‌اند:
+تمام تصمیم‌های تأییدشده Package 06، از جمله Owner-approved MRP-06A closure، پوشش داده شده‌اند:
 
 1. Product/Part/Component may be BOM Parents.
 2. Allowed Child relationships are explicitly constrained.
@@ -1947,24 +2046,28 @@ STOP.
 11. Duplicate Child prohibited.
 12. Circular BOM blocked at Approval.
 13. Scrap Override with NULL vs 0 meaning.
-14. Exact Scrap formula deferred.
+14. Canonical additive Scrap formula is acknowledged but not calculated in MRP-06.
 15. Supply Method compatibility.
 16. Active Item rule with historical inactive resolution.
 17. Component Count derived.
+18. Successor Approval may explicitly and atomically close exactly one preceding open-ended Approved Revision.
+19. Operational resolution uses Approved only; historical resolution may use Approved/Obsolete.
+20. Obsolete retirement uses explicit Retire From Date and preserves non-overlapping historical effectivity.
+21. Parent/Child Base Unit snapshots are server-owned and immutable; drift blocks operational use.
+22. BUY BOM is allowed as engineering/history data without BUY planning explosion.
+23. Effective-date-aware cycle validation and shared Approval/Obsolete locking are required.
 
 ## Open Question Resolution
 
-The previous open question concerning:
+All MRP-06 business questions are CLOSED.
 
-`BOM Revision / Effective Dating`
+The canonical v1 Scrap formula is:
 
-is now CLOSED.
+```text
+Base Requirement × (1 + Scrap % / 100)
+```
 
-The following remains intentionally OPEN:
-
-`Exact Scrap Formula`
-
-This must be resolved before the MRP Calculation Engine.
+MRP-06 does not calculate it; it stores and resolves only the Scrap default/override semantics.
 
 ## Cross-Package Consistency
 
@@ -1983,11 +2086,13 @@ This must be resolved before the MRP Calculation Engine.
 - Added Base Output Qty to avoid precision loss from repeated fractional usage where practical.
 - Approved Revision made immutable.
 - Current BOM is derived by Effective Date rather than manually flagged.
-- Overlapping Approved Revision ranges prohibited.
-- Cycle detection explicitly spans the recursive graph.
+- Overlapping released Approved/Obsolete historical ranges prohibited.
+- Explicit successor closure and Obsolete retirement preserve effectivity without silent rewriting.
+- Cycle detection is effective-date-aware and spans the recursive graph under shared released-graph locking.
 - Draft cycle and Approved cycle behavior are separated.
-- Scrap storage is implemented without prematurely deciding the formula.
-- Child Unit stays owned by Item Master.
+- Scrap storage is separated from the already-approved Planning formula.
+- Child Unit stays owned by Item Master while immutable Parent/Child Base Unit snapshots preserve historical quantity meaning.
+- BUY BOM is allowed without implementing normal BUY planning explosion.
 - HYBRID Make-vs-Buy selection explicitly deferred.
 - Approved BOM history is structural history, not dependent only on audit logs.
 
@@ -2012,4 +2117,4 @@ Independent read-only audit covers Revision integrity, effectivity, cycle detect
 
 `MRP-06 Multi-Level BOM` is approved for the project Prompt Baseline.
 
-It should not yet be sent to Codex until all MRP Packages are designed and the complete prompt set receives the final cross-package audit.
+MRP-06A has no remaining business blocker. MRP-06B is ready only after explicit Owner authorization.
