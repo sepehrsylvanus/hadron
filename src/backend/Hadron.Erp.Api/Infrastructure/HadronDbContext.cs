@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
@@ -13,6 +14,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<Item> Items => Set<Item>();
+    public DbSet<MaterialItemProfile> MaterialItemProfiles => Set<MaterialItemProfile>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<InternalPerson> InternalPeople => Set<InternalPerson>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
@@ -22,6 +24,8 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasSequence<long>("product_number_seq", "catalog");
+        modelBuilder.HasSequence<long>("part_number_seq", "catalog");
+        modelBuilder.HasSequence<long>("component_number_seq", "catalog");
         modelBuilder.HasSequence<long>("supplier_number_seq", "procurement");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadronDbContext).Assembly);
     }

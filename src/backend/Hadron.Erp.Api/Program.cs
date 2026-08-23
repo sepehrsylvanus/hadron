@@ -1,4 +1,6 @@
 using Hadron.Erp.Api.Infrastructure;
+using Hadron.Erp.Api.Modules.Catalog.Api;
+using Hadron.Erp.Api.Modules.Catalog.Application;
 using Hadron.Erp.Api.Modules.ReferenceData.Api;
 using Hadron.Erp.Api.Modules.ReferenceData.Application;
 using Hadron.Erp.Api.Modules.Products.Api;
@@ -17,6 +19,7 @@ var databaseConnectionString = DatabaseConnectionString.Create(builder.Configura
 builder.Services.AddDbContextFactory<HadronDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddScoped<ReferenceDataService>();
+builder.Services.AddScoped<MaterialItemService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddHttpContextAccessor();
@@ -60,6 +63,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapReferenceDataEndpoints();
+app.MapMaterialItemEndpoints();
 app.MapProductEndpoints();
 app.MapSupplierEndpoints();
 

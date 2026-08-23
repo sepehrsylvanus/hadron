@@ -22,11 +22,15 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("component_number_seq", "catalog");
+
+            modelBuilder.HasSequence("part_number_seq", "catalog");
+
             modelBuilder.HasSequence("product_number_seq", "catalog");
 
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
 
-            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -41,7 +45,6 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<string>("Code")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
@@ -68,7 +71,6 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("NormalizedCode")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
@@ -93,15 +95,74 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("NormalizedCode")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"NormalizedCode\" IS NOT NULL");
 
-                    b.HasIndex("IsActive", "Code");
+                    b.HasIndex("ItemType", "IsActive");
 
                     b.ToTable("items", "catalog", t =>
                         {
-                            t.HasCheckConstraint("ck_items_item_type", "\"ItemType\" = 'PRODUCT'");
+                            t.HasCheckConstraint("ck_items_code_pair", "(\"Code\" IS NULL) = (\"NormalizedCode\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_items_item_type", "\"ItemType\" IN ('PRODUCT','PART','COMPONENT')");
+
+                            t.HasCheckConstraint("ck_items_product_code", "\"ItemType\" <> 'PRODUCT' OR (\"Code\" IS NOT NULL AND \"NormalizedCode\" IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_items_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.MaterialItemProfile", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CriticalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("DefaultPlanningScrapPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("ExcessStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("NetWeightKg")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<int>("SafeStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SafetyStockQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("SupplyMethod")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("ItemId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("SupplyMethod");
+
+                    b.ToTable("material_item_profiles", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_material_profiles_net_weight", "\"NetWeightKg\" IS NULL OR \"NetWeightKg\" >= 0");
+
+                            t.HasCheckConstraint("ck_material_profiles_safety_stock", "\"SafetyStockQty\" >= 0");
+
+                            t.HasCheckConstraint("ck_material_profiles_scrap", "\"DefaultPlanningScrapPercent\" BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("ck_material_profiles_supply_method", "\"SupplyMethod\" IN ('BUY','MAKE','OUTSOURCE','HYBRID')");
+
+                            t.HasCheckConstraint("ck_material_profiles_thresholds", "\"CriticalDays\" >= 0 AND \"CriticalDays\" <= \"SafeStartDays\" AND \"SafeStartDays\" <= \"ExcessStartDays\"");
                         });
                 });
 
@@ -656,7 +717,7 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Item", b =>
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "BaseUnit")
                         .WithMany()
@@ -667,6 +728,25 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("BaseUnit");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.MaterialItemProfile", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithOne()
+                        .HasForeignKey("Hadron.Erp.Api.Modules.Catalog.Domain.MaterialItemProfile", "ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Item");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "BusinessUnit")
@@ -674,7 +754,7 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasForeignKey("BusinessUnitId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Hadron.Erp.Api.Modules.Products.Domain.Item", "Item")
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
                         .WithOne()
                         .HasForeignKey("Hadron.Erp.Api.Modules.Products.Domain.Product", "ItemId")
                         .OnDelete(DeleteBehavior.Restrict)

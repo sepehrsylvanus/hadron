@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Infrastructure;
+using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Platform.Audit;
@@ -24,7 +25,7 @@ public sealed class ProductService(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(x => x.Item.BusinessNumber.Contains(term) || x.Item.Code.Contains(term.ToUpper()) ||
+            query = query.Where(x => x.Item.BusinessNumber.Contains(term) || (x.Item.Code != null && x.Item.Code.Contains(term.ToUpper())) ||
                 x.Item.NameFa.Contains(term) || (x.Item.NameEn != null && x.Item.NameEn.Contains(term)));
         }
         var total = await query.CountAsync(token);
@@ -52,7 +53,7 @@ public sealed class ProductService(
         await ValidateReferences(db, null, request.ProductCategoryId, request.BaseUnitId, request.BusinessUnitId, true, token);
         var number = await NextNumber(db, token);
         var code = NormalizeCode(request.Code);
-        var item = new Item(number, code, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
+        var item = new Item(ItemTypes.Product, number, code, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
         var product = new Product(item.Id, request.ProductCategoryId, request.BusinessUnitId, request.SafetyStockQty,
             request.CriticalDays, request.SafeStartDays, request.ExcessStartDays);
         db.AddRange(item, product);
@@ -166,7 +167,7 @@ public sealed class ProductService(
     }
 
     private static ProductResponse ToResponse(Product product, Item item, ReferenceValue category, Unit unit, ReferenceValue? businessUnit) =>
-        new(item.Id, item.BusinessNumber, item.Code, item.NameFa, item.NameEn,
+        new(item.Id, item.BusinessNumber, item.Code!, item.NameFa, item.NameEn,
             new(category.Id, category.Code, category.NameFa, category.NameEn, category.IsActive),
             new(unit.Id, unit.Code, unit.NameFa, unit.NameEn, unit.Symbol, unit.IsActive),
             businessUnit == null ? null : new(businessUnit.Id, businessUnit.Code, businessUnit.NameFa, businessUnit.NameEn, businessUnit.IsActive),
