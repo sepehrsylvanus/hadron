@@ -1171,13 +1171,20 @@ Heavy operational workflows برای desktop بهینه می‌شوند.
 
 ---
 
-# 27. RTL Strategy
+# 27. Language and Direction Strategy
 
-Language primary:
+Supported interface languages in v1:
 
 ```text
-Persian / RTL
+fa-IR — Persian / RTL
+en    — English / LTR
 ```
+
+The default language is `fa-IR`.
+
+Language selection is available through one global shell control without country flags. Until Identity and user preferences exist, the selection is stored locally in the browser and must persist across navigation, refresh, and browser restart.
+
+Changing language updates the global document `lang` and `dir` immediately without a full-page reload.
 
 اما technical values مانند:
 
@@ -1191,7 +1198,9 @@ Persian / RTL
 
 می‌توانند در cell/field خود LTR باشند.
 
-Layout overall RTL باقی می‌ماند.
+Technical values may retain LTR direction within either interface language. Changing UI language must not alter `NameFa`, `NameEn`, stored business data, or API payload semantics.
+
+All new UX from Phase 2 onward must use organized translation keys rather than hardcoded user-facing labels.
 
 ---
 
