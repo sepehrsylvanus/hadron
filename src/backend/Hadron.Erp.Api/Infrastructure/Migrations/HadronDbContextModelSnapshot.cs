@@ -26,6 +26,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             modelBuilder.HasSequence("component_number_seq", "catalog");
 
+            modelBuilder.HasSequence("mrp_run_number_seq", "planning");
+
             modelBuilder.HasSequence("part_number_seq", "catalog");
 
             modelBuilder.HasSequence("product_number_seq", "catalog");
@@ -481,6 +483,775 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_warehouses_business_number_format", "\"BusinessNumber\" ~ '^WH-[0-9]{4,}$'");
 
                             t.HasCheckConstraint("ck_warehouses_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Assumptions")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("EngineVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("HorizonEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RunNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("SnapshotCapturedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunNumber")
+                        .IsUnique();
+
+                    b.HasIndex("AsOfDate", "StartedAtUtc");
+
+                    b.ToTable("mrp_runs", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_runs_completeness", "\"Completeness\" IN ('COMPLETE','COMPLETE_WITH_WARNINGS','INCOMPLETE')");
+
+                            t.HasCheckConstraint("ck_mrp_runs_horizon", "\"HorizonEndDate\" >= \"AsOfDate\"");
+
+                            t.HasCheckConstraint("ck_mrp_runs_number", "\"RunNumber\" ~ '^MRP-RUN-[0-9]{6,}$'");
+
+                            t.HasCheckConstraint("ck_mrp_runs_status", "\"Status\" IN ('RUNNING','COMPLETED','COMPLETED_WITH_EXCEPTIONS','FAILED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunBomInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BaseOutputQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ChildBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChildItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParentBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParentItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RevisionCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ScrapOverridePercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("UsageQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "RevisionId", "LineId")
+                        .IsUnique();
+
+                    b.HasIndex("RunId", "ParentItemId", "EffectiveFrom", "EffectiveTo");
+
+                    b.ToTable("mrp_run_bom_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunDailyResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("FirmIncoming")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("FirmProjected")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("GrossDemand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<bool>("IsRootProduct")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("NetRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("PlanningBalance")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("PlanningBeforeNeed")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_daily_results", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunDemandTrace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BaseRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid?>("BomLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BomRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ChildGrossRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ChildItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ParentItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ParentNetRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ScrapPercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("ScrapSource")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ChildItemId", "Date");
+
+                    b.ToTable("mrp_run_demand_traces", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunException", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AffectsDemand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SourceReference")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "Date");
+
+                    b.ToTable("mrp_run_exceptions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_run_exception_severity", "\"Severity\" IN ('ERROR','WARNING','INFO')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunExternalSourceInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllLeadStagesAreSet")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("CurrencyIsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly?>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IncotermIsValid")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ItemIsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("MinimumOrderQuantityIsSet")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("OptionIsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("PriceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ShippingModeIsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("SourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("SupplierIsActive")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId");
+
+                    b.HasIndex("RunId", "SourcingOptionId", "PriceId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_external_source_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunFirmSupplyInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DeliveryScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("Eta")
+                        .HasColumnType("date");
+
+                    b.Property<string>("EtaSource")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EtaStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("OpenQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PurchaseOrderLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PurchaseOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("PurchaseOrderStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "DeliveryScheduleId")
+                        .IsUnique();
+
+                    b.HasIndex("RunId", "ItemId", "Eta");
+
+                    b.ToTable("mrp_run_firm_supply_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunForecastInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ActualMtd")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("DemandDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("DemandQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ForecastRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ForecastSeriesId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PeriodForecastQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "BusinessPeriodId");
+
+                    b.HasIndex("RunId", "ProductId", "DemandDate")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_forecast_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunForecastPeriodInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ActualMtdQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("AllocationState")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EligibleAllocationStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExceptionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ForecastRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ForecastSeriesId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("OfficialForecastQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ProductBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("RemainingForecastQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "PeriodStartDate", "PeriodEndDate");
+
+                    b.HasIndex("RunId", "ProductId", "BusinessPeriodId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_forecast_period_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunInventoryInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("OnHandQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WarehouseCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("WarehouseIsActive")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "WarehouseId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_inventory_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunItemInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("DefaultScrapPercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("SafetyStockQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("SupplyMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("UnitNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UnitNameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_item_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunItemSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly?>("FirmCoverageDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("FirmCoverageDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FirmCoverageState")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("MissingEtaFirmQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("OverdueFirmQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("SafetyBreachDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("StartingOnHand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly?>("StockCoverageDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("StockCoverageDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StockCoverageState")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly?>("StockoutDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("TotalFirmIncoming")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("TotalGrossDemand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("TotalNetRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_item_summaries", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteAvailabilityInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("BomReady")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly>("DemandDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("ExternalReady")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "DemandDate")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_route_availability_inputs", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Route")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_route_decisions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_run_route_decision", "\"Route\" IN ('BOM','EXTERNAL')");
                         });
                 });
 
@@ -1979,6 +2750,123 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Unit");
 
                     b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunBomInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunDailyResult", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunDemandTrace", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunException", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunExternalSourceInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunFirmSupplyInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunForecastInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunForecastPeriodInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunInventoryInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunItemInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunItemSummary", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteAvailabilityInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteDecision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>

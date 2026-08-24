@@ -35,6 +35,7 @@ const fa = {
       purchaseOrders: 'سفارش‌های خرید',
       bom: 'BOM',
       forecastActual: 'پیش‌بینی و تولید واقعی',
+      mrpRuns: 'اجرای MRP',
       inventory: 'موجودی',
     },
   },
@@ -138,6 +139,19 @@ const fa = {
     markOrdered: 'ثبت سفارش‌شده', orderedDate: 'تاریخ سفارش', reason: 'دلیل', leadSnapshot: 'Snapshot زمان‌های تأمین', openQty: 'مقدار باز',
     schedule: 'برنامه تحویل', firmEta: 'ETA قطعی', timeline: 'خط زمانی Milestone', revisePlan: 'اصلاح برنامه Milestone', history: 'تاریخچه چرخه عمر',
     status: { DRAFT: 'پیش‌نویس', APPROVED: 'تأییدشده — غیرقطعی', ORDERED: 'سفارش‌شده', SHIPPED: 'حمل‌شده', CUSTOMS: 'گمرک', PARTIALLY_RECEIVED: 'دریافت جزئی', RECEIVED: 'دریافت‌شده', CANCELLED: 'لغوشده' },
+  },
+  mrpRuns: {
+    title: 'اجراهای محاسبات MRP', subtitle: 'محاسبات تغییرناپذیر و قابل ردیابی نیازمندی مواد', new: 'اجرای MRP جدید', list: 'تاریخچه اجراها',
+    number: 'شماره اجرا', asOf: 'تاریخ As-Of', horizon: 'پایان افق', completeness: 'کامل‌بودن', exceptions: 'استثناها', createHint: 'ابتدا Snapshot پایدار منابع ثبت و سپس محاسبه از همان ورودی انجام می‌شود.',
+    defaultHorizon: 'در صورت خالی‌بودن، دوره جلالی As-Of و ۱۱ دوره بعد انتخاب می‌شود.', parameters: 'پارامترهای اجرا', hybridDecisions: 'تصمیم مسیر ترکیبی', hybridHint: 'برای قلم HYBRID دارای هر دو مسیر معتبر، یک مسیر برای کل اجرا لازم است.',
+    itemId: 'قلم HYBRID', searchHybrid: 'جست‌وجوی اقلام HYBRID', selectItem: 'انتخاب قلم', route: 'مسیر انتخابی', execute: 'اجرای محاسبه', overview: 'نمای کلی اجرا', engine: 'نسخه موتور', assumptions: 'فرض‌های قفل‌شده', results: 'نتایج مواد', item: 'قلم',
+    starting: 'موجودی شروع', gross: 'نیاز ناخالص', firm: 'تأمین قطعی', net: 'نیاز خالص', stockout: 'تاریخ کسری', coverage: 'پوشش قطعی', noExceptions: 'استثنای محاسباتی وجود ندارد.',
+    trace: 'بررسی ردیابی', timeline: 'خط زمانی روزانه', date: 'تاریخ', firmProjected: 'موجودی قطعی پیش‌بینی‌شده', planningBalance: 'مانده برنامه‌ریزی', traceCount: '{{count}} سهم ردیابی نیاز از BOM',
+    lineage: 'تبار نیاز', origin: 'منشأ پیش‌بینی', forecastPeriod: 'دوره پیش‌بینی', allocatedDemand: 'تقاضای تخصیص‌یافته', allocationState: 'وضعیت تخصیص',
+    bomLineage: 'سهم BOM', inventoryLineage: 'Snapshot موجودی', companyOnHand: 'موجودی شروع شرکت', inactiveWarehouse: 'انبار غیرفعال',
+    firmLineage: 'Snapshot تأمین قطعی', applied: 'اعمال‌شده', excluded: 'حذف‌شده', nettingLineage: 'محاسبه خالص‌سازی', routeLineage: 'تصمیم مسیر',
+    exceptionSeverity: 'شدت استثنا', allSeverities: 'همه شدت‌ها',
+    status: { RUNNING: 'در حال اجرا', COMPLETED: 'تکمیل‌شده', COMPLETED_WITH_EXCEPTIONS: 'تکمیل با استثنا', FAILED: 'ناموفق', COMPLETE: 'کامل', COMPLETE_WITH_WARNINGS: 'کامل با هشدار', INCOMPLETE: 'ناقص' },
   },
 } as const
 

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Boxes, CalendarRange, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, ShoppingCart, UsersRound, Wrench } from 'lucide-react'
+import { Boxes, CalendarRange, Calculator, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, ShoppingCart, UsersRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import officialHadronLogo from '../../../docs/brand/Hadron Logo new-01.png'
 import ProductMaster, { ProductObjectPage } from './ProductMaster'
@@ -13,6 +13,7 @@ import ReferenceDataPage from './ReferenceDataPage'
 import ForecastActualPage from './ForecastActualPage'
 import InventoryPage from './InventoryPage'
 import PurchaseOrderPage from './PurchaseOrderPage'
+import MrpRunsPage from './MrpRunsPage'
 import { languageDirection, normalizeLanguage, type SupportedLanguage } from './i18n'
 
 type NavigationItem = { labelKey: string; path: string; Icon: LucideIcon; aliases?: string[] }
@@ -30,7 +31,10 @@ const navigationGroups: NavigationGroup[] = [
     { labelKey: 'navigation.items.purchaseOrders', path: '/mrp/supply/purchase-orders', aliases: ['/mrp/purchase-orders'], Icon: ShoppingCart },
   ] },
   { labelKey: 'navigation.groups.engineering', items: [{ labelKey: 'navigation.items.bom', path: '/mrp/engineering/bom', Icon: Network }] },
-  { labelKey: 'navigation.groups.planning', items: [{ labelKey: 'navigation.items.forecastActual', path: '/mrp/planning/forecast-actual', Icon: CalendarRange }] },
+  { labelKey: 'navigation.groups.planning', items: [
+    { labelKey: 'navigation.items.forecastActual', path: '/mrp/planning/forecast-actual', Icon: CalendarRange },
+    { labelKey: 'navigation.items.mrpRuns', path: '/mrp/planning/mrp-runs', Icon: Calculator },
+  ] },
   { labelKey: 'navigation.groups.inventory', items: [{ labelKey: 'navigation.items.inventory', path: '/mrp/inventory', aliases: ['/mrp/inventory'], Icon: Boxes }] },
 ]
 
@@ -102,6 +106,7 @@ function App() {
     <Route path="/mrp/supply/sourcing" element={<SourcingMaster />} /><Route path="/mrp/sourcing/new" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id/edit" element={<SourcingObjectPage />} />
     <Route path="/mrp/supply/purchase-orders" element={<PurchaseOrderPage view="list" />} /><Route path="/mrp/purchase-orders/new" element={<PurchaseOrderPage view="create" />} /><Route path="/mrp/purchase-orders/:id" element={<PurchaseOrderPage view="object" />} />
     <Route path="/mrp/engineering/bom" element={<BomMaster />} /><Route path="/mrp/planning/forecast-actual" element={<ForecastActualPage />} />
+    <Route path="/mrp/planning/mrp-runs" element={<MrpRunsPage view="list" />} /><Route path="/mrp/planning/mrp-runs/new" element={<MrpRunsPage view="create" />} /><Route path="/mrp/planning/mrp-runs/:id" element={<MrpRunsPage view="object" />} />
     <Route path="/mrp/inventory" element={<InventoryPage view="balances" />} /><Route path="/mrp/inventory/items/:id" element={<InventoryPage view="item" />} />
     <Route path="/mrp/inventory/warehouses" element={<InventoryPage view="warehouses" />} /><Route path="/mrp/inventory/warehouses/new" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id/edit" element={<InventoryPage view="warehouse" />} />
     <Route path="/mrp/inventory/transactions" element={<InventoryPage view="transactions" />} /><Route path="/mrp/inventory/transactions/:id" element={<InventoryPage view="transaction" />} /><Route path="/mrp/inventory/post/:type" element={<InventoryPage view="post" />} />

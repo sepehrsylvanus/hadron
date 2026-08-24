@@ -35,6 +35,7 @@ const en = {
       purchaseOrders: 'Purchase Orders',
       bom: 'BOM',
       forecastActual: 'Forecast & Actual',
+      mrpRuns: 'MRP Runs',
       inventory: 'Inventory',
     },
   },
@@ -138,6 +139,19 @@ const en = {
     markOrdered: 'Mark ordered', orderedDate: 'Ordered date', reason: 'Reason', leadSnapshot: 'Lead-time snapshot', openQty: 'Open quantity',
     schedule: 'Schedule', firmEta: 'Firm ETA', timeline: 'Milestone timeline', revisePlan: 'Revise planned milestones', history: 'Lifecycle history',
     status: { DRAFT: 'Draft', APPROVED: 'Approved — not firm', ORDERED: 'Ordered', SHIPPED: 'Shipped', CUSTOMS: 'Customs', PARTIALLY_RECEIVED: 'Partially received', RECEIVED: 'Received', CANCELLED: 'Cancelled' },
+  },
+  mrpRuns: {
+    title: 'MRP Calculation Runs', subtitle: 'Immutable, explainable material-requirements calculations', new: 'New MRP run', list: 'Run history',
+    number: 'Run number', asOf: 'As-of date', horizon: 'Horizon end', completeness: 'Completeness', exceptions: 'Exceptions', createHint: 'Capture a stable source snapshot and calculate from it.',
+    defaultHorizon: 'Leave empty for the As-of Jalali period plus the next 11 periods.', parameters: 'Run parameters', hybridDecisions: 'Hybrid route decisions', hybridHint: 'HYBRID items that have both valid routes require one route for the entire run.',
+    itemId: 'HYBRID item', searchHybrid: 'Search HYBRID items', selectItem: 'Select an item', route: 'Selected route', execute: 'Execute run', overview: 'Run overview', engine: 'Engine version', assumptions: 'Locked assumptions', results: 'Material results', item: 'Item',
+    starting: 'Starting on-hand', gross: 'Gross demand', firm: 'Firm incoming', net: 'Net requirement', stockout: 'Stockout date', coverage: 'Firm coverage', noExceptions: 'No calculation exceptions.',
+    trace: 'Inspect trace', timeline: 'Daily timeline', date: 'Date', firmProjected: 'Firm projected', planningBalance: 'Planning balance', traceCount: '{{count}} BOM demand-trace contributions',
+    lineage: 'Requirement lineage', origin: 'Forecast origin', forecastPeriod: 'Forecast period', allocatedDemand: 'Allocated demand', allocationState: 'Allocation state',
+    bomLineage: 'BOM contribution', inventoryLineage: 'Inventory snapshot', companyOnHand: 'Company starting on-hand', inactiveWarehouse: 'inactive warehouse',
+    firmLineage: 'Firm-supply snapshot', applied: 'applied', excluded: 'excluded', nettingLineage: 'Netting calculation', routeLineage: 'Route decision',
+    exceptionSeverity: 'Exception severity', allSeverities: 'All severities',
+    status: { RUNNING: 'Running', COMPLETED: 'Completed', COMPLETED_WITH_EXCEPTIONS: 'Completed with exceptions', FAILED: 'Failed', COMPLETE: 'Complete', COMPLETE_WITH_WARNINGS: 'Complete with warnings', INCOMPLETE: 'Incomplete' },
   },
 } as const
 

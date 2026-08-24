@@ -8,6 +8,7 @@ using Hadron.Erp.Api.Modules.Bom.Domain;
 using Hadron.Erp.Api.Modules.Planning.Domain;
 using Hadron.Erp.Api.Modules.Inventory.Domain;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
+using Hadron.Erp.Api.Modules.Mrp.Domain;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
@@ -44,6 +45,20 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<DeliverySchedulePlanRevision> DeliverySchedulePlanRevisions => Set<DeliverySchedulePlanRevision>();
     public DbSet<DeliveryScheduleActualMilestone> DeliveryScheduleActualMilestones => Set<DeliveryScheduleActualMilestone>();
     public DbSet<PurchaseOrderLifecycleEvent> PurchaseOrderLifecycleEvents => Set<PurchaseOrderLifecycleEvent>();
+    public DbSet<MrpRun> MrpRuns => Set<MrpRun>();
+    public DbSet<MrpRunItemInput> MrpRunItemInputs => Set<MrpRunItemInput>();
+    public DbSet<MrpRunForecastInput> MrpRunForecastInputs => Set<MrpRunForecastInput>();
+    public DbSet<MrpRunForecastPeriodInput> MrpRunForecastPeriodInputs => Set<MrpRunForecastPeriodInput>();
+    public DbSet<MrpRunBomInput> MrpRunBomInputs => Set<MrpRunBomInput>();
+    public DbSet<MrpRunInventoryInput> MrpRunInventoryInputs => Set<MrpRunInventoryInput>();
+    public DbSet<MrpRunFirmSupplyInput> MrpRunFirmSupplyInputs => Set<MrpRunFirmSupplyInput>();
+    public DbSet<MrpRunRouteAvailabilityInput> MrpRunRouteAvailabilityInputs => Set<MrpRunRouteAvailabilityInput>();
+    public DbSet<MrpRunExternalSourceInput> MrpRunExternalSourceInputs => Set<MrpRunExternalSourceInput>();
+    public DbSet<MrpRunRouteDecision> MrpRunRouteDecisions => Set<MrpRunRouteDecision>();
+    public DbSet<MrpRunDailyResult> MrpRunDailyResults => Set<MrpRunDailyResult>();
+    public DbSet<MrpRunItemSummary> MrpRunItemSummaries => Set<MrpRunItemSummary>();
+    public DbSet<MrpRunException> MrpRunExceptions => Set<MrpRunException>();
+    public DbSet<MrpRunDemandTrace> MrpRunDemandTraces => Set<MrpRunDemandTrace>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +70,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
         modelBuilder.HasSequence<long>("bom_revision_number_seq", "engineering");
         modelBuilder.HasSequence<long>("warehouse_number_seq", "inventory");
         modelBuilder.HasSequence<long>("purchase_order_number_seq", "procurement");
+        modelBuilder.HasSequence<long>("mrp_run_number_seq", "planning");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadronDbContext).Assembly);
     }
 }
