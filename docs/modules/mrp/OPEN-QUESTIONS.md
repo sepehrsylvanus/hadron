@@ -61,7 +61,7 @@
 
 ### Q-014 — Firm Supply ETA Source
 **Status:** CLOSED — MRP-09 / MRP-10  
-**Approved:** ETA از PO Delivery Schedule؛ Actual سپس Revised سپس Original. ETA مفقود یا overdue بدون حدس از projection کنار گذاشته می‌شود.
+**Approved:** Firm ETA از PO Delivery Schedule و با ترتیب Latest Revised Planned `WAREHOUSE_RECEIPT` سپس Original Planned `WAREHOUSE_RECEIPT` و در غیر این صورت Missing است. Actual milestone و `RequestedReceiptDate` fallback مربوط به Firm ETA نیستند. ETA مفقود یا overdue بدون حدس از projection کنار گذاشته می‌شود و current Sourcing Master هرگز fallback یک PO موجود نیست.
 
 ### Q-015 — Closed Period Rules
 **Status:** CLOSED — MRP-07  

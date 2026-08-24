@@ -418,3 +418,11 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Decision:** کدهای ledger دقیقاً `OPENING`, `RECEIPT`, `ISSUE`, `ADJ_IN`, `ADJ_OUT`, `TRANSFER`, `REVERSAL` هستند. اثر منفی باید تمام closing balanceهای پایان‌روز از EffectiveDate تا آخرین ledger date را در `Item + Warehouse` غیرمنفی نگه دارد؛ lock قطعی و DB protection الزامی است و ترتیب درون‌روز تعریف نمی‌شود. REVERSAL تاریخ Original را دارد، یک‌بار مصرف و غیرقابل Reverse است؛ future posting نسبت به Tehran business date ممنوع است. Opening مثبت و historically unique است. Base Unit پس از Inventory history قفل می‌شود. Warehouse UUID فنی و Official Code تولیدشده immutable `WH-{sequence:D4}` دارد و با stock غیرصفر غیرفعال نمی‌شود؛ exceptional inactive stock در Company Pool باقی می‌ماند و warning دارد.
 **Status:** LOCKED
 **Source Package:** MRP-08
+
+---
+
+## DEC-054 — Purchase Supply Aggregate, Lifecycle and Firm ETA
+
+**Decision:** `PurchaseOrder.Version` تنها concurrency token کل PO aggregate است و Line/Schedule Version مستقل ندارند. `DRAFT` قابل ویرایش و refresh صریح snapshot است؛ `APPROVED` snapshot تجاری را قفل می‌کند، Firm نیست و Return-to-Draft به Reason نیاز دارد؛ `ORDERED` commitment خارجی، lock دائمی core commercial/qty/source، شروع Firm و زمان نهایی‌شدن Original Plan است. Lifecycle قابل command در MRP-09 فقط Draft/Approve/Return-to-Draft/Mark-Ordered است. هر Line از ابتدا یک default Schedule برای کل OrderedQty دارد و Planning فقط Schedule grain را مصرف می‌کند. Firm ETA برابر Latest Revised Planned `WAREHOUSE_RECEIPT`، سپس Original Planned `WAREHOUSE_RECEIPT` و سپس Missing است؛ Actual و `RequestedReceiptDate` fallback نیستند و Sourcing Master جاری هرگز fallback نیست. Received/Cancelled/Open از facts عملیاتی مشتق می‌شوند و counter قابل ویرایش ندارند.
+**Status:** LOCKED
+**Source Package:** MRP-09

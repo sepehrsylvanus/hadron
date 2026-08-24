@@ -131,7 +131,11 @@ Therefore PO must also preserve snapshots of important data.
 
 ### LOCKED DECISION
 
-At the relevant order commitment point, PO data must snapshot the commercial assumptions used at that time.
+PO data captures its commercial assumptions in `DRAFT`. An explicit snapshot refresh is allowed only while the PO remains `DRAFT`.
+
+At `APPROVED`, the commercial snapshot is locked. `APPROVED` remains internal only and is not Firm Supply. Returning an approved PO to `DRAFT` requires an explicit command and Reason.
+
+At `ORDERED`, the order becomes an external commitment; core commercial, quantity and source data are permanently locked, Firm Supply begins and the Original Plan is finalized.
 
 Changing Supplier or Sourcing Master later must not rewrite historical PO values.
 
@@ -152,10 +156,14 @@ Snapshot data includes at minimum:
 
 - Item identity reference
 - Sourcing Option reference where applicable
+- selected Sourcing Price row
+- immutable Item Base Unit snapshot
 - Ordered Qty
 - Unit Price
+- MOQ snapshot
+- four configured lead-time stage snapshots
 
-Exact physical ownership between Header and Lines is finalized in Analysis, but one-PO-one-currency and one-Supplier rules are locked.
+All Lines in one PO must have the same Supplier, Currency, Payment Snapshot, Shipping Mode and Incoterm grouping context. A mismatched Line source requires a separate PO.
 
 ---
 
@@ -163,7 +171,7 @@ Exact physical ownership between Header and Lines is finalized in Analysis, but 
 
 Supplier Default Payment Profile originates from MRP-03.
 
-At PO creation/order commitment, relevant payment values are copied into the PO snapshot.
+At Draft PO creation, relevant payment values are copied into the PO snapshot. Draft refresh is explicit; approval locks the snapshot and ordering commits it permanently.
 
 Future Supplier Default changes must not alter old POs.
 
@@ -443,30 +451,18 @@ MRP-09 must preserve the data model.
 
 ## 22. Over-Receipt
 
-### INTENTIONALLY OPEN
+### LOCKED CROSS-PACKAGE BOUNDARY
 
-Over-Receipt rule is NOT locked in MRP-09.
+MRP-09 implements no Receipt or Over-Receipt behavior.
 
-Examples requiring later decision:
+The project-wide MRP-13 v1 rule is already locked:
 
 ```text
-Ordered 100
-Received 102
+Tolerance = 0
+Receipt Qty > Schedule Open Qty → BLOCK
 ```
 
-Possible future rules include:
-
-- Block entirely
-- Allow within tolerance
-- Allow with special approval
-
-This is deferred to:
-
-`MRP-13 Purchase Order Operations`
-
-because Inventory posting is involved there.
-
-MRP-09 must not silently implement an over-receipt policy.
+MRP-13 owns enforcement together with operational Receipt and Inventory posting. MRP-09 must neither implement a competing policy nor describe this as an open project question.
 
 ---
 
@@ -476,10 +472,10 @@ MRP-09 must not silently implement an over-receipt policy.
 
 A PO Line may have one or more Delivery Schedules.
 
-Default:
+Every Line starts with:
 
 ```text
-one Schedule per Line
+one default Schedule covering the full Ordered Qty
 ```
 
 But Split Delivery is supported.
@@ -505,10 +501,9 @@ Rules:
 
 - Qty > 0
 - Item Base Unit
-- sum of active/non-cancelled Schedule quantities must reconcile to ordered/open planning semantics according to approved implementation
+- before `ORDERED`, current Schedule allocations must sum exactly to Line Ordered Qty
 - no ambiguous double-counting
-
-Exact scheduling reconciliation rules are proposed in MRP-09A.
+- Planning consumes Schedule grain only
 
 ---
 
@@ -631,6 +626,8 @@ MRP-09 establishes the model.
 
 Package 13 will implement operational lifecycle updates.
 
+Actual milestone structure may exist in MRP-09, but Actual `WAREHOUSE_RECEIPT` must not be a free manual MRP-09 operation. It is derived from valid operational Receipt facts owned by MRP-13.
+
 ---
 
 ## 31. Original vs Revised Plan
@@ -669,19 +666,17 @@ Do not silently overwrite the original plan.
 
 ## 33. Planned ETA for Firm Supply
 
-For each Delivery Schedule, Firm Supply should use the best current approved planned receipt date.
+For each Delivery Schedule, Firm Supply uses planned `WAREHOUSE_RECEIPT` dates only.
 
-Baseline preference:
-
-```text
-Current/Revised Planned WAREHOUSE_RECEIPT date
-```
-
-If no revised value exists:
+Canonical precedence:
 
 ```text
-Original Planned WAREHOUSE_RECEIPT date
+Latest Revised Planned WAREHOUSE_RECEIPT
+→ Original Planned WAREHOUSE_RECEIPT
+→ Missing
 ```
+
+Actual milestone dates are not a Firm ETA fallback. `RequestedReceiptDate`, if retained, is a target only and is not an ETA fallback. Current Sourcing Master lead time is never an ETA fallback for an existing PO.
 
 If required receipt ETA is missing:
 
@@ -722,6 +717,15 @@ At minimum snapshot relevant configured stages:
 These represent what Planning believed when the order was placed.
 
 Original Planned Milestones must be derivable consistently from Ordered Date plus the four snapshotted non-overlapping stages. Diagnostic milestones must not increase Total Configured Lead Time.
+
+The four configured stages derive core Original dates for:
+
+- `SUPPLIER_READY`
+- `SHIPPED`
+- `ARRIVED_DESTINATION`
+- `WAREHOUSE_RECEIPT`
+
+`HANDOVER_TO_FORWARDER` and `CUSTOMS_CLEARED` remain diagnostic/non-additive. Their dates must not be invented or interpolated when no explicit operational fact or approved plan exists.
 
 ---
 
@@ -861,6 +865,19 @@ Reference gives traceability.
 
 Snapshot gives historical independence.
 
+The Line snapshot preserves:
+
+- Item
+- Sourcing Option
+- selected Sourcing Price row
+- Item Base Unit
+- Unit Price
+- MOQ
+- Supplier Lead Time
+- Forwarder / Pre-Shipment Days
+- Shipping Period Days
+- Destination / Customs Days
+
 The PO must remain understandable even if Sourcing is later deactivated or edited.
 
 ---
@@ -921,8 +938,8 @@ Conceptually:
 - Ordered Qty
 - Unit Price Snapshot
 - Derived Line Total
-- Received Qty derived/foundation
-- Cancelled Qty derived/foundation
+- Received Qty derived from future operational Receipt facts
+- Cancelled Qty derived from future operational Cancellation facts
 - Open Qty derived
 - Notes where needed
 
@@ -939,14 +956,16 @@ Conceptually:
 - Schedule ID
 - PO Line
 - Planned Qty
-- Cancelled Qty foundation if schedule-level cancellation is chosen
-- Received Qty foundation
+- Cancelled Qty derived from future operational Cancellation facts
+- Received Qty derived from future operational Receipt allocation facts
 - Open Qty derived
 - original/revised milestone dates
 - actual milestone dates
 - status/readiness derived where useful
 
 Exact schedule lifecycle is analyzed in MRP-09A.
+
+Received, Cancelled and Open quantities must not be independently editable counters.
 
 ---
 
@@ -966,7 +985,7 @@ Open Qty
 Schedule Open Qty
 ```
 
-The exact constraint model is proposed in Analysis.
+The constraint model is locked: every Line starts fully scheduled, and pre-ORDERED allocation mutations must preserve exact equality with Line Ordered Qty in one atomic operation.
 
 If schedules are partial or created later, Planning must never count both unscheduled line quantity and scheduled quantity twice.
 
@@ -974,25 +993,21 @@ If schedules are partial or created later, Planning must never count both unsche
 
 ## 50. Unscheduled Open Quantity
 
-MRP-09A must propose a deterministic representation for PO Line quantity that has not yet been assigned to a specific Delivery Schedule.
+### LOCKED DECISION
 
-Possible implementations may include:
-
-- mandatory default schedule covering full ordered qty
-or
-- explicit unscheduled remainder
-
-Preferred baseline:
+There is no implicit unscheduled remainder in MRP-09. At Line creation:
 
 ```text
 Create one default Schedule for full Line Qty at order creation.
 ```
 
-Then split/edit schedules as information evolves.
+Before `ORDERED`, Schedule allocations may be split/edited only in one reconciled operation such that:
 
-This minimizes ambiguous unscheduled firm supply.
+```text
+SUM(Current Schedule Allocations) = Line Ordered Qty
+```
 
-Codex must analyze repository fit before implementation.
+Planning consumes Schedule grain only and must never count Line Qty plus Schedule Qty.
 
 ---
 
@@ -1062,7 +1077,20 @@ Future planning/read models consume it.
 
 MRP-09 establishes valid machine statuses and semantics.
 
-Package 13 will finalize and implement full operational transition commands and side effects.
+MRP-09 commandable lifecycle is limited to:
+
+```text
+DRAFT
+APPROVE
+RETURN_TO_DRAFT
+MARK_ORDERED
+```
+
+`APPROVED → DRAFT` requires an explicit Return-to-Draft command and Reason.
+
+`SHIPPED`, `CUSTOMS`, `PARTIALLY_RECEIVED`, `RECEIVED` and `CANCELLED` remain modeled semantics for future operational facts. MRP-09 must not expose a generic `SetStatus` API.
+
+Package 13 owns the full operational transition commands, derived-status aggregation and side effects.
 
 MRP-09 must not invent broad workflow automation prematurely.
 
@@ -1269,7 +1297,7 @@ If Revised Planned Date changes multiple times, generic audit may be enough for 
 - actor
 - timestamp
 
-MRP-09 does not require a separate full ETA-version table unless Analysis demonstrates a strong need.
+Because the actual Repository currently registers a no-op Audit sink, MRP-09 must preserve Revised ETA history durably in its domain persistence rather than relying on an unavailable generic Audit store. The smallest relational history model is sufficient; no generic workflow/audit platform is introduced.
 
 ---
 
@@ -1324,6 +1352,14 @@ Exact database strategy is proposed in MRP-09A.
 
 ## 69. Concurrency
 
+The PO aggregate has exactly one optimistic concurrency token:
+
+```text
+PurchaseOrder.Version : bigint
+```
+
+PO Lines and Delivery Schedules do not have independent mutable Version tokens. Every aggregate mutation submits `ExpectedVersion`, successful mutation advances `PurchaseOrder.Version`, and stale mutation returns structured `409 / STALE_VERSION` without partial change.
+
 Concurrency-sensitive operations include:
 
 - PO numbering
@@ -1333,7 +1369,7 @@ Concurrency-sensitive operations include:
 - receipt/cancel quantity foundations
 - ETA updates
 
-MRP-09A must propose smallest robust PostgreSQL/EF Core approach.
+Use the smallest robust PostgreSQL/EF Core transaction and row-locking approach required to keep aggregate and Schedule reconciliation atomic.
 
 Full receipt concurrency with Inventory is finalized in Package 13.
 
@@ -1341,13 +1377,13 @@ Full receipt concurrency with Inventory is finalized in Package 13.
 
 ## 70. Snapshot Immutability Boundary
 
-Before commitment, Draft values may be editable.
+`DRAFT` values are editable and may use an explicit snapshot refresh.
 
-After `ORDERED`, historical commercial snapshots should not be casually altered.
+At `APPROVED`, commercial snapshot fields are locked. Return to `DRAFT` requires an explicit command and Reason.
 
-Any later correction would require controlled operation and audit.
+At `ORDERED`, core commercial, quantity and source data become permanently locked; Firm Supply begins and Original Planned Milestones are finalized.
 
-Exact field mutability by status is finalized in MRP-09A/13.
+Any future exceptional committed correction requires a separately approved controlled operation and is not normal MRP-09 editing.
 
 The business principle is locked:
 
@@ -1477,14 +1513,21 @@ MRP-09 is acceptable when:
 21. Planned and Actual milestones are separated.
 22. Original Planned Date is preserved.
 23. Revised ETA change requires traceability.
-24. Actual milestone dates can be recorded/foundation exists.
+24. Actual milestone structure exists; Actual WAREHOUSE_RECEIPT is not a free manual MRP-09 operation.
 25. Line/PO totals are Derived.
 26. Schedule quantities cannot double-count ordered supply.
 27. Missing ETA remains explicit.
 28. Historical Supplier/Item/Sourcing remain resolvable.
 29. No Inventory posting occurs in this Package.
-30. Over-Receipt remains intentionally unresolved for Package 13.
+30. MRP-09 implements no Receipt/Over-Receipt behavior; MRP-13 enforces the locked v1 zero-tolerance rule.
 31. No Projected Inventory/Coverage logic leaks into MRP-09.
+32. `PurchaseOrder.Version` is the only aggregate concurrency token.
+33. APPROVED locks the commercial snapshot and Return-to-Draft requires Reason.
+34. Firm ETA precedence is Latest Revised Planned WAREHOUSE_RECEIPT → Original Planned WAREHOUSE_RECEIPT → Missing.
+35. RequestedReceiptDate and Actual dates are not Firm ETA fallbacks.
+36. Every Line starts with a default Schedule covering full Ordered Qty.
+37. Planning consumes Schedule grain only.
+38. Received/Cancelled/Open quantities are derived from operational facts and are not editable counters.
 
 ---
 
@@ -1511,8 +1554,8 @@ The following are locked for MRP-09:
 17. Cancel after Partial Receipt supported.
 18. Cancellation affects remaining obligation only.
 19. PO Line may have multiple Delivery Schedules.
-20. Default design should avoid unscheduled/double-counted supply.
-21. Firm ETA source = PO Delivery Schedule.
+20. Every Line starts with one default Schedule covering the full Ordered Qty; pre-ORDERED allocations reconcile exactly.
+21. Firm ETA source = Latest Revised Planned WAREHOUSE_RECEIPT, then Original Planned WAREHOUSE_RECEIPT, else Missing.
 22. Configured Sourcing lead times snapshot at order commitment.
 23. PO timeline separates Configured / Original Plan / Revised Plan / Actual.
 24. Original Planned Date never overwritten.
@@ -1522,7 +1565,14 @@ The following are locked for MRP-09:
 28. Existing PO ETA must not silently follow later Sourcing Master changes.
 29. Package 09 builds Purchase Supply foundation only.
 30. Full PO Operations and Inventory receipt integration belong to Package 13.
-31. Over-Receipt rule remains open until Package 13.
+31. MRP-09 implements no Receipt/Over-Receipt behavior; MRP-13 v1 tolerance is locked at zero.
+32. `PurchaseOrder.Version` is the only aggregate concurrency token; Lines/Schedules have no independent mutable Version.
+33. DRAFT is editable with explicit snapshot refresh; APPROVED locks the commercial snapshot; Return-to-Draft requires Reason; ORDERED permanently locks core commercial/quantity/source data and finalizes Original Plan.
+34. MRP-09 commandable lifecycle is limited to Draft/Approve/Return-to-Draft/Mark-Ordered; no generic SetStatus API exists.
+35. Actual dates and RequestedReceiptDate are not Firm ETA fallbacks.
+36. Diagnostic Handover/Customs dates are not invented or interpolated.
+37. Multi-Line grouping requires identical Supplier/Currency/Payment Snapshot/Shipping Mode/Incoterm.
+38. Received/Cancelled/Open quantities remain derived operational facts, never editable counters.
 
 ---
 
@@ -1537,7 +1587,11 @@ is now CLOSED.
 Approved answer:
 
 ```text
-Firm Supply ETA comes from the PO Delivery Schedule.
+Firm Supply ETA comes from the PO Delivery Schedule using:
+Latest Revised Planned WAREHOUSE_RECEIPT
+→ Original Planned WAREHOUSE_RECEIPT
+→ Missing.
+Actual dates and RequestedReceiptDate are not Firm ETA fallbacks.
 Existing PO ETA must not be silently recalculated from current Sourcing Lead Time.
 ```
 
@@ -1557,11 +1611,11 @@ Previously received quantity remains historical and unchanged.
 
 ---
 
-## 79. Remaining Relevant Open Questions
+## 79. Remaining Relevant Deferred Operations
 
-Intentionally deferred to Package 13:
+Deferred to Package 13, but not open business blockers for MRP-09:
 
-- Over-Receipt rule / tolerance
+- enforcement of the locked Over-Receipt tolerance-zero rule during Receipt posting
 - exact final status aggregation after mixed receipt + cancellation
 - operational receipt allocation across split schedules
 - destination Inventory Warehouse during receipt
@@ -1641,8 +1695,10 @@ Required analysis:
    - Credit %
    - Credit Days
    - Credit Anchor Event codes and conditional validation; confirm WAREHOUSE_RECEIPT uses operational Final Receipt Date without moving Receipt ownership from MRP-13
-10. Determine exact snapshot timing/immutability boundary at Approved vs Ordered.
-    Business principle: committed order history cannot drift.
+10. Verify the locked snapshot/lifecycle boundary:
+    - DRAFT editable with explicit snapshot refresh
+    - APPROVED commercial snapshot locked; Return-to-Draft requires Reason; not Firm
+    - ORDERED permanent core commercial/quantity/source lock; Firm begins; Original Plan finalized
 11. Ordered Qty / derived Line Total / PO Total.
 12. Status model and machine semantics:
     DRAFT / APPROVED / ORDERED / SHIPPED / CUSTOMS /
@@ -1657,8 +1713,8 @@ Required analysis:
     - split deliveries
     - quantity reconciliation
 19. Propose deterministic method to prevent double-counting between Line Qty and Schedule Qty.
-20. Analyze whether full Line Qty should always have a default Schedule at order creation.
-21. Firm ETA source = Delivery Schedule.
+20. Verify every Line receives one default Schedule covering full Ordered Qty and pre-ORDERED allocations reconcile exactly.
+21. Firm ETA source = Latest Revised Planned WAREHOUSE_RECEIPT, then Original Planned WAREHOUSE_RECEIPT, else Missing. Actual and RequestedReceiptDate are not fallbacks.
 22. Missing ETA behavior.
 23. Configured Sourcing Lead-Time snapshot.
 24. Planned vs Actual milestone model.
@@ -1680,7 +1736,7 @@ Required analysis:
 28. Do NOT silently recalculate existing PO ETA from current Sourcing Master.
 29. Analyze status aggregation vs split Schedule milestones.
 30. Preserve foundation for future receipt allocation without implementing Inventory posting.
-31. Confirm Over-Receipt remains unresolved and must NOT be invented.
+31. Confirm MRP-09 implements no Receipt/Over-Receipt behavior and does not conflict with the locked MRP-13 zero-tolerance rule.
 32. Historical inactive Item/Supplier/Sourcing behavior.
 33. Read models:
     - open PO supply
@@ -1698,7 +1754,7 @@ Required analysis:
 37. DB constraints/indexes.
 38. Numeric precision/date handling.
 39. Performance.
-40. Concurrency.
+40. Concurrency: verify `PurchaseOrder.Version` is the only aggregate token and Line/Schedule mutations use the PO ExpectedVersion.
 41. Testing plan.
 42. Risks/contradictions across AGENTS, Master Spec, Decisions, MRP-01..09 and actual Repository.
 43. Smallest implementation sequence.
@@ -1730,7 +1786,7 @@ Testing proposal must cover at minimum:
 - Actual milestone separate
 - inactive historical references resolve
 - no Inventory posting
-- no Over-Receipt policy invented
+- no Receipt/Over-Receipt behavior in MRP-09; locked MRP-13 zero-tolerance policy is not contradicted
 - no Projected Inventory/Coverage
 
 Output:
@@ -1805,17 +1861,29 @@ Implement approved:
 - payment snapshot
 - ordered/approval dates as approved
 - notes/timestamps
+- exactly one aggregate concurrency token: `PurchaseOrder.Version : bigint`
+
+Every Header/Line/Schedule mutation must submit PO `ExpectedVersion`. Lines and Schedules must not have independent mutable Version tokens. Success advances PurchaseOrder.Version; stale mutation returns structured `409 / STALE_VERSION` with no partial change.
 
 PO LINE
 Implement:
 - Item
 - Sourcing Option reference where applicable
+- selected Sourcing Price row
+- immutable Item Base Unit snapshot
 - Ordered Qty
 - Unit Price Snapshot
+- MOQ snapshot
+- four configured lead-time stage snapshots
 - derived Line Total
-- received/cancel/open quantity foundation according to approved model
+- received/cancel/open quantities derived from future operational facts according to the approved model
 
 Do not add UOM conversion.
+
+Do not create independently editable Received/Cancelled/Open counters.
+
+MULTI-LINE GROUPING
+Every Line in one PO must have identical Supplier, Currency, Payment Snapshot, Shipping Mode and Incoterm grouping context. A mismatched Line source requires a separate PO.
 
 SNAPSHOTS
 Preserve approved transaction snapshots so later:
@@ -1824,6 +1892,11 @@ Preserve approved transaction snapshots so later:
 - Price change
 - Payment default change
 do NOT rewrite committed historical PO values.
+
+Lifecycle boundary:
+- DRAFT = editable; explicit snapshot refresh allowed
+- APPROVED = commercial snapshot locked; internal only; Return-to-Draft requires Reason
+- ORDERED = external commitment; core commercial/quantity/source data permanently locked; Firm begins; Original Plan finalized
 
 Payment Snapshot includes Credit Anchor Event. Enforce Credit%>0 → CreditDays>0 + Anchor required; Credit%=0 → Anchor may be null. For WAREHOUSE_RECEIPT, consume MRP-13 operational Final Receipt Date and never First Receipt or Cancellation Date.
 
@@ -1839,6 +1912,8 @@ Stable machine states:
 - CANCELLED
 
 Do not make statuses user-configurable.
+
+MRP-09 commandable lifecycle is limited to Draft, Approve, Return-to-Draft and Mark-Ordered. Do not expose a generic SetStatus API. SHIPPED/CUSTOMS/PARTIALLY_RECEIVED/RECEIVED/CANCELLED are modeled for future operational facts; Package 13 owns full transition side effects.
 
 FIRM SUPPLY
 Implement approved deterministic read/domain logic:
@@ -1864,19 +1939,26 @@ Support approved data semantics for:
 
 Do NOT post Inventory yet.
 
-Do NOT invent Over-Receipt rule.
+Do not implement Receipt/Over-Receipt behavior. Do not contradict the locked MRP-13 v1 rule: tolerance is zero and Receipt Qty greater than Schedule Open Qty is blocked.
 
 DELIVERY SCHEDULE
 Implement approved:
 - one or more schedules per PO Line
-- default schedule strategy from approved MRP-09A
+- one default Schedule covering full Ordered Qty at Line creation
 - schedule planned qty
 - split delivery
-- quantity reconciliation
+- exact pre-ORDERED quantity reconciliation to Line OrderedQty
 - no double counting
 
+Planning consumes Schedule grain only, never Line Qty plus Schedule Qty.
+
 FIRM ETA
-Use Delivery Schedule receipt ETA.
+Use only:
+- Latest Revised Planned WAREHOUSE_RECEIPT
+- otherwise Original Planned WAREHOUSE_RECEIPT
+- otherwise explicit Missing
+
+Actual dates and RequestedReceiptDate are not Firm ETA fallbacks.
 
 Do NOT silently use current Sourcing Master lead-time configuration as ETA for an existing PO.
 
@@ -1897,6 +1979,8 @@ Stage boundaries:
 
 HANDOVER_TO_FORWARDER and CUSTOMS_CLEARED are diagnostic and must not be added to Total Configured Lead Time.
 
+Generate core Original dates only for SUPPLIER_READY, SHIPPED, ARRIVED_DESTINATION and WAREHOUSE_RECEIPT from the four configured stages. Do not invent or interpolate diagnostic milestone dates.
+
 For each approved milestone structure support:
 - Original Planned Date
 - Current/Revised Planned Date
@@ -1911,6 +1995,7 @@ Changes require approved Reason/Audit handling.
 ACTUAL MILESTONES
 Store/foundation only.
 Do not implement full logistics automation.
+Actual WAREHOUSE_RECEIPT must not be a free manual MRP-09 operation; MRP-13 Receipt facts own it.
 
 CONFIGURED LEAD-TIME SNAPSHOT
 Preserve the approved Sourcing configured stage assumptions on the order/schedule snapshot.
@@ -1956,6 +2041,13 @@ Do NOT build final receiving screen or Recommendation→PO flow.
 Follow UI-BRAND-RULES.md.
 Reuse approved patterns.
 
+REFERENCE DATA INTEGRITY GATE
+- Currency and Unit remain MRP-01 typed sources of truth.
+- PAYMENT_TERM, SHIPPING_MODE and INCOTERM remain MRP-01 ReferenceValue ownership.
+- Require active references for new assignment/commitment while preserving historical inactive resolution.
+- Display `fa-IR` with `NameFa`; display `en` with non-empty `NameEn`, otherwise `NameFa` fallback.
+- Do not create shadow reference masters or alter stored localized values.
+
 PERMISSIONS/AUDIT
 Reuse existing platform.
 Do not build parallel Identity/Audit infrastructure.
@@ -1967,6 +2059,10 @@ At minimum:
 - one Currency
 - multiple Lines
 - snapshot immutability
+- PurchaseOrder-only aggregate Version and stale Line/Schedule mutations
+- Draft refresh / Approved lock / Return-to-Draft Reason / Ordered permanent lock
+- grouping compatibility across Supplier/Currency/Payment Snapshot/Shipping Mode/Incoterm
+- Line snapshot preserves selected Price row, BaseUnit, Unit Price, MOQ and all four configured lead stages
 - Ordered Qty validation
 - totals derived
 - status semantics
@@ -1975,18 +2071,27 @@ At minimum:
 - partial receipt model
 - cancel after partial
 - split schedules
+- default Schedule equals full OrderedQty
 - schedule quantity reconciliation
 - no double counting
 - schedule ETA source
+- Revised → Original → Missing Firm ETA precedence
+- Actual/RequestedReceiptDate excluded as Firm ETA fallback
 - missing ETA explicit
 - Sourcing lead-time change does not rewrite PO
 - Original Plan immutability
 - Revised ETA audit boundary
 - Actual date separate
+- diagnostic milestone dates are not invented/interpolated
+- Actual WAREHOUSE_RECEIPT has no free manual MRP-09 command
+- Received/Cancelled/Open are derived and have no independently editable counters
 - historical inactive references
 - no Inventory posting
-- no Over-Receipt policy
+- no Receipt/Over-Receipt behavior and no conflict with MRP-13 tolerance zero
 - no Projected Inventory/Coverage leakage
+- Currency/Unit typed ownership and PAYMENT_TERM/SHIPPING_MODE/INCOTERM ownership
+- active assignment plus historical inactive reference resolution
+- FA/EN reference display fallback and no shadow masters
 
 VERIFICATION
 Run applicable:
@@ -2003,7 +2108,7 @@ Do NOT implement:
 - Recommendation→PO conversion
 - final PO operational workflow
 - Inventory Receipt posting
-- Over-Receipt tolerance/policy
+- Receipt/Over-Receipt implementation (MRP-13 applies the already locked zero-tolerance rule)
 - warehouse destination allocation
 - projected inventory
 - Coverage
@@ -2085,7 +2190,7 @@ Audit:
    Confirm no premature:
    - Recommendation→PO
    - Inventory posting
-   - Over-Receipt policy
+   - Receipt/Over-Receipt behavior; confirm no contradiction with MRP-13 tolerance zero
    - Projected Inventory
    - Coverage
    - Cash Flow
@@ -2105,6 +2210,7 @@ Audit:
    - status integrity
    - payment snapshot
    - Credit Anchor Event preserved and conditionally valid
+   - multi-Line grouping compatibility: same Supplier/Currency/Payment Snapshot/Shipping Mode/Incoterm
 
 4. Lines
    - multi-Line
@@ -2112,6 +2218,7 @@ Audit:
    - Sourcing Option trace
    - Ordered Qty
    - Unit Price snapshot
+   - selected Price row, BaseUnit, MOQ and four configured lead-stage snapshots
    - totals derived
 
 5. Snapshot Integrity
@@ -2141,6 +2248,8 @@ Audit:
    - RECEIVED
    - CANCELLED
 
+   Verify MRP-09 commandable lifecycle is only Draft/Approve/Return-to-Draft/Mark-Ordered, Return-to-Draft requires Reason, and no generic SetStatus API exists. Operational later statuses are modeled but their full side effects remain MRP-13-owned.
+
 7. Firm Supply
    - Approved not Firm
    - Ordered/Shipped/Customs/PartiallyReceived remaining qty Firm
@@ -2156,17 +2265,21 @@ Audit:
 9. Partial Receipt / Cancellation
    - partial semantics preserved
    - cancel-after-partial preserves received history
-   - no Over-Receipt behavior invented
+   - no independently editable Received/Cancelled/Open counters
+   - no Receipt/Over-Receipt behavior implemented in MRP-09
 
 10. Delivery Schedules
    - multiple schedules
-   - default/full-coverage strategy
+   - every Line starts with one default Schedule covering full Ordered Qty
+   - exact pre-ORDERED allocation reconciliation
    - split delivery
    - qty reconciliation
    - no double counting
 
 11. Firm ETA
-   - source is Delivery Schedule
+   - source is Latest Revised Planned WAREHOUSE_RECEIPT, then Original Planned WAREHOUSE_RECEIPT, else Missing
+   - Actual dates are not fallback
+   - RequestedReceiptDate is target-only and not fallback
    - no silent fallback to current Sourcing Lead Time
    - missing ETA explicit
 
@@ -2179,6 +2292,9 @@ Audit:
    - Revised Planned
    - Actual
    - fields semantically distinct
+   - core Original dates derive only from the four configured non-overlapping stages
+   - diagnostic Handover/Customs dates are not invented/interpolated
+   - Actual WAREHOUSE_RECEIPT is not a free manual MRP-09 operation
 
 14. Original Plan
    - not overwritten
@@ -2198,6 +2314,8 @@ Audit:
    - numeric precision
    - migration safety
    - concurrency
+   - `PurchaseOrder.Version` is the only aggregate concurrency token
+   - Line/Schedule mutations require PO ExpectedVersion and do not have independent mutable Versions
 
 18. API
    - safe use-case boundaries
@@ -2229,8 +2347,29 @@ Audit:
    - schedule double-counting prevention
    - Original vs Revised ETA
    - PO numbering concurrency
+   - Draft refresh / Approved snapshot lock / Return-to-Draft Reason / Ordered permanent lock
+   - grouping compatibility
+   - PurchaseOrder-only Version and stale Line/Schedule conflict
+   - Revised → Original → Missing Firm ETA precedence
+   - Actual/RequestedReceiptDate exclusion from Firm ETA
+   - selected Price/BaseUnit/UnitPrice/MOQ/four-stage Line snapshot preservation
+   - default Schedule full coverage and exact pre-ORDERED reconciliation
+   - Received/Cancelled/Open quantities are derived with no editable counters
+   - diagnostic milestone dates are not invented/interpolated
+   - Actual WAREHOUSE_RECEIPT has no free manual MRP-09 operation
+   - no Receipt/Over-Receipt behavior and no contradiction with MRP-13 tolerance zero
 
-23. Specification Drift
+23. Reference Data Integrity Gate
+   Verify:
+   - Currency and Unit remain MRP-01 typed sources of truth
+   - PAYMENT_TERM, SHIPPING_MODE and INCOTERM remain MRP-01 ReferenceValue ownership
+   - active references are required for new assignment/commitment
+   - historical inactive references remain resolvable
+   - `fa-IR` displays `NameFa`
+   - `en` displays non-empty `NameEn`, otherwise falls back to `NameFa`
+   - no shadow Currency/Unit/PaymentTerm/ShippingMode/Incoterm master exists
+
+24. Specification Drift
    Compare:
    - Master Spec
    - Decisions
@@ -2275,7 +2414,7 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۲۰ تصمیم تأییدشده Package 09 پوشش داده شده‌اند:
+تمام تصمیم‌های تأییدشده Package 09 پوشش داده شده‌اند:
 
 1. Internal PO ID + auto PO Number.
 2. One Supplier per PO.
@@ -2297,6 +2436,16 @@ STOP.
 18. Original Planned vs Revised Planned preserved.
 19. Line Total / PO Total derived.
 20. Package 09 remains foundation; Package 13 owns full operations/inventory integration.
+21. PurchaseOrder.Version is the only aggregate concurrency token.
+22. Draft refresh, Approved lock, Reasoned Return-to-Draft and permanent Ordered lock are explicit.
+23. MRP-09 commandable lifecycle is limited to Draft/Approve/Return-to-Draft/Mark-Ordered.
+24. Firm ETA precedence is Revised Planned → Original Planned → Missing; Actual/RequestedReceiptDate are excluded.
+25. Every Line starts with a full-quantity default Schedule and Planning consumes Schedule grain only.
+26. Multi-Line grouping requires identical Supplier/Currency/Payment Snapshot/Shipping Mode/Incoterm.
+27. Line snapshot includes selected Price/BaseUnit/UnitPrice/MOQ/four lead stages.
+28. Diagnostic milestone dates are not invented or interpolated.
+29. Actual WAREHOUSE_RECEIPT is not manually owned by MRP-09.
+30. Received/Cancelled/Open remain derived operational facts, not editable counters.
 
 ## Open Question Resolution
 
@@ -2318,11 +2467,11 @@ Only remaining open obligation is cancelled.
 Historical receipts remain intact.
 ```
 
-Still open for Package 13:
+Closed project-wide for Package 13:
 
 ### Over-Receipt
 
-No policy is implemented in MRP-09.
+MRP-09 implements no Receipt/Over-Receipt behavior. MRP-13 owns enforcement of the locked v1 zero-tolerance rule.
 
 ---
 
@@ -2352,13 +2501,14 @@ No material ownership conflict was found.
 - Actual milestone is kept distinct from plan.
 - Existing PO with missing ETA remains explicitly incomplete rather than guessed.
 - Warehouse destination allocation is kept outside this Package.
-- Over-Receipt is deliberately not guessed.
+- Firm ETA uses Revised Planned, then Original Planned, then Missing; Actual and Requested Receipt target are not fallbacks.
+- Over-Receipt is not implemented in MRP-09; MRP-13 applies the locked zero-tolerance rule.
 
-## Remaining Intentional Open Questions
+## Remaining Deferred Operations
 
 For Package 13:
 
-- Over-Receipt tolerance/rule.
+- operational enforcement of the locked Over-Receipt tolerance-zero rule.
 - final mixed Receipt + Cancellation status aggregation.
 - operational allocation of Receipt to split schedules.
 - destination Warehouse selection.
@@ -2377,7 +2527,7 @@ Analysis-only, Repository-aware, and specifically requires review of snapshots, 
 ### MRP-09B
 PASS
 
-Implementation remains limited to Purchase Supply foundation and explicitly blocks Inventory posting, Order Planning and over-receipt policy.
+Implementation remains limited to Purchase Supply foundation and explicitly blocks Inventory posting, Order Planning and Receipt/Over-Receipt behavior.
 
 ### MRP-09C
 PASS
@@ -2386,6 +2536,4 @@ Independent read-only audit checks historical snapshot integrity, status/Firm Su
 
 ## Final Decision
 
-`MRP-09 Purchase Supply Foundation` is approved for the project Prompt Baseline.
-
-It should not yet be sent to Codex until all MRP Packages are designed and the complete prompt set receives the final cross-package audit.
+`MRP-09 Purchase Supply Foundation` is approved for MRP-09B after Owner authorization.

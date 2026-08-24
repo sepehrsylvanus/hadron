@@ -2015,7 +2015,7 @@ and blocked/incomplete Recommendations do not receive a fake P-priority.
 
 Intentionally deferred to MRP-13:
 
-- Over-Receipt rule / tolerance
+- operational enforcement of the already locked Over-Receipt tolerance-zero rule
 - final Recommendation→Draft PO transaction
 - final PO status transition rules
 - destination Inventory Warehouse at Receipt
@@ -2829,7 +2829,7 @@ No material ownership conflict was found.
 
 Deferred to Package 13:
 
-- Over-Receipt rule/tolerance.
+- operational enforcement of the already locked Over-Receipt tolerance-zero rule.
 - Recommendation→Draft PO transaction.
 - final PO lifecycle transition permissions.
 - schedule-level receipt allocation.
