@@ -88,7 +88,7 @@ Start Date: Gregorian equivalent of 1405/05/01
 End Date:   Gregorian equivalent of 1405/05/31
 ```
 
-The exact persistence strategy is determined in MRP-07A.
+The client identifies a Business Period by Jalali Year and Jalali Month. The server generates the canonical Gregorian Start Date and End Date through the centralized calendar service; these boundaries are immutable after creation. A newly persisted Business Period defaults to `OPEN`.
 
 Do not duplicate inconsistent period boundaries in multiple tables.
 
@@ -165,6 +165,12 @@ Forecast Qty rules:
 - no binary floating point
 
 A zero Forecast is valid and distinct from missing Forecast data.
+
+### Forecast Base Unit Snapshot — LOCKED OWNER DECISION
+
+`ProductBaseUnitId` belongs to the Product + Business Period Forecast Series and is captured by the server once when that Series is created. It is immutable and inherited by every Forecast Revision in the Series; revisions must not carry independently changeable unit snapshots.
+
+If the Product's current Base Unit later differs from the Series snapshot, Forecast mutation is blocked with `BASE_UNIT_CHANGED`. The system must not convert quantities, rewrite history, or permit mixed units inside one Product + Period.
 
 ---
 
@@ -243,9 +249,7 @@ Forecast Revision may include:
 
 `Change Reason / Revision Note`
 
-This is strongly recommended for traceability.
-
-Whether it is mandatory for every change is not a locked Business Rule and may be proposed in MRP-07A.
+For Revision 1, Reason is optional. For Revision 2 and every later Revision, Reason is required.
 
 Do not build a heavy approval workflow solely for Forecast revisions.
 
@@ -293,6 +297,11 @@ Rules:
 - Qty >= 0
 - decimal/numeric
 - Product Base Unit
+- Production Date after the current `Asia/Tehran` business date is blocked with `FUTURE_PRODUCTION_ACTUAL_NOT_ALLOWED`
+- immutable Unit snapshot captured by the server
+- no mixed units, UOM conversion, or historical unit rewrite inside one Product + Period
+
+On entry or correction, the server compares the Product's current Base Unit with the ForecastSeries snapshot when present and with every existing Daily Actual Unit snapshot in that Product + Period. Any drift or mismatch is blocked with `BASE_UNIT_CHANGED`.
 
 ---
 
@@ -324,7 +333,7 @@ Those belong to a future Production Module.
 
 An existing Product + Date Actual may be corrected while its Business Period is Open.
 
-Correction must be auditable.
+Initial entry requires no correction Reason. Every correction requires Reason and creates durable Actual Revision history.
 
 Do not create duplicate same-day records whose sum becomes ambiguous.
 
@@ -452,7 +461,7 @@ Demand Date <= Jalali Planning Period End
 
 The As-Of date receives zero additional Remaining Forecast allocation. Allocation begins at `As-Of + 1 calendar day`, preventing the same cut-off date from carrying both realized Actual Production and a Remaining Forecast share. The quantity remains in its original Jalali Planning Period and must not spill into the next period.
 
-If Remaining Forecast is positive and no eligible future calendar day remains, the quantity must be surfaced as an explicit current-period unallocatable planning state. It must not be allocated to As-Of, moved forward, discarded, or silently rounded away. The exact stable machine code may be finalized by MRP-10A. Deterministic residual allocation must preserve the exact Remaining Forecast total.
+MRP-07 performs no daily allocation. It exposes `EligibleAllocationStart = evaluationDate + 1`, the current Period End, and Remaining Forecast. If Remaining Forecast is positive and no eligible future calendar day remains, it returns the stable state `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE`. It must not allocate to As-Of, spill into another Period, discard, or round the quantity. Deterministic residual allocation and exact daily-total preservation remain owned by MRP-10.
 
 ---
 
@@ -512,7 +521,7 @@ The system must preserve this distinction.
 
 A missing Forecast should not silently become zero if that would hide incomplete planning data.
 
-Exact readiness/warning behavior is determined in MRP-07A.
+Readiness/warning behavior must preserve this distinction with stable machine-readable states.
 
 ---
 
@@ -562,9 +571,13 @@ They should be visible through explicit warnings/filter/state so incomplete plan
 
 Because BOM is effective-dated, Product BOM readiness may vary across months.
 
-The system must evaluate BOM validity against the selected Business Period / relevant planning date.
+The readiness evaluation window is locked:
 
-MRP-07 does not perform material explosion, but its UI/readiness integration must not assume today's BOM is valid for every future month.
+- Future Period: evaluate approved effective BOM coverage for the full Period.
+- Current Period: evaluate only `evaluationDate + 1` through Period End.
+- Past Period: BOM readiness is historical context, not a planning gate.
+
+Forecast remains storable regardless of BOM readiness. MRP-07 does not perform material explosion, and its UI/readiness integration must not assume today's BOM is valid for every future month.
 
 ---
 
@@ -631,6 +644,8 @@ These are system-controlled machine states.
 
 They are not user-configurable Reference Data.
 
+The client supplies Jalali Year/Month; server-generated Gregorian boundaries are immutable. New persisted Periods default to `OPEN`.
+
 ---
 
 ## 30. Open Period
@@ -690,22 +705,13 @@ Audit must preserve conceptually:
 
 Changes made while reopened must be traceable through their own revision/audit records.
 
+Until central Identity exists, domain history uses a nullable `ActorIdentifier` and request/audit context rather than a User or Employee foreign key. Forecast Revisions, Actual Revisions, and Period Lifecycle records are durable domain history and must not depend solely on the best-effort generic audit sink.
+
 ---
 
 ## 34. Close Preconditions
 
-MRP-07A should propose the minimum useful Close validation.
-
-It must not invent excessive bureaucracy.
-
-Potential validation examples:
-
-- no invalid Daily Actual records
-- no unresolved data integrity error
-
-Missing Forecast or missing BOM may be surfaced as warnings depending on business context rather than always blocking Close.
-
-Any blocking rule beyond core integrity requires explicit approval.
+Close blocks only on core data-integrity errors, such as invalid Daily Actual or unresolved transaction/concurrency integrity. Missing Forecast or missing BOM is surfaced as a warning and does not independently block Close. Any additional blocking business rule requires separate Owner approval.
 
 ---
 
@@ -834,9 +840,7 @@ If an inactive Product still has a future Forecast, UI should surface it explici
 
 Normal Forecast history must not be hard deleted.
 
-If an incorrectly created revision requires correction, use the approved revision/history model.
-
-MRP-07A should propose the smallest safe mechanism.
+If an incorrectly created revision requires correction, create a new immutable Forecast Revision with the required Reason. Do not expose normal Forecast deletion.
 
 Do not implement arbitrary destructive history deletion.
 
@@ -844,15 +848,7 @@ Do not implement arbitrary destructive history deletion.
 
 ## 43. Daily Actual Deletion / Correction
 
-Normal correction should preserve auditability.
-
-Whether correction is implemented as:
-
-- update with audit
-or
-- explicit adjustment history
-
-is a technical choice for MRP-07A based on existing audit infrastructure.
+Normal correction creates a new immutable Actual Revision with required Reason and advances the aggregate's current revision pointer. Do not expose hard delete or rely only on generic audit.
 
 Do not create a full production ledger in this Package.
 
@@ -898,9 +894,7 @@ At minimum architecture should distinguish:
 - Close Period
 - Reopen Period
 
-Reopen permission should remain separate from ordinary entry where authorization architecture supports it.
-
-Do not create parallel Identity infrastructure.
+Reopen permission remains separate from ordinary entry. Authorization enforcement is deferred to central Identity; preserve distinct permission/use-case boundaries now, but do not create parallel Identity infrastructure or fake User/Employee records.
 
 ---
 
@@ -932,8 +926,11 @@ Expected protections include where practical:
 - valid Product references
 - valid Period boundaries
 - no destructive cascade of historical Forecast/Actual
+- one immutable Product Base Unit snapshot per Forecast Series
+- immutable Daily Actual Unit snapshots and no mixed Product+Period units
+- durable immutable Forecast/Actual revision history
 
-Exact implementation strategy is determined in MRP-07A.
+Application transactions, aggregate Version checks, row locking in deterministic Period-then-aggregate order, and database uniqueness/check constraints must jointly enforce these protections.
 
 ---
 
@@ -1157,9 +1154,9 @@ MRP-07 is acceptable when:
 14. No separate manually editable Monthly Actual exists.
 15. Past planning truth uses Actual while Forecast history remains.
 16. Current Remaining Forecast uses `MAX(Forecast - Actual MTD, 0)`.
-17. Current-period allocation excludes As-Of and begins at As-Of + 1 calendar day.
+17. The current-period allocation contract excludes As-Of and exposes a start of As-Of + 1 calendar day; MRP-07 does not allocate daily quantities.
 18. Allocation stays within the original Jalali Planning Period; zero eligible days produces an explicit unallocatable state.
-19. Daily residual handling preserves the exact Remaining Forecast total and prevents same-day Actual + Remaining double counting.
+19. MRP-07 performs no daily allocation; it exposes the boundary contract and MRP-10 preserves exact residual totals.
 20. Actual may exceed Forecast.
 21. Future planning source uses Forecast.
 22. Missing Forecast differs from zero Forecast.
@@ -1176,6 +1173,15 @@ MRP-07 is acceptable when:
 33. Server-side validation exists.
 34. Forecast/Actual/Close concurrency rules are tested.
 35. No BOM explosion/Inventory/PO logic leaks into MRP-07.
+36. Forecast Revision 1 Reason is optional; Revision 2+ Reason is required.
+37. Initial Daily Actual needs no correction Reason; each correction requires Reason and durable history.
+38. Future Production Actual is blocked using the Asia/Tehran business date.
+39. ForecastSeries owns one immutable ProductBaseUnitId snapshot inherited by all revisions.
+40. Daily Actual owns an immutable Unit snapshot; mixed Product+Period units and UOM conversion are forbidden.
+41. Future BOM readiness covers the full Period; current readiness covers evaluationDate+1 through Period End; past readiness is not a planning gate.
+42. Jalali Year/Month is client input; Gregorian boundaries are server-generated and immutable; new Period defaults OPEN.
+43. Forecast/Actual/Period histories are durable domain history and use nullable ActorIdentifier until Identity exists.
+44. Reference Data ownership, lifecycle, historical resolution, and bilingual display pass the MRP-01 integrity gate.
 
 ---
 
@@ -1216,6 +1222,16 @@ The following are locked for MRP-07:
 31. Database does not impose 20-year limit.
 32. UI loads selected ranges rather than all history.
 33. Daily demand distribution remains owned by MRP-10; MRP-07 exposes the locked allocation contract only.
+34. Revision 1 Reason is optional; Revision 2+ Reason is required.
+35. Initial Daily Actual needs no correction Reason; every correction requires Reason.
+36. Future-dated Production Actual is blocked with `FUTURE_PRODUCTION_ACTUAL_NOT_ALLOWED` against the Asia/Tehran business date.
+37. ForecastSeries owns one immutable ProductBaseUnitId snapshot; all revisions inherit it.
+38. Daily Actual owns an immutable Unit snapshot; mixed Product+Period units, conversion, and history rewrite are forbidden; drift returns `BASE_UNIT_CHANGED`.
+39. Future BOM readiness covers the full Period; current readiness covers only evaluationDate+1 through Period End; past readiness is not a planning gate.
+40. MRP-07 returns `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE` when positive Remaining has no eligible current-period date and performs no daily allocation.
+41. Client identifies Jalali Year/Month; server owns immutable Gregorian boundaries; new Period defaults OPEN.
+42. Forecast Revision, Actual Revision, and Period Lifecycle records are durable domain history with nullable ActorIdentifier until central Identity exists.
+43. Authorization enforcement is deferred to central Identity while permission/use-case boundaries remain explicit.
 
 ---
 
@@ -1261,7 +1277,7 @@ Canonical Date Storage = Gregorian
 
 The following are intentionally deferred to later Packages:
 
-- Exact Scrap Formula
+- application of the already locked additive Scrap formula (`BaseRequirement × (1 + Scrap% / 100)`); MRP-07 does not calculate Scrap
 - daily Remaining Forecast distribution method inside Calculation Engine
 - future Production Calendar / working-day behavior
 - MRP Calculation Run snapshot architecture
@@ -1459,6 +1475,8 @@ Rules:
 - correct Jalali month/leap-year boundaries
 - reuse centralized trusted conversion/date logic
 - do not scatter custom conversion code
+- client supplies Jalali Year/Month; server generates immutable Gregorian Start/End
+- newly persisted Period defaults to OPEN
 
 FORECAST
 Implement approved:
@@ -1469,6 +1487,9 @@ Implement approved:
 - one Official Current Forecast per Product+Period
 - historical revisions retained
 - stable Forecast Revision ID
+- one server-captured immutable `ProductBaseUnitId` on ForecastSeries, inherited by every revision
+- base-unit drift blocks mutation with `BASE_UNIT_CHANGED`; no conversion or historical rewrite
+- Revision 1 Reason optional; Revision 2+ Reason required
 
 Do not create independently editable duplicate Current Forecast values.
 
@@ -1483,7 +1504,10 @@ Rules:
 - Qty >= 0
 - decimal/numeric
 - correction only while Period Open
-- audit-compatible
+- ProductionDate after current Asia/Tehran business date is blocked with `FUTURE_PRODUCTION_ACTUAL_NOT_ALLOWED`
+- initial entry needs no correction Reason; every correction requires Reason and durable Actual Revision history
+- server-captured immutable Unit snapshot; no mixed units inside Product+Period and no UOM conversion
+- compare against the ForecastSeries/current Product Base Unit and existing Product+Period Actual snapshots; mismatch returns `BASE_UNIT_CHANGED`
 
 Do not add Shift/Line/Work Center/Batch.
 
@@ -1503,9 +1527,10 @@ Past:
 
 Current:
 - Remaining Forecast = MAX(Official Forecast - Actual MTD, 0)
-- expose the approved allocation contract to MRP-10: `Demand Date > As-Of` and `Demand Date <= Planning Period End`
+- expose `EligibleAllocationStart = evaluationDate + 1`, Period End, and Remaining Forecast to MRP-10
 - As-Of receives zero Remaining Forecast; do not spill into the next period
-- when zero eligible future days remain with positive quantity, return an explicit unallocatable planning state rather than allocating or discarding it
+- when zero eligible future days remain with positive quantity, return `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE`
+- perform no daily allocation or residual distribution in MRP-07
 
 Future:
 - Official Forecast is planning source
@@ -1525,7 +1550,18 @@ Integrate approved derived/warning view so Products with:
 - invalid planning BOM
 are surfaced rather than silently excluded.
 
+Evaluate readiness by window:
+- Future Period = full Period
+- Current Period = evaluationDate + 1 through Period End
+- Past Period = not a planning gate
+
 Do NOT perform BOM explosion.
+
+REFERENCE DATA BOUNDARY
+- reuse MRP-01 ownership for PRODUCT_CATEGORY, BUSINESS_UNIT, and Unit
+- require active references for new assignment and preserve inactive historical resolution
+- display reference names as `fa-IR => NameFa` and `en => non-empty NameEn, otherwise NameFa`
+- never translate stored reference data or create shadow reference masters
 
 PERIOD LIFECYCLE
 Implement:
@@ -1578,7 +1614,10 @@ Follow UI-BRAND-RULES.md.
 Reuse approved grid/form patterns.
 
 PERMISSIONS/AUDIT
-Reuse existing platform.
+Preserve explicit permission/use-case boundaries; central Identity enforcement remains deferred.
+Use nullable ActorIdentifier/context and no User/Employee FK.
+Persist Forecast Revision, Actual Revision, and Period Lifecycle as durable domain history.
+Reuse the existing generic audit boundary without treating its current best-effort/no-op implementation as the sole historical record.
 Do not build parallel Identity/Audit systems.
 
 BACKEND
@@ -1607,15 +1646,18 @@ At minimum:
 - Actual MTD derived
 - past/current/future planning-source rules
 - Remaining Forecast floor at zero
-- As-Of excluded from current-period Remaining Forecast allocation
-- next-day start and Jalali period-end boundary
-- normal mid-period allocation: As-Of zero, next day positive, exact total preserved
-- exact-division and deterministic decimal-residual scenarios
-- final Jalali calendar day with positive remainder produces explicit unallocatable state and no next-period spill
-- Actual >= Forecast produces no future allocation
+- MRP-07 exposes next-day EligibleAllocationStart and Jalali period-end boundary without allocating daily quantities
+- final Jalali calendar day with positive remainder returns `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE` and no next-period spill
+- Actual >= Forecast produces Remaining Forecast zero
 - Jalali leap/month boundary uses canonical Gregorian conversion
 - no same-day Actual + Remaining Forecast double count
 - Actual > Forecast preserved
+- Revision 1 Reason optional and Revision 2+ Reason required
+- initial Actual without correction Reason and correction Reason required
+- future Production Actual blocked by Asia/Tehran business date
+- immutable ForecastSeries ProductBaseUnitId inherited by every revision
+- immutable Actual Unit snapshot, mixed-unit prevention, and `BASE_UNIT_CHANGED`
+- future/current/past BOM readiness windows
 - Forecast without BOM allowed
 - missing BOM warning
 - active/inactive historical behavior
@@ -1625,6 +1667,7 @@ At minimum:
 - no manual Monthly Actual
 - no BOM explosion
 - no Production Module scope leakage
+- Reference Data integrity: PRODUCT_CATEGORY/BUSINESS_UNIT/Unit ownership, active new assignment, inactive historical resolution, `fa-IR => NameFa`, `en => NameEn ?? NameFa`, and no shadow reference masters
 
 VERIFICATION
 Run applicable:
@@ -1639,7 +1682,7 @@ Do not claim checks not run.
 SCOPE GUARD
 Do NOT implement:
 - BOM explosion
-- Scrap requirement formula
+- Scrap requirement calculation (the additive formula is already locked elsewhere)
 - daily material demand distribution
 - Inventory
 - Coverage
@@ -1734,6 +1777,8 @@ Audit:
    - correct month boundaries
    - leap-year/Esfand correctness
    - no formatted-string date logic
+   - client supplies Jalali Year/Month; server generates immutable Start/End
+   - new persisted Period defaults OPEN
 
 3. Forecast Model
    - Product+Period grain
@@ -1744,6 +1789,9 @@ Audit:
    - immutable Revision history
    - exactly one Official Current Forecast
    - no duplicate editable current value
+   - ForecastSeries owns one immutable server-captured ProductBaseUnitId inherited by every Revision
+   - no mixed units, conversion or history rewrite; drift returns BASE_UNIT_CHANGED
+   - Revision 1 Reason optional; Revision 2+ Reason required
 
 4. Forecast History
    - no overwrite
@@ -1755,7 +1803,9 @@ Audit:
    - Product+Date aggregate
    - one logical record/day
    - no Shift/Line/Batch leakage
-   - correction/audit behavior
+   - initial entry needs no correction Reason; each correction requires Reason and durable Actual Revision history
+   - future ProductionDate blocked with FUTURE_PRODUCTION_ACTUAL_NOT_ALLOWED using Asia/Tehran business date
+   - immutable Unit snapshot, no mixed Product+Period units, and no UOM conversion
 
 6. Monthly Actual
    - Derived from Daily Actual
@@ -1768,6 +1818,9 @@ Audit:
    - Future = Forecast
    - Actual can exceed Forecast
    - Forecast history remains
+   - EligibleAllocationStart = evaluationDate + 1
+   - no daily allocation or residual distribution in MRP-07
+   - positive remainder with zero eligible days returns CURRENT_PERIOD_REMAINDER_UNALLOCATABLE and never spills
 
 8. Missing vs Zero Forecast
    - not conflated
@@ -1777,6 +1830,9 @@ Audit:
    - BOM missing surfaced
    - no material explosion
    - no use of today's BOM for historical Actual boundary
+   - Future readiness evaluates the full Period
+   - Current readiness evaluates evaluationDate+1 through Period End
+   - Past readiness is not a planning gate
 
 10. Period Lifecycle
     - OPEN/CLOSED
@@ -1817,6 +1873,9 @@ Audit:
     - Close/Reopen clarity
 
 15. Permissions / Auditability
+    - permission/use-case boundaries remain explicit while enforcement awaits central Identity
+    - no User/Employee FK; nullable ActorIdentifier/context is used
+    - Forecast Revision, Actual Revision and Period Lifecycle are durable domain history, not generic-audit-only
 
 16. Performance
     - selected-range queries
@@ -1829,18 +1888,29 @@ Audit:
     Verify meaningful assertions especially:
     - Jalali leap-year boundaries
     - concurrent Forecast revisions
+    - Revision 1 Reason optional and Revision 2+ Reason required
+    - immutable ForecastSeries ProductBaseUnitId inherited by revisions
     - Product+Date Actual uniqueness
+    - initial Actual without correction Reason and every correction requiring Reason
+    - future ProductionDate rejected against Asia/Tehran business date
+    - immutable Actual Unit snapshots, mixed-unit rejection, and BASE_UNIT_CHANGED
     - Closed Period concurrency
     - Current Remaining Forecast
-    - As-Of excluded and allocation starts at As-Of + 1
+    - MRP-07 exposes As-Of + 1 as EligibleAllocationStart without creating daily allocations
     - no same-day Actual + Remaining Forecast double count
     - no cross-period spill at Jalali Period End
-    - exact division and deterministic residual preserve the exact total
     - zero eligible future days produces an explicit unallocatable state
-    - Actual >= Forecast produces no allocation
+    - Actual >= Forecast produces Remaining Forecast zero
     - Jalali leap/month boundary uses canonical Gregorian conversion
+    - Future/current/past BOM readiness windows
 
-18. Specification Drift
+18. Reference Data Integrity Gate
+    - PRODUCT_CATEGORY, BUSINESS_UNIT and Unit remain owned by MRP-01
+    - active references are required for new assignment while inactive historical references remain resolvable
+    - `fa-IR` displays NameFa; `en` displays non-empty NameEn with NameFa fallback
+    - no shadow Category, Business Unit or Unit master exists
+
+19. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -1911,6 +1981,16 @@ STOP.
 22. Long-term history has no hard 20-year DB cap.
 23. UI queries selected ranges.
 24. No manual Monthly Actual.
+25. Forecast Revision 1 Reason is optional; Revision 2+ Reason is required.
+26. Initial Actual needs no correction Reason; each correction requires Reason and durable history.
+27. Future Production Actual is blocked by the Asia/Tehran business date.
+28. ForecastSeries owns the immutable Product Base Unit snapshot; revisions inherit it.
+29. Daily Actual owns an immutable Unit snapshot; mixed units and conversion are forbidden.
+30. Future/current/past BOM readiness uses the approved evaluation windows.
+31. MRP-07 exposes the next-day boundary and unallocatable state but performs no daily allocation.
+32. Client supplies Jalali Year/Month; the server owns immutable Gregorian boundaries and OPEN default.
+33. Durable histories use nullable ActorIdentifier until central Identity exists.
+34. MRP-01 Reference Data ownership and bilingual historical resolution remain intact.
 
 ## Open Question Resolution
 
@@ -1962,11 +2042,11 @@ Canonical Date Storage = Gregorian
 - Jalali Business Period is separated from Gregorian canonical date arithmetic.
 - Future Production Module migration boundary prevents double counting.
 
-## Remaining Intentional Open Questions
+## Deferred Downstream Scope
 
-Not blockers for MRP-07:
+These are not open MRP-07 business decisions and do not block MRP-07:
 
-- Exact Scrap Formula.
+- Application of the already locked additive Scrap formula; MRP-07 does not calculate Scrap.
 - Current-month remaining Forecast daily distribution in Calculation Engine.
 - future Production Calendar / Working Days.
 - exact MRP Calculation Run snapshot model.
@@ -1993,4 +2073,4 @@ Independent read-only audit checks Jalali calendar integrity, revisions, actual 
 
 `MRP-07 Forecast / Actual` is approved for the project Prompt Baseline.
 
-It should not yet be sent to Codex until all MRP Packages are designed and the complete prompt set receives the final cross-package audit.
+MRP-07A is finalized and synchronized. MRP-07B is ready for separate Owner authorization; implementation has not started.

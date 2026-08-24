@@ -392,7 +392,7 @@ Examples:
 A Product may have:
 
 * immutable technical ID
-* editable Product Code
+* immutable, server-generated Official Item Code
 * Product Name
 
 A Purchase Order may have:

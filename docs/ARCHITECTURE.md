@@ -2,7 +2,7 @@
 
 ## Scope
 
-The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-06 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, and Multi-Level BOM. MRP-07 has not started.
+The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-06 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, and Multi-Level BOM. MRP-07A is approved and synchronized; MRP-07B has not started.
 
 ```text
 React + TypeScript + Vite
@@ -24,7 +24,7 @@ Future modules must own their domain rules, use cases, persistence mappings, per
 
 ## Frontend
 
-`src/frontend` is an RTL-ready React application with screens for Reference Data, Products, Suppliers, Parts, Components, Sourcing, and BOM. Shared CSS variables hold current brand values. The existing navigation and screens are implementation reality, not the approved final application shell or completed UX refactor.
+`src/frontend` is a bilingual FA/EN React application with RTL/LTR switching, the Hadron ERP shell, routed List/Object page patterns, and screens for Reference Data, Products, Suppliers, Parts, Components, Sourcing, and BOM. Shared UI primitives and brand tokens implement the approved UX/UI foundation; module-specific business behavior remains governed by canonical module specifications.
 
 Official font assets are pending. Temporary system fallback fonts are documented in `docs/brand/UI-BRAND-RULES.md`.
 
