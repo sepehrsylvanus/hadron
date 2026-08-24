@@ -16,6 +16,8 @@ using Hadron.Erp.Api.Modules.Planning.Api;
 using Hadron.Erp.Api.Modules.Planning.Application;
 using Hadron.Erp.Api.Modules.Inventory.Api;
 using Hadron.Erp.Api.Modules.Inventory.Application;
+using Hadron.Erp.Api.Modules.PurchaseSupply.Api;
+using Hadron.Erp.Api.Modules.PurchaseSupply.Application;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +37,7 @@ builder.Services.AddScoped<BomService>();
 builder.Services.AddScoped<IBomOperationalReadinessQuery, BomOperationalReadinessQuery>();
 builder.Services.AddScoped<PlanningService>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<PurchaseSupplyService>();
 builder.Services.AddScoped<IItemBaseUnitChangeGuard, InventoryHistoryItemGuard>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPlanningCalendar, PlanningCalendar>();
@@ -86,6 +89,7 @@ app.MapSourcingEndpoints();
 app.MapBomEndpoints();
 app.MapPlanningEndpoints();
 app.MapInventoryEndpoints();
+app.MapPurchaseSupplyEndpoints();
 
 app.Run();
 

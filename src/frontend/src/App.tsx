@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Boxes, CalendarRange, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, UsersRound, Wrench } from 'lucide-react'
+import { Boxes, CalendarRange, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, ShoppingCart, UsersRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import officialHadronLogo from '../../../docs/brand/Hadron Logo new-01.png'
 import ProductMaster, { ProductObjectPage } from './ProductMaster'
@@ -12,6 +12,7 @@ import BomMaster from './BomMaster'
 import ReferenceDataPage from './ReferenceDataPage'
 import ForecastActualPage from './ForecastActualPage'
 import InventoryPage from './InventoryPage'
+import PurchaseOrderPage from './PurchaseOrderPage'
 import { languageDirection, normalizeLanguage, type SupportedLanguage } from './i18n'
 
 type NavigationItem = { labelKey: string; path: string; Icon: LucideIcon; aliases?: string[] }
@@ -26,6 +27,7 @@ const navigationGroups: NavigationGroup[] = [
   { labelKey: 'navigation.groups.suppliersAndSourcing', items: [
     { labelKey: 'navigation.items.suppliers', path: '/mrp/supply/suppliers', aliases: ['/mrp/suppliers'], Icon: UsersRound },
     { labelKey: 'navigation.items.sourcing', path: '/mrp/supply/sourcing', aliases: ['/mrp/sourcing'], Icon: SourcingRoute },
+    { labelKey: 'navigation.items.purchaseOrders', path: '/mrp/supply/purchase-orders', aliases: ['/mrp/purchase-orders'], Icon: ShoppingCart },
   ] },
   { labelKey: 'navigation.groups.engineering', items: [{ labelKey: 'navigation.items.bom', path: '/mrp/engineering/bom', Icon: Network }] },
   { labelKey: 'navigation.groups.planning', items: [{ labelKey: 'navigation.items.forecastActual', path: '/mrp/planning/forecast-actual', Icon: CalendarRange }] },
@@ -98,6 +100,7 @@ function App() {
     <Route path="/mrp/master-data/reference-data" element={<ReferenceDataPage />} />
     <Route path="/mrp/supply/suppliers" element={<SupplierMaster />} /><Route path="/mrp/suppliers/new" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id/edit" element={<SupplierObjectPage />} />
     <Route path="/mrp/supply/sourcing" element={<SourcingMaster />} /><Route path="/mrp/sourcing/new" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id/edit" element={<SourcingObjectPage />} />
+    <Route path="/mrp/supply/purchase-orders" element={<PurchaseOrderPage view="list" />} /><Route path="/mrp/purchase-orders/new" element={<PurchaseOrderPage view="create" />} /><Route path="/mrp/purchase-orders/:id" element={<PurchaseOrderPage view="object" />} />
     <Route path="/mrp/engineering/bom" element={<BomMaster />} /><Route path="/mrp/planning/forecast-actual" element={<ForecastActualPage />} />
     <Route path="/mrp/inventory" element={<InventoryPage view="balances" />} /><Route path="/mrp/inventory/items/:id" element={<InventoryPage view="item" />} />
     <Route path="/mrp/inventory/warehouses" element={<InventoryPage view="warehouses" />} /><Route path="/mrp/inventory/warehouses/new" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id/edit" element={<InventoryPage view="warehouse" />} />

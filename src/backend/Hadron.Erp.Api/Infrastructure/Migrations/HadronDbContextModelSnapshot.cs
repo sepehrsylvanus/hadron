@@ -30,6 +30,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             modelBuilder.HasSequence("product_number_seq", "catalog");
 
+            modelBuilder.HasSequence("purchase_order_number_seq", "procurement");
+
             modelBuilder.HasSequence("sourcing_option_number_seq", "procurement");
 
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
@@ -806,6 +808,399 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_products_safety_stock", "\"SafetyStockQty\" >= 0");
 
                             t.HasCheckConstraint("ck_products_thresholds", "\"CriticalDays\" >= 0 AND \"CriticalDays\" <= \"SafeStartDays\" AND \"SafeStartDays\" <= \"ExcessStartDays\"");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AllocatedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("PurchaseOrderLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("RequestedReceiptDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ScheduleNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseOrderLineId", "ScheduleNumber")
+                        .IsUnique();
+
+                    b.ToTable("delivery_schedules", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_delivery_schedules_number", "\"ScheduleNumber\" > 0");
+
+                            t.HasCheckConstraint("ck_delivery_schedules_quantity", "\"AllocatedQuantity\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliveryScheduleActualMilestone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("ActualDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeliveryScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MilestoneCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryScheduleId", "MilestoneCode", "SourceType", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("delivery_schedule_actual_milestones", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_delivery_actual_milestone", "\"MilestoneCode\" IN ('SUPPLIER_READY','HANDOVER_TO_FORWARDER','SHIPPED','ARRIVED_DESTINATION','CUSTOMS_CLEARED','WAREHOUSE_RECEIPT')");
+
+                            t.HasCheckConstraint("ck_delivery_actual_source", "length(btrim(\"SourceType\")) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedulePlanRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("ArrivedDestinationDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("CustomsClearedDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("DeliveryScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("HandoverToForwarderDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PlanType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("ShippedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("SupplierReadyDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("WarehouseReceiptDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryScheduleId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_delivery_schedule_single_original")
+                        .HasFilter("\"PlanType\" = 'ORIGINAL'");
+
+                    b.HasIndex("DeliveryScheduleId", "RevisionNumber")
+                        .IsUnique();
+
+                    b.ToTable("delivery_schedule_plan_revisions", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_delivery_plan_core_chronology", "(\"SupplierReadyDate\" IS NULL OR \"ShippedDate\" IS NULL OR \"SupplierReadyDate\" <= \"ShippedDate\") AND (\"ShippedDate\" IS NULL OR \"ArrivedDestinationDate\" IS NULL OR \"ShippedDate\" <= \"ArrivedDestinationDate\") AND (\"ArrivedDestinationDate\" IS NULL OR \"WarehouseReceiptDate\" IS NULL OR \"ArrivedDestinationDate\" <= \"WarehouseReceiptDate\")");
+
+                            t.HasCheckConstraint("ck_delivery_plan_reason", "\"PlanType\" = 'ORIGINAL' OR length(btrim(\"Reason\")) > 0");
+
+                            t.HasCheckConstraint("ck_delivery_plan_revision", "\"RevisionNumber\" > 0");
+
+                            t.HasCheckConstraint("ck_delivery_plan_revision_kind", "(\"PlanType\" = 'ORIGINAL' AND \"RevisionNumber\" = 1) OR (\"PlanType\" = 'REVISED' AND \"RevisionNumber\" <> 1)");
+
+                            t.HasCheckConstraint("ck_delivery_plan_type", "\"PlanType\" IN ('ORIGINAL','REVISED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AdvancePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("BeforeShipmentPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreditAnchor")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("CreditDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("CreditPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("IncotermId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("OrderedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("OrderedDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PaymentTermId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PurchaseOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("ShippingModeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("IncotermId");
+
+                    b.HasIndex("PaymentTermId");
+
+                    b.HasIndex("PurchaseOrderNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ShippingModeId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("Status", "CurrencyId");
+
+                    b.HasIndex("Status", "SupplierId");
+
+                    b.ToTable("purchase_orders", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_purchase_orders_credit", "(\"CreditPercent\" = 0 AND \"CreditDays\" IS NULL AND \"CreditAnchor\" IS NULL) OR (\"CreditPercent\" > 0 AND \"CreditDays\" > 0 AND \"CreditAnchor\" IN ('ORDERED','SHIPPED','WAREHOUSE_RECEIPT'))");
+
+                            t.HasCheckConstraint("ck_purchase_orders_number", "\"PurchaseOrderNumber\" ~ '^PO-[0-9]{6,}$'");
+
+                            t.HasCheckConstraint("ck_purchase_orders_ordered_fields", "(\"Status\" IN ('DRAFT','APPROVED') AND \"OrderedDate\" IS NULL AND \"OrderedAtUtc\" IS NULL) OR (\"Status\" NOT IN ('DRAFT','APPROVED') AND \"OrderedDate\" IS NOT NULL AND \"OrderedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_purchase_orders_payment_percentages", "\"AdvancePercent\" BETWEEN 0 AND 100 AND \"BeforeShipmentPercent\" BETWEEN 0 AND 100 AND \"CreditPercent\" BETWEEN 0 AND 100 AND \"AdvancePercent\" + \"BeforeShipmentPercent\" + \"CreditPercent\" = 100");
+
+                            t.HasCheckConstraint("ck_purchase_orders_status", "\"Status\" IN ('DRAFT','APPROVED','ORDERED','SHIPPED','CUSTOMS','PARTIALLY_RECEIVED','RECEIVED','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLifecycleEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseOrderId", "CreatedAtUtc");
+
+                    b.ToTable("purchase_order_lifecycle_events", "procurement");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("DestinationCustomsDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ForwarderToShipmentDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("MinimumOrderQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("OrderedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ShippingPeriodDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourcingPriceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SupplierLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemBaseUnitId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("SourcingOptionId");
+
+                    b.HasIndex("SourcingPriceId");
+
+                    b.HasIndex("PurchaseOrderId", "LineNumber")
+                        .IsUnique();
+
+                    b.ToTable("purchase_order_lines", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_purchase_order_lines_lead_times", "(\"SupplierLeadTimeDays\" IS NULL OR \"SupplierLeadTimeDays\" >= 0) AND (\"ForwarderToShipmentDays\" IS NULL OR \"ForwarderToShipmentDays\" >= 0) AND (\"ShippingPeriodDays\" IS NULL OR \"ShippingPeriodDays\" >= 0) AND (\"DestinationCustomsDays\" IS NULL OR \"DestinationCustomsDays\" >= 0)");
+
+                            t.HasCheckConstraint("ck_purchase_order_lines_moq", "\"MinimumOrderQuantity\" IS NULL OR \"MinimumOrderQuantity\" >= 0");
+
+                            t.HasCheckConstraint("ck_purchase_order_lines_number", "\"LineNumber\" > 0");
+
+                            t.HasCheckConstraint("ck_purchase_order_lines_price", "\"UnitPrice\" >= 0");
+
+                            t.HasCheckConstraint("ck_purchase_order_lines_quantity", "\"OrderedQuantity\" > 0");
                         });
                 });
 
@@ -1713,6 +2108,134 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("ProductCategory");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLine", "PurchaseOrderLine")
+                        .WithMany("Schedules")
+                        .HasForeignKey("PurchaseOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseOrderLine");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliveryScheduleActualMilestone", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", "DeliverySchedule")
+                        .WithMany("ActualMilestones")
+                        .HasForeignKey("DeliveryScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DeliverySchedule");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedulePlanRevision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", "DeliverySchedule")
+                        .WithMany("PlanRevisions")
+                        .HasForeignKey("DeliveryScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DeliverySchedule");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrder", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "Incoterm")
+                        .WithMany()
+                        .HasForeignKey("IncotermId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "PaymentTerm")
+                        .WithMany()
+                        .HasForeignKey("PaymentTermId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "ShippingMode")
+                        .WithMany()
+                        .HasForeignKey("ShippingModeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("Incoterm");
+
+                    b.Navigation("PaymentTerm");
+
+                    b.Navigation("ShippingMode");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLifecycleEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("LifecycleEvents")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseOrder");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLine", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ItemBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ItemBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Lines")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", "SourcingOption")
+                        .WithMany()
+                        .HasForeignKey("SourcingOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingPrice", "SourcingPrice")
+                        .WithMany()
+                        .HasForeignKey("SourcingPriceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("ItemBaseUnit");
+
+                    b.Navigation("PurchaseOrder");
+
+                    b.Navigation("SourcingOption");
+
+                    b.Navigation("SourcingPrice");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceType", "ReferenceType")
@@ -1844,6 +2367,25 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", b =>
                 {
                     b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", b =>
+                {
+                    b.Navigation("ActualMilestones");
+
+                    b.Navigation("PlanRevisions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrder", b =>
+                {
+                    b.Navigation("LifecycleEvents");
+
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.PurchaseOrderLine", b =>
+                {
+                    b.Navigation("Schedules");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>

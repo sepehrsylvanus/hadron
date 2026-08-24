@@ -32,6 +32,7 @@ const fa = {
       referenceData: 'اطلاعات مرجع',
       suppliers: 'تأمین‌کنندگان',
       sourcing: 'منابع تأمین',
+      purchaseOrders: 'سفارش‌های خرید',
       bom: 'BOM',
       forecastActual: 'پیش‌بینی و تولید واقعی',
       inventory: 'موجودی',
@@ -126,6 +127,17 @@ const fa = {
     inactiveStock: 'موجودی انبار غیرفعال همچنان در جمع کل شرکت لحاظ شده است.', OPENING: 'موجودی افتتاحیه', RECEIPT: 'رسید', ISSUE: 'خروج',
     ADJ_IN: 'اصلاح افزایشی', ADJ_OUT: 'اصلاح کاهشی', TRANSFER: 'انتقال', REVERSAL: 'برگشت', post: 'ثبت', searchItem: 'جست‌وجوی کد رسمی یا نام قلم', searchWarehouse: 'جست‌وجوی کد رسمی یا نام انبار',
     generatedCode: 'پس از ایجاد توسط سیستم تولید می‌شود', historyOnly: 'تراکنش ثبت‌شده تغییرناپذیر است؛ اصلاح از طریق برگشت یا تعدیل جبرانی انجام می‌شود.',
+  },
+  purchaseOrders: {
+    title: 'سفارش‌های خرید', subtitle: 'Snapshot تجاری، برنامه تحویل و تأمین قطعی ورودی', new: 'سفارش خرید جدید',
+    order: 'سفارش خرید', list: 'فهرست سفارش‌های خرید', poNumber: 'شماره PO', supplier: 'تأمین‌کننده', currency: 'ارز', lines: 'خطوط',
+    total: 'جمع', nextEta: 'ETA قطعی بعدی', missingEta: 'ETA ثبت نشده', overdueEta: 'معوق', onTimeEta: 'در موعد', search: 'شماره PO، تأمین‌کننده یا قلم', selectSources: 'انتخاب منابع تأمین',
+    addLine: 'افزودن خط', lineRequired: 'حداقل یک خط منبع تأمین اضافه کنید', quantity: 'مقدار سفارش', requestedDate: 'تاریخ هدف دریافت',
+    snapshotHint: 'مقادیر تجاری به‌صورت Snapshot تراکنشی ثبت می‌شوند و با تغییرات بعدی Master Data عوض نمی‌شوند.', payment: 'ترکیب پرداخت',
+    refresh: 'به‌روزرسانی Snapshot پیش‌نویس', approve: 'تأیید', approveConfirm: 'Snapshot تجاری فعلی تأیید و قفل شود؟', returnDraft: 'بازگشت به پیش‌نویس',
+    markOrdered: 'ثبت سفارش‌شده', orderedDate: 'تاریخ سفارش', reason: 'دلیل', leadSnapshot: 'Snapshot زمان‌های تأمین', openQty: 'مقدار باز',
+    schedule: 'برنامه تحویل', firmEta: 'ETA قطعی', timeline: 'خط زمانی Milestone', revisePlan: 'اصلاح برنامه Milestone', history: 'تاریخچه چرخه عمر',
+    status: { DRAFT: 'پیش‌نویس', APPROVED: 'تأییدشده — غیرقطعی', ORDERED: 'سفارش‌شده', SHIPPED: 'حمل‌شده', CUSTOMS: 'گمرک', PARTIALLY_RECEIVED: 'دریافت جزئی', RECEIVED: 'دریافت‌شده', CANCELLED: 'لغوشده' },
   },
 } as const
 

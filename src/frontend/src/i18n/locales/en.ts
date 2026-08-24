@@ -32,6 +32,7 @@ const en = {
       referenceData: 'Reference Data',
       suppliers: 'Suppliers',
       sourcing: 'Sourcing',
+      purchaseOrders: 'Purchase Orders',
       bom: 'BOM',
       forecastActual: 'Forecast & Actual',
       inventory: 'Inventory',
@@ -126,6 +127,17 @@ const en = {
     inactiveStock: 'Stock exists in an inactive warehouse and remains included in the company total.', OPENING: 'Opening', RECEIPT: 'Receipt', ISSUE: 'Issue',
     ADJ_IN: 'Adjustment in', ADJ_OUT: 'Adjustment out', TRANSFER: 'Transfer', REVERSAL: 'Reversal', post: 'Post', searchItem: 'Search official code or item name', searchWarehouse: 'Search warehouse code or name',
     generatedCode: 'Generated after creation', historyOnly: 'Posted transactions are immutable. Corrections use reversal or a compensating adjustment.',
+  },
+  purchaseOrders: {
+    title: 'Purchase Orders', subtitle: 'Committed commercial snapshots, delivery schedules, and firm incoming supply', new: 'New purchase order',
+    order: 'Purchase order', list: 'Purchase order list', poNumber: 'PO number', supplier: 'Supplier', currency: 'Currency', lines: 'Lines',
+    total: 'Total', nextEta: 'Next firm ETA', missingEta: 'Missing ETA', overdueEta: 'Overdue', onTimeEta: 'On time', search: 'PO number, supplier, or item', selectSources: 'Select sourcing options',
+    addLine: 'Add line', lineRequired: 'Add at least one sourcing line', quantity: 'Ordered quantity', requestedDate: 'Requested receipt target',
+    snapshotHint: 'Commercial values are captured as a transaction snapshot and do not follow later master-data changes.', payment: 'Payment split',
+    refresh: 'Refresh draft snapshot', approve: 'Approve', approveConfirm: 'Approve and lock the current commercial snapshot?', returnDraft: 'Return to draft',
+    markOrdered: 'Mark ordered', orderedDate: 'Ordered date', reason: 'Reason', leadSnapshot: 'Lead-time snapshot', openQty: 'Open quantity',
+    schedule: 'Schedule', firmEta: 'Firm ETA', timeline: 'Milestone timeline', revisePlan: 'Revise planned milestones', history: 'Lifecycle history',
+    status: { DRAFT: 'Draft', APPROVED: 'Approved — not firm', ORDERED: 'Ordered', SHIPPED: 'Shipped', CUSTOMS: 'Customs', PARTIALLY_RECEIVED: 'Partially received', RECEIVED: 'Received', CANCELLED: 'Cancelled' },
   },
 } as const
 

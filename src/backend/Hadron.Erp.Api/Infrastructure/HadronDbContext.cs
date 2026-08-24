@@ -7,6 +7,7 @@ using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Modules.Bom.Domain;
 using Hadron.Erp.Api.Modules.Planning.Domain;
 using Hadron.Erp.Api.Modules.Inventory.Domain;
+using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
@@ -37,6 +38,12 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
     public DbSet<InventoryLedgerEffect> InventoryLedgerEffects => Set<InventoryLedgerEffect>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    public DbSet<DeliverySchedule> DeliverySchedules => Set<DeliverySchedule>();
+    public DbSet<DeliverySchedulePlanRevision> DeliverySchedulePlanRevisions => Set<DeliverySchedulePlanRevision>();
+    public DbSet<DeliveryScheduleActualMilestone> DeliveryScheduleActualMilestones => Set<DeliveryScheduleActualMilestone>();
+    public DbSet<PurchaseOrderLifecycleEvent> PurchaseOrderLifecycleEvents => Set<PurchaseOrderLifecycleEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +54,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
         modelBuilder.HasSequence<long>("sourcing_option_number_seq", "procurement");
         modelBuilder.HasSequence<long>("bom_revision_number_seq", "engineering");
         modelBuilder.HasSequence<long>("warehouse_number_seq", "inventory");
+        modelBuilder.HasSequence<long>("purchase_order_number_seq", "procurement");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadronDbContext).Assembly);
     }
 }
