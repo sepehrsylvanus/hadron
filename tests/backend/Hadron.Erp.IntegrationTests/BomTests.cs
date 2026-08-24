@@ -62,6 +62,8 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
         Assert.Equal(rows.Count, rows.Select(x => x.RevisionCode).Distinct().Count());
         Assert.All(rows, x => Assert.Matches("^BOM-[0-9]{6,}$", x.RevisionCode));
         Assert.All(rows, x => Assert.Equal(_unit, x.ParentBaseUnitSnapshot.Id));
+        Assert.All(rows, x => Assert.Equal("واحد BOM", x.ParentBaseUnitSnapshot.NameFa));
+        Assert.All(rows, x => Assert.Equal("BOM unit", x.ParentBaseUnitSnapshot.NameEn));
 
         var productDraft = rows[0];
         await using (var db = await Db())
@@ -76,6 +78,7 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
             Assert.Equal(await db.Items.Where(x => x.Id == part).Select(x => x.BusinessNumber).SingleAsync(),
                 Assert.Single(productDraft.Lines).ChildItem.Code);
         }
+        Assert.Equal("BOM unit", Assert.Single(productDraft.Lines).ChildBaseUnitSnapshot.NameEn);
         Assert.Equal(HttpStatusCode.BadRequest, (await AddLine(await Read(await Create(product)), component, 1)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await AddLine(await Read(await Create(part)), component, 1)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await AddLine(await Read(await Create(component)), await AddItem(ItemTypes.Component, SupplyMethods.Buy), 1)).StatusCode);
@@ -542,7 +545,7 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
     private async Task<HadronDbContext> Db()
     { var scope = _factory.Services.CreateAsyncScope(); return await scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync(); }
 
-    private sealed record UnitDto(Guid Id, string Code, string NameFa, string? Symbol, bool IsActive);
+    private sealed record UnitDto(Guid Id, string Code, string NameFa, string NameEn, string? Symbol, bool IsActive);
     private sealed record ItemDto(Guid Id, string Code, string NameFa, string ItemType, bool IsActive);
     private sealed record LineDto(Guid Id, ItemDto ChildItem, UnitDto ChildBaseUnitSnapshot, decimal UsageQty,
         decimal? ScrapOverridePercent, decimal EffectiveScrapPercent, int SortOrder, string[] IntegrityReasonCodes);

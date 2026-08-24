@@ -1,6 +1,6 @@
 namespace Hadron.Erp.Api.Modules.Bom.Application;
 
-public sealed record BomUnitRef(Guid Id, string Code, string NameFa, string? Symbol, bool IsActive);
+public sealed record BomUnitRef(Guid Id, string Code, string NameFa, string NameEn, string? Symbol, bool IsActive);
 public sealed record BomItemRef(Guid Id, string Code, string NameFa, string? NameEn,
     string ItemType, bool IsActive, string? SupplyMethod, BomUnitRef CurrentBaseUnit);
 public sealed record BomLineResponse(Guid Id, BomItemRef ChildItem, BomUnitRef ChildBaseUnitSnapshot,
