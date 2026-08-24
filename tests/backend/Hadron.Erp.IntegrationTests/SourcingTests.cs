@@ -41,7 +41,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         _shipping = (await AddReference(db, "SHIPPING_MODE", "SEA-SRC")).Id;
         _incoterm = (await AddReference(db, "INCOTERM", "FOB-SRC")).Id;
         var country = await AddReference(db, "COUNTRY", "IR-SRC");
-        var item = new Item(ItemTypes.Part, $"PRT-{Guid.NewGuid():N}"[..20], "SRC-PART", "قطعه تأمین", "Sourcing Part", _unit, null);
+        var item = new Item(ItemTypes.Part, $"PRT-{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}", "قطعه تأمین", "Sourcing Part", _unit, null);
         db.Items.Add(item);
         db.MaterialItemProfiles.Add(new(item.Id, (await AddReference(db, "PART_CATEGORY", "SRC-CAT")).Id,
             SupplyMethods.Buy, null, 0, 0, 0, 0, 0));
@@ -70,6 +70,11 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Matches("^SRC-[0-9]{4,}$", first.Number);
         Assert.False(first.Preferred);
         Assert.Equal(_unit, first.BaseUnitId);
+        await using (var db = await Db())
+        {
+            var officialCode = await db.Items.Where(x => x.Id == _item).Select(x => x.BusinessNumber).SingleAsync();
+            Assert.Equal(officialCode, first.ItemCode);
+        }
 
         var otherItem = await AddItem(SupplyMethods.Buy, "SRC-OTHER");
         var response = await _client.PutAsJsonAsync(Url(first.Id), new
@@ -426,7 +431,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         await using (var db = await Db())
         {
             var item = await db.Items.SingleAsync(x => x.Id == _item);
-            item.Edit(item.Code, item.NameFa, item.NameEn, replacementUnit, item.Notes);
+            item.Edit(item.NameFa, item.NameEn, replacementUnit, item.Notes);
             await db.SaveChangesAsync();
         }
         var blocked = await Get(option.Id);
@@ -588,7 +593,8 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = json.RootElement;
         return new(root.GetProperty("id").GetGuid(), root.GetProperty("sourcingNumber").GetString()!,
-            root.GetProperty("item").GetProperty("id").GetGuid(), root.GetProperty("supplier").GetProperty("id").GetGuid(),
+            root.GetProperty("item").GetProperty("id").GetGuid(), root.GetProperty("item").GetProperty("code").GetString()!,
+            root.GetProperty("supplier").GetProperty("id").GetGuid(),
             root.GetProperty("itemBaseUnit").GetProperty("id").GetGuid(),
             root.GetProperty("minimumOrderQuantity").ValueKind == JsonValueKind.Null ? null : root.GetProperty("minimumOrderQuantity").GetDecimal(),
             root.GetProperty("shippingMode").ValueKind == JsonValueKind.Null ? null : root.GetProperty("shippingMode").GetProperty("id").GetGuid(),
@@ -611,9 +617,9 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
     {
         await using var db = await Db();
         var businessNumber = itemType == ItemTypes.Product
-            ? $"PRD-{Guid.NewGuid():N}"[..20]
-            : $"PRT-{Guid.NewGuid():N}"[..20];
-        var item = new Item(itemType, businessNumber, code, code, code, _unit, null);
+            ? $"PRD-{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}"
+            : $"PRT-{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}";
+        var item = new Item(itemType, businessNumber, code, code, _unit, null);
         db.Items.Add(item);
         if (supplyMethod is not null)
         {
@@ -679,7 +685,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         await db.Units.ExecuteDeleteAsync();
     }
 
-    private sealed record OptionDto(Guid Id, string Number, Guid ItemId, Guid SupplierId, Guid BaseUnitId,
+    private sealed record OptionDto(Guid Id, string Number, Guid ItemId, string ItemCode, Guid SupplierId, Guid BaseUnitId,
         decimal? Moq, Guid? ShippingModeId, bool Preferred, bool Active, long Version, string EvaluationDate,
         string Readiness, IReadOnlyList<string> Reasons, decimal? CurrentPrice, int? TotalLeadTime, int PriceCount);
     private sealed class ColumnInfo

@@ -10,7 +10,7 @@ public static class SourcingReadiness
 
 public sealed record SourcingReference(Guid Id, string Code, string NameFa, string NameEn, bool IsActive);
 public sealed record SourcingUnitReference(Guid Id, string Code, string NameFa, string NameEn, string? Symbol, bool IsActive);
-public sealed record SourcingItemReference(Guid Id, string BusinessNumber, string? Code, string NameFa, string? NameEn,
+public sealed record SourcingItemReference(Guid Id, string Code, string NameFa, string? NameEn,
     string ItemType, string SupplyMethod, bool IsActive, SourcingUnitReference BaseUnit);
 public sealed record SourcingSupplierReference(Guid Id, string SupplierNumber, string Name, bool IsActive);
 public sealed record SourcingPriceResponse(Guid Id, decimal UnitPrice, SourcingReference Currency,

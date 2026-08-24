@@ -2,7 +2,7 @@ namespace Hadron.Erp.Api.Modules.Catalog.Application;
 
 public sealed record MaterialReferenceSummary(Guid Id, string Code, string NameFa, string NameEn, bool IsActive);
 public sealed record MaterialUnitSummary(Guid Id, string Code, string NameFa, string NameEn, string? Symbol, bool IsActive);
-public sealed record MaterialItemResponse(Guid Id, string ItemType, string Number, string? Code, string NameFa,
+public sealed record MaterialItemResponse(Guid Id, string ItemType, string Code, string NameFa,
     string? NameEn, MaterialReferenceSummary Category, MaterialUnitSummary BaseUnit, string SupplyMethod,
     decimal? NetWeightKg, decimal DefaultPlanningScrapPercent, decimal SafetyStockQty, int CriticalDays,
     int SafeStartDays, int ExcessStartDays, bool IsActive, string? Notes, long Version,
@@ -10,10 +10,10 @@ public sealed record MaterialItemResponse(Guid Id, string ItemType, string Numbe
 public sealed record MaterialItemMutationResponse(MaterialItemResponse Item, IReadOnlyList<string> Warnings);
 public sealed record MaterialItemListResponse(IReadOnlyList<MaterialItemResponse> Items, int Page, int PageSize,
     int TotalCount);
-public sealed record CreateMaterialItemRequest(string? Code, string NameFa, string? NameEn, Guid CategoryId,
+public sealed record CreateMaterialItemRequest(string NameFa, string? NameEn, Guid CategoryId,
     Guid BaseUnitId, string SupplyMethod, decimal? NetWeightKg, decimal DefaultPlanningScrapPercent,
     decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes);
-public sealed record UpdateMaterialItemRequest(string? Code, string NameFa, string? NameEn, Guid CategoryId,
+public sealed record UpdateMaterialItemRequest(string NameFa, string? NameEn, Guid CategoryId,
     Guid BaseUnitId, string SupplyMethod, decimal? NetWeightKg, decimal DefaultPlanningScrapPercent,
     decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes,
     long ExpectedVersion);

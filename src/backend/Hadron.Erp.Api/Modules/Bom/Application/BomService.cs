@@ -397,7 +397,7 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
             integrity.Distinct().ToArray(), lineResponses);
     }
 
-    private static BomItemRef Item(Item x, MaterialItemProfile? p) => new(x.Id, x.BusinessNumber, x.Code, x.NameFa,
+    private static BomItemRef Item(Item x, MaterialItemProfile? p) => new(x.Id, x.BusinessNumber, x.NameFa,
         x.NameEn, x.ItemType, x.IsActive, p?.SupplyMethod, Unit(x.BaseUnit));
     private static BomUnitRef Unit(Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit x) =>
         new(x.Id, x.Code, x.NameFa, x.Symbol, x.IsActive);

@@ -64,7 +64,18 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
         Assert.All(rows, x => Assert.Equal(_unit, x.ParentBaseUnitSnapshot.Id));
 
         var productDraft = rows[0];
+        await using (var db = await Db())
+        {
+            Assert.Equal(await db.Items.Where(x => x.Id == product).Select(x => x.BusinessNumber).SingleAsync(),
+                productDraft.ParentItem.Code);
+        }
         Assert.Equal(HttpStatusCode.OK, (await AddLine(productDraft, part, 1)).StatusCode);
+        productDraft = await Get(productDraft.Id);
+        await using (var db = await Db())
+        {
+            Assert.Equal(await db.Items.Where(x => x.Id == part).Select(x => x.BusinessNumber).SingleAsync(),
+                Assert.Single(productDraft.Lines).ChildItem.Code);
+        }
         Assert.Equal(HttpStatusCode.BadRequest, (await AddLine(await Read(await Create(product)), component, 1)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await AddLine(await Read(await Create(part)), component, 1)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await AddLine(await Read(await Create(component)), await AddItem(ItemTypes.Component, SupplyMethods.Buy), 1)).StatusCode);
@@ -363,7 +374,7 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
             var replacement = new Unit($"NEW-{Guid.NewGuid():N}"[..20], $"NEW-{Guid.NewGuid():N}"[..20], "واحد جدید", "New", null, 0);
             db.Units.Add(replacement);
             var item = await db.Items.SingleAsync(x => x.Id == child);
-            item.Edit(item.Code, item.NameFa, item.NameEn, replacement.Id, item.Notes);
+            item.Edit(item.NameFa, item.NameEn, replacement.Id, item.Notes);
             await db.SaveChangesAsync();
         }
         var operational = await _client.GetAsync($"/api/bom-revisions/resolve?parentItemId={parent}&businessDate=2026-02-01&historical=false");
@@ -387,7 +398,7 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
                 "واحد جدید Parent", "New parent", null, 0);
             db.Units.Add(replacement);
             var item = await db.Items.SingleAsync(x => x.Id == parent);
-            item.Edit(item.Code, item.NameFa, item.NameEn, replacement.Id, item.Notes);
+            item.Edit(item.NameFa, item.NameEn, replacement.Id, item.Notes);
             await db.SaveChangesAsync();
         }
         var operational = await _client.GetAsync($"/api/bom-revisions/resolve?parentItemId={parent}&businessDate=2026-02-01&historical=false");
@@ -413,8 +424,8 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
             db.Units.Add(newUnit);
             var parentItem = await db.Items.SingleAsync(x => x.Id == parent);
             var childItem = await db.Items.SingleAsync(x => x.Id == child);
-            parentItem.Edit(parentItem.Code, parentItem.NameFa, parentItem.NameEn, newUnit.Id, parentItem.Notes);
-            childItem.Edit(childItem.Code, childItem.NameFa, childItem.NameEn, newUnit.Id, childItem.Notes);
+            parentItem.Edit(parentItem.NameFa, parentItem.NameEn, newUnit.Id, parentItem.Notes);
+            childItem.Edit(childItem.NameFa, childItem.NameEn, newUnit.Id, childItem.Notes);
             await db.SaveChangesAsync();
             newUnitId = newUnit.Id;
         }
@@ -490,8 +501,8 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
     private async Task<Guid> AddItem(string type, string? supply = null, decimal scrap = 0)
     {
         await using var db = await Db();
-        var code = type == ItemTypes.Product ? $"P-{Guid.NewGuid():N}"[..20] : null;
-        var item = new Item(type, $"{type[..3]}-{Guid.NewGuid():N}"[..20], code, $"قلم {Guid.NewGuid():N}", null, _unit, null);
+        var prefix = type switch { ItemTypes.Product => "PRD", ItemTypes.Part => "PRT", _ => "CMP" };
+        var item = new Item(type, $"{prefix}-{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}", $"قلم {Guid.NewGuid():N}", null, _unit, null);
         db.Items.Add(item);
         if (type is ItemTypes.Part or ItemTypes.Component)
         {
@@ -532,7 +543,7 @@ public sealed class BomTests : IClassFixture<FoundationApiFactory>, IAsyncLifeti
     { var scope = _factory.Services.CreateAsyncScope(); return await scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync(); }
 
     private sealed record UnitDto(Guid Id, string Code, string NameFa, string? Symbol, bool IsActive);
-    private sealed record ItemDto(Guid Id, string BusinessNumber, string? Code, string NameFa, string ItemType, bool IsActive);
+    private sealed record ItemDto(Guid Id, string Code, string NameFa, string ItemType, bool IsActive);
     private sealed record LineDto(Guid Id, ItemDto ChildItem, UnitDto ChildBaseUnitSnapshot, decimal UsageQty,
         decimal? ScrapOverridePercent, decimal EffectiveScrapPercent, int SortOrder, string[] IntegrityReasonCodes);
     private sealed record BomDto(Guid Id, string RevisionCode, ItemDto ParentItem, UnitDto ParentBaseUnitSnapshot,

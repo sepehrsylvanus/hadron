@@ -72,12 +72,12 @@ const fa = {
   },
   products: {
     title: 'محصولات', subtitle: 'تعریف محصول و سیاست برنامه‌ریزی آن', new: 'محصول جدید', list: 'فهرست محصولات', object: 'محصول',
-    searchPlaceholder: 'شماره، کد یا نام', businessUnit: 'واحد سازمانی', planning: 'سیاست برنامه‌ریزی', safetyStock: 'موجودی اطمینان',
+    searchPlaceholder: 'کد رسمی یا نام', businessUnit: 'واحد سازمانی', planning: 'سیاست برنامه‌ریزی', safetyStock: 'موجودی اطمینان',
     criticalDays: 'روز بحرانی', safeStartDays: 'شروع محدوده امن', excessStartDays: 'شروع محدوده مازاد', lifecycle: 'چرخه عمر',
   },
   materials: {
     parts: 'قطعات', components: 'اجزا', part: 'قطعه', component: 'جزء', newPart: 'قطعه جدید', newComponent: 'جزء جدید',
-    searchPlaceholder: 'شماره، کد یا نام', supplyMethod: 'روش تأمین', planning: 'سیاست برنامه‌ریزی', netWeight: 'وزن خالص (kg)',
+    searchPlaceholder: 'کد رسمی یا نام', supplyMethod: 'روش تأمین', planning: 'سیاست برنامه‌ریزی', netWeight: 'وزن خالص (kg)',
     scrap: 'ضایعات پیش‌فرض (%)', BUY: 'خرید', MAKE: 'ساخت', OUTSOURCE: 'برون‌سپاری', HYBRID: 'ترکیبی',
   },
   suppliers: {

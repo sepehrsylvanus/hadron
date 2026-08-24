@@ -36,9 +36,7 @@ public sealed class MaterialItemService(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            var normalized = term.ToUpperInvariant();
-            query = query.Where(x => x.Item.BusinessNumber.Contains(term) ||
-                (x.Item.Code != null && x.Item.Code.Contains(normalized)) || x.Item.NameFa.Contains(term) ||
+            query = query.Where(x => x.Item.BusinessNumber.Contains(term) || x.Item.NameFa.Contains(term) ||
                 (x.Item.NameEn != null && x.Item.NameEn.Contains(term)));
         }
 
@@ -60,14 +58,13 @@ public sealed class MaterialItemService(
         CancellationToken token)
     {
         EnsureItemType(itemType);
-        Validate(request.Code, request.NameFa, request.NameEn, request.SupplyMethod, request.NetWeightKg,
+        Validate(request.NameFa, request.NameEn, request.SupplyMethod, request.NetWeightKg,
             request.DefaultPlanningScrapPercent, request.SafetyStockQty, request.CriticalDays,
             request.SafeStartDays, request.ExcessStartDays, request.Notes, null);
         await using var db = await factory.CreateDbContextAsync(token);
         await ValidateReferences(db, itemType, null, request.CategoryId, request.BaseUnitId, true, token);
         var number = await NextNumber(db, itemType, token);
-        var code = NormalizeCode(request.Code);
-        var item = new Item(itemType, number, code, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId,
+        var item = new Item(itemType, number, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId,
             Clean(request.Notes));
         var profile = new MaterialItemProfile(item.Id, request.CategoryId,
             NormalizeSupplyMethod(request.SupplyMethod), request.NetWeightKg, request.DefaultPlanningScrapPercent,
@@ -84,7 +81,7 @@ public sealed class MaterialItemService(
         UpdateMaterialItemRequest request, CancellationToken token)
     {
         EnsureItemType(itemType);
-        Validate(request.Code, request.NameFa, request.NameEn, request.SupplyMethod, request.NetWeightKg,
+        Validate(request.NameFa, request.NameEn, request.SupplyMethod, request.NetWeightKg,
             request.DefaultPlanningScrapPercent, request.SafetyStockQty, request.CriticalDays,
             request.SafeStartDays, request.ExcessStartDays, request.Notes, request.ExpectedVersion);
         await using var db = await factory.CreateDbContextAsync(token);
@@ -94,7 +91,7 @@ public sealed class MaterialItemService(
         EnsureVersion(profile.Item.Version, request.ExpectedVersion);
         await ValidateReferences(db, itemType, profile, request.CategoryId, request.BaseUnitId, false, token);
         var old = Snapshot((await LoadResponse(db, itemType, id, token))!);
-        profile.Item.Edit(NormalizeCode(request.Code), request.NameFa.Trim(), Clean(request.NameEn),
+        profile.Item.Edit(request.NameFa.Trim(), Clean(request.NameEn),
             request.BaseUnitId, Clean(request.Notes));
         profile.Edit(request.CategoryId, NormalizeSupplyMethod(request.SupplyMethod), request.NetWeightKg,
             request.DefaultPlanningScrapPercent, request.SafetyStockQty, request.CriticalDays,
@@ -163,12 +160,11 @@ public sealed class MaterialItemService(
         return invalid;
     }
 
-    private static void Validate(string? code, string nameFa, string? nameEn, string supplyMethod,
+    private static void Validate(string nameFa, string? nameEn, string supplyMethod,
         decimal? netWeightKg, decimal scrap, decimal safety, int critical, int safe, int excess, string? notes,
         long? version)
     {
         var errors = new Dictionary<string, string[]>();
-        if (Clean(code)?.Length > 64) errors["code"] = ["کد آیتم حداکثر ۶۴ نویسه است."];
         if (string.IsNullOrWhiteSpace(nameFa) || nameFa.Trim().Length > 200)
             errors["nameFa"] = ["نام فارسی الزامی و حداکثر ۲۰۰ نویسه است."];
         if (Clean(nameEn)?.Length > 200) errors["nameEn"] = ["نام انگلیسی حداکثر ۲۰۰ نویسه است."];
@@ -220,7 +216,7 @@ public sealed class MaterialItemService(
     }
 
     private static MaterialItemResponse ToResponse(MaterialItemProfile profile, Item item,
-        ReferenceValue category, Unit unit) => new(item.Id, item.ItemType, item.BusinessNumber, item.Code,
+        ReferenceValue category, Unit unit) => new(item.Id, item.ItemType, item.BusinessNumber,
         item.NameFa, item.NameEn, new(category.Id, category.Code, category.NameFa, category.NameEn, category.IsActive),
         new(unit.Id, unit.Code, unit.NameFa, unit.NameEn, unit.Symbol, unit.IsActive), profile.SupplyMethod,
         profile.NetWeightKg, profile.DefaultPlanningScrapPercent, profile.SafetyStockQty, profile.CriticalDays,
@@ -248,7 +244,6 @@ public sealed class MaterialItemService(
 
     private static Dictionary<string, object?> Snapshot(MaterialItemResponse item) => new()
     {
-        ["Number"] = item.Number,
         ["Code"] = item.Code,
         ["NameFa"] = item.NameFa,
         ["NameEn"] = item.NameEn,
@@ -282,7 +277,6 @@ public sealed class MaterialItemService(
     }
     private static void EnsureVersion(long actual, long expected)
     { if (actual != expected) throw new MaterialItemConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
-    private static string? NormalizeCode(string? value) => Clean(value)?.ToUpperInvariant();
     private static string NormalizeSupplyMethod(string? value) => Clean(value)?.ToUpperInvariant() ?? string.Empty;
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static MaterialItemValidationException Validation(string key, string message) =>

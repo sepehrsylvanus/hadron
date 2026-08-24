@@ -195,10 +195,6 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<string>("Code")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -221,10 +217,6 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("NormalizedCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -245,19 +237,13 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.HasIndex("BusinessNumber")
                         .IsUnique();
 
-                    b.HasIndex("NormalizedCode")
-                        .IsUnique()
-                        .HasFilter("\"NormalizedCode\" IS NOT NULL");
-
                     b.HasIndex("ItemType", "IsActive");
 
                     b.ToTable("items", "catalog", t =>
                         {
-                            t.HasCheckConstraint("ck_items_code_pair", "(\"Code\" IS NULL) = (\"NormalizedCode\" IS NULL)");
+                            t.HasCheckConstraint("ck_items_business_number_format", "(\"ItemType\" = 'PRODUCT' AND \"BusinessNumber\" ~ '^PRD-[0-9]{4,}$') OR (\"ItemType\" = 'PART' AND \"BusinessNumber\" ~ '^PRT-[0-9]{4,}$') OR (\"ItemType\" = 'COMPONENT' AND \"BusinessNumber\" ~ '^CMP-[0-9]{4,}$')");
 
                             t.HasCheckConstraint("ck_items_item_type", "\"ItemType\" IN ('PRODUCT','PART','COMPONENT')");
-
-                            t.HasCheckConstraint("ck_items_product_code", "\"ItemType\" <> 'PRODUCT' OR (\"Code\" IS NOT NULL AND \"NormalizedCode\" IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_items_version", "\"Version\" >= 1");
                         });

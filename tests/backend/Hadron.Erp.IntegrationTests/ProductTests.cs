@@ -30,33 +30,36 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
-    public async Task Create_generates_uuid_number_normalized_code_and_allows_no_bom()
+    public async Task Create_generates_uuid_and_official_code_and_ignores_client_code()
     {
         using var response = await Create("  prd-a  "); Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); var product = json.RootElement.GetProperty("product");
-        Assert.NotEqual(Guid.Empty, product.GetProperty("id").GetGuid()); Assert.Matches("^PRD-[0-9]{4,}$", product.GetProperty("productNumber").GetString()!);
-        Assert.Equal("PRD-A", product.GetProperty("code").GetString()); Assert.Equal(1, product.GetProperty("version").GetInt64());
+        Assert.NotEqual(Guid.Empty, product.GetProperty("id").GetGuid()); Assert.Matches("^PRD-[0-9]{4,}$", product.GetProperty("code").GetString()!);
+        Assert.NotEqual("PRD-A", product.GetProperty("code").GetString()); Assert.Equal(1, product.GetProperty("version").GetInt64());
+        Assert.False(product.TryGetProperty("productNumber", out _));
         Assert.Contains(_factory.AuditSink.Snapshot(), x => x.EntityType == "Product" && x.Action == "CREATE");
     }
 
     [Fact]
-    public async Task Duplicate_code_conflicts_but_duplicate_name_saves_with_warning()
+    public async Task Generated_codes_are_unique_and_duplicate_name_saves_with_warning()
     {
-        Assert.Equal(HttpStatusCode.Created, (await Create("ABC")).StatusCode);
-        var duplicateCode = await Create(" abc "); Assert.Equal(HttpStatusCode.Conflict, duplicateCode.StatusCode);
-        var second = await Create("DEF"); using var json = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+        var first = await ReadCreatedDocument(await Create("ABC"));
+        var secondResponse = await Create(" abc "); Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+        var second = await ReadCreatedDocument(secondResponse); Assert.NotEqual(first.Code, second.Code);
+        using var json = JsonDocument.Parse(await (await Create("DEF")).Content.ReadAsStringAsync());
         Assert.Contains("DUPLICATE_NAME_FA", json.RootElement.GetProperty("warnings").EnumerateArray().Select(x => x.GetString()));
     }
 
     [Fact]
-    public async Task Edit_renames_code_advances_version_and_stale_write_conflicts()
+    public async Task Edit_preserves_generated_code_advances_version_and_stale_write_conflicts()
     {
         var created = await ReadCreated(await Create("OLD"));
         var payload = Request("NEW") with { ExpectedVersion = created.Version };
         var update = await _client.PutAsJsonAsync($"/api/products/{created.Id}", payload); Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         using var json = JsonDocument.Parse(await update.Content.ReadAsStringAsync());
         var updatedProduct = json.RootElement.GetProperty("product");
-        Assert.Equal("NEW", updatedProduct.GetProperty("code").GetString());
+        var officialCode = (await _client.GetFromJsonAsync<ProductCodeDto>($"/api/products/{created.Id}"))!.Code;
+        Assert.Equal(officialCode, updatedProduct.GetProperty("code").GetString());
         var updatedVersion = updatedProduct.GetProperty("version").GetInt64();
         var editAuditCount = _factory.AuditSink.Snapshot().Count(x => x.EntityType == "Product" && x.Action == "EDIT");
 
@@ -65,7 +68,7 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
         Assert.Equal("STALE_VERSION", await ProblemCode(stale));
         using var persisted = JsonDocument.Parse(await (await _client.GetAsync($"/api/products/{created.Id}")).Content.ReadAsStringAsync());
-        Assert.Equal("NEW", persisted.RootElement.GetProperty("code").GetString());
+        Assert.Equal(officialCode, persisted.RootElement.GetProperty("code").GetString());
         Assert.Equal(updatedVersion, persisted.RootElement.GetProperty("version").GetInt64());
         Assert.Equal(editAuditCount, _factory.AuditSink.Snapshot().Count(x => x.EntityType == "Product" && x.Action == "EDIT"));
     }
@@ -103,7 +106,7 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         var responses = await Task.WhenAll(Enumerable.Range(1, 8).Select(index => Create($"CON-{index}")));
         Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
         var products = await Task.WhenAll(responses.Select(ReadCreatedDocument));
-        Assert.Equal(8, products.Select(x => x.Number).Distinct().Count());
+        Assert.Equal(8, products.Select(x => x.Code).Distinct().Count());
         Assert.Equal(8, products.Select(x => x.Id).Distinct().Count());
     }
 
@@ -131,7 +134,7 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         var response = await _client.PostAsJsonAsync("/api/products", request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await ReadCreatedDocument(response);
-        Assert.NotEqual("PRD-9999", created.Number);
+        Assert.NotEqual("PRD-9999", created.Code);
         var detail = await _client.GetFromJsonAsync<ProductDetailDto>($"/api/products/{created.Id}");
         Assert.True(detail!.IsActive);
     }
@@ -164,11 +167,10 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     }
 
     [Fact]
-    public async Task Code_names_and_notes_boundaries_are_enforced()
+    public async Task Names_and_notes_boundaries_are_enforced()
     {
         var accepted = Request(new string('A', 64)) with { NameFa = new string('ف', 200), NameEn = new string('E', 200), Notes = new string('ن', 2000) };
         Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync("/api/products", accepted)).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await _client.PostAsJsonAsync("/api/products", Request(new string('B', 65)))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await _client.PostAsJsonAsync("/api/products", Request("NO-FA") with { NameFa = " " })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await _client.PostAsJsonAsync("/api/products", Request("LONG-FA") with { NameFa = new string('ف', 201) })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await _client.PostAsJsonAsync("/api/products", Request("LONG-EN") with { NameEn = new string('E', 201) })).StatusCode);
@@ -194,14 +196,15 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     }
 
     [Fact]
-    public async Task Rename_collision_is_atomic_and_emits_no_edit_audit()
+    public async Task Client_supplied_code_on_edit_is_ignored_and_official_code_is_immutable()
     {
-        await Create("TAKEN"); var created = await ReadCreated(await Create("RENAME-ME")); _factory.AuditSink.Clear();
-        var collision = await _client.PutAsJsonAsync($"/api/products/{created.Id}", Request(" taken ") with { ExpectedVersion = created.Version });
-        Assert.Equal(HttpStatusCode.Conflict, collision.StatusCode); Assert.Equal("DUPLICATE_CODE", await ProblemCode(collision));
+        var created = await ReadCreated(await Create("RENAME-ME"));
+        var before = await _client.GetFromJsonAsync<ProductCodeDto>($"/api/products/{created.Id}"); _factory.AuditSink.Clear();
+        var update = await _client.PutAsJsonAsync($"/api/products/{created.Id}", Request("MANUAL-RENAME") with { ExpectedVersion = created.Version });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         using var detail = JsonDocument.Parse(await (await _client.GetAsync($"/api/products/{created.Id}")).Content.ReadAsStringAsync());
-        Assert.Equal("RENAME-ME", detail.RootElement.GetProperty("code").GetString()); Assert.Equal(created.Version, detail.RootElement.GetProperty("version").GetInt64());
-        Assert.DoesNotContain(_factory.AuditSink.Snapshot(), x => x.EntityType == "Product" && x.Action == "EDIT");
+        Assert.Equal(before!.Code, detail.RootElement.GetProperty("code").GetString()); Assert.True(detail.RootElement.GetProperty("version").GetInt64() > created.Version);
+        Assert.Single(_factory.AuditSink.Snapshot(), x => x.EntityType == "Product" && x.Action == "EDIT");
     }
 
     [Fact]
@@ -268,6 +271,19 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     }
 
     [Fact]
+    public async Task Official_generated_product_code_is_searchable()
+    {
+        var created = await ReadCreatedDocument(await Create("SEARCH-OFFICIAL-CODE"));
+
+        var result = await _client.GetFromJsonAsync<ProductListDto>(
+            $"/api/products?search={Uri.EscapeDataString(created.Code)}&page=1&pageSize=25");
+
+        var product = Assert.Single(result!.Items);
+        Assert.Equal(created.Id, product.Id);
+        Assert.Equal(created.Code, product.Code);
+    }
+
+    [Fact]
     public async Task Stale_deactivate_and_reactivate_preserve_state_version_and_audit()
     {
         var created = await ReadCreated(await Create("STALE-LIFE")); _factory.AuditSink.Clear();
@@ -289,9 +305,9 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>();
         var service = new ProductService(dbFactory, new ThrowingAuditSink(), new Microsoft.AspNetCore.Http.HttpContextAccessor(), NullLogger<ProductService>.Instance);
-        var result = await service.Create(new("AUDIT-FAIL", "محصول ممیزی", null, _category, _unit, null, 0, 0, 0, 0, null), CancellationToken.None);
-        Assert.Equal("AUDIT-FAIL", result.Product.Code);
-        await using var db = await dbFactory.CreateDbContextAsync(); Assert.True(await db.Items.AnyAsync(x => x.Id == result.Product.Id && x.Code == "AUDIT-FAIL"));
+        var result = await service.Create(new("محصول ممیزی", null, _category, _unit, null, 0, 0, 0, 0, null), CancellationToken.None);
+        Assert.Matches("^PRD-[0-9]{4,}$", result.Product.Code);
+        await using var db = await dbFactory.CreateDbContextAsync(); Assert.True(await db.Items.AnyAsync(x => x.Id == result.Product.Id && x.BusinessNumber == result.Product.Code));
     }
 
     [Theory]
@@ -322,7 +338,6 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         var invalid = await _client.PostAsJsonAsync("/api/products", Request("INVALID-AUDIT") with { NameFa = "" });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode); Assert.DoesNotContain(_factory.AuditSink.Snapshot(), x => x.EntityType == "Product");
         await Create("DUP-AUDIT"); _factory.AuditSink.Clear();
-        var duplicate = await Create(" dup-audit "); Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.DoesNotContain(_factory.AuditSink.Snapshot(), x => x.EntityType == "Product");
     }
 
@@ -332,18 +347,19 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     private async Task<Guid> CreateUnit() { var response = await _client.PostAsJsonAsync("/api/reference-data/units", new { code = "PCS", nameFa = "عدد", nameEn = "Piece", symbol = (string?)null, sortOrder = 0 }); using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); return json.RootElement.GetProperty("id").GetGuid(); }
     private static async Task<ProductDto> ReadCreated(HttpResponseMessage response) { using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); var p = json.RootElement.GetProperty("product"); return new(p.GetProperty("id").GetGuid(), p.GetProperty("version").GetInt64(), new(p.GetProperty("productCategory").GetProperty("isActive").GetBoolean())); }
     private static async Task<ProductDto> ReadMutation(HttpResponseMessage response) => await ReadCreated(response);
-    private static async Task<(Guid Id, string Number)> ReadCreatedDocument(HttpResponseMessage response)
+    private static async Task<(Guid Id, string Code)> ReadCreatedDocument(HttpResponseMessage response)
     {
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var product = json.RootElement.GetProperty("product");
-        return (product.GetProperty("id").GetGuid(), product.GetProperty("productNumber").GetString()!);
+        return (product.GetProperty("id").GetGuid(), product.GetProperty("code").GetString()!);
     }
     private async Task DeactivateReference(string path) { var current = await _client.GetFromJsonAsync<ReferenceDto>(path); var response = await _client.PostAsJsonAsync($"{path}/deactivate", new { expectedVersion = current!.Version }); Assert.Equal(HttpStatusCode.OK, response.StatusCode); }
     private static async Task<string?> ProblemCode(HttpResponseMessage response) { using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); return json.RootElement.GetProperty("code").GetString(); }
     private sealed record ProductRequest(string Code, string NameFa, string? NameEn, Guid ProductCategoryId, Guid BaseUnitId, Guid? BusinessUnitId, decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes, long? ExpectedVersion);
     private sealed record ProductDto(Guid Id, long Version, RefDto ProductCategory);
-    private sealed record ProductDetailDto(Guid Id, bool IsActive);
+    private sealed record ProductDetailDto(Guid Id, string Code, bool IsActive);
     private sealed record ProductStateDto(Guid Id, bool IsActive, long Version);
+    private sealed record ProductCodeDto(Guid Id, string Code);
     private sealed record ProductListDto(IReadOnlyList<ProductDetailDto> Items);
     private sealed record RefDto(bool IsActive);
     private sealed record ReferenceDto(long Version);

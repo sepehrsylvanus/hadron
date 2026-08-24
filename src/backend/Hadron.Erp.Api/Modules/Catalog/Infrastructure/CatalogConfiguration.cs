@@ -11,15 +11,15 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.ToTable("items", "catalog", table =>
         {
             table.HasCheckConstraint("ck_items_item_type", "\"ItemType\" IN ('PRODUCT','PART','COMPONENT')");
-            table.HasCheckConstraint("ck_items_code_pair", "(\"Code\" IS NULL) = (\"NormalizedCode\" IS NULL)");
-            table.HasCheckConstraint("ck_items_product_code", "\"ItemType\" <> 'PRODUCT' OR (\"Code\" IS NOT NULL AND \"NormalizedCode\" IS NOT NULL)");
+            table.HasCheckConstraint("ck_items_business_number_format",
+                "(\"ItemType\" = 'PRODUCT' AND \"BusinessNumber\" ~ '^PRD-[0-9]{4,}$') OR " +
+                "(\"ItemType\" = 'PART' AND \"BusinessNumber\" ~ '^PRT-[0-9]{4,}$') OR " +
+                "(\"ItemType\" = 'COMPONENT' AND \"BusinessNumber\" ~ '^CMP-[0-9]{4,}$')");
             table.HasCheckConstraint("ck_items_version", "\"Version\" >= 1");
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.ItemType).HasMaxLength(20).IsRequired();
         builder.Property(x => x.BusinessNumber).HasMaxLength(32).IsRequired();
-        builder.Property(x => x.Code).HasMaxLength(64);
-        builder.Property(x => x.NormalizedCode).HasMaxLength(64);
         builder.Property(x => x.NameFa).HasMaxLength(200).IsRequired();
         builder.Property(x => x.NameEn).HasMaxLength(200);
         builder.Property(x => x.Notes).HasMaxLength(2000);
@@ -27,7 +27,6 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(x => x.UpdatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.HasIndex(x => x.BusinessNumber).IsUnique();
-        builder.HasIndex(x => x.NormalizedCode).IsUnique().HasFilter("\"NormalizedCode\" IS NOT NULL");
         builder.HasIndex(x => new { x.ItemType, x.IsActive });
         builder.HasOne(x => x.BaseUnit).WithMany().HasForeignKey(x => x.BaseUnitId).OnDelete(DeleteBehavior.Restrict);
     }

@@ -13,14 +13,12 @@ public sealed class Item
 {
     private Item() { }
 
-    public Item(string itemType, string businessNumber, string? code, string nameFa, string? nameEn,
+    public Item(string itemType, string businessNumber, string nameFa, string? nameEn,
         Guid baseUnitId, string? notes)
     {
         Id = Guid.NewGuid();
         ItemType = itemType;
         BusinessNumber = businessNumber;
-        Code = code;
-        NormalizedCode = code;
         NameFa = nameFa;
         NameEn = nameEn;
         BaseUnitId = baseUnitId;
@@ -30,8 +28,6 @@ public sealed class Item
     public Guid Id { get; private set; }
     public string ItemType { get; private set; } = string.Empty;
     public string BusinessNumber { get; private set; } = string.Empty;
-    public string? Code { get; private set; }
-    public string? NormalizedCode { get; private set; }
     public string NameFa { get; private set; } = string.Empty;
     public string? NameEn { get; private set; }
     public Guid BaseUnitId { get; private set; }
@@ -42,10 +38,8 @@ public sealed class Item
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
-    public void Edit(string? code, string nameFa, string? nameEn, Guid baseUnitId, string? notes)
+    public void Edit(string nameFa, string? nameEn, Guid baseUnitId, string? notes)
     {
-        Code = code;
-        NormalizedCode = code;
         NameFa = nameFa;
         NameEn = nameEn;
         BaseUnitId = baseUnitId;

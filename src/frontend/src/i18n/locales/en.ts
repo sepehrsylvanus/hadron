@@ -72,12 +72,12 @@ const en = {
   },
   products: {
     title: 'Products', subtitle: 'Define products and their planning policy', new: 'New product', list: 'Product list', object: 'Product',
-    searchPlaceholder: 'Number, code, or name', businessUnit: 'Business unit', planning: 'Planning Policy', safetyStock: 'Safety stock',
+    searchPlaceholder: 'Official code or name', businessUnit: 'Business unit', planning: 'Planning Policy', safetyStock: 'Safety stock',
     criticalDays: 'Critical days', safeStartDays: 'Safe range start', excessStartDays: 'Excess range start', lifecycle: 'Lifecycle',
   },
   materials: {
     parts: 'Parts', components: 'Components', part: 'Part', component: 'Component', newPart: 'New part', newComponent: 'New component',
-    searchPlaceholder: 'Number, code, or name', supplyMethod: 'Supply method', planning: 'Planning Policy', netWeight: 'Net weight (kg)',
+    searchPlaceholder: 'Official code or name', supplyMethod: 'Supply method', planning: 'Planning Policy', netWeight: 'Net weight (kg)',
     scrap: 'Default scrap (%)', BUY: 'Buy', MAKE: 'Make', OUTSOURCE: 'Outsource', HYBRID: 'Hybrid',
   },
   suppliers: {

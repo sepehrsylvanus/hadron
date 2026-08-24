@@ -32,7 +32,7 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
         {
             var term = search.Trim();
             query = query.Where(x => x.SourcingNumber.Contains(term) || x.Item.BusinessNumber.Contains(term) ||
-                (x.Item.Code != null && x.Item.Code.Contains(term)) || x.Item.NameFa.Contains(term) ||
+                x.Item.NameFa.Contains(term) ||
                 x.Supplier.SupplierNumber.Contains(term) || x.Supplier.Name.Contains(term));
         }
 
@@ -249,7 +249,7 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
                 ? option.SupplierLeadTimeDays + option.ForwarderToShipmentDays + option.ShippingPeriodDays + option.DestinationCustomsDays
                 : null;
             return new SourcingOptionResponse(option.Id, option.SourcingNumber,
-                new(option.Item.Id, option.Item.BusinessNumber, option.Item.Code, option.Item.NameFa, option.Item.NameEn,
+                new(option.Item.Id, option.Item.BusinessNumber, option.Item.NameFa, option.Item.NameEn,
                     option.Item.ItemType, method, option.Item.IsActive, Unit(option.Item.BaseUnit)),
                 new(option.Supplier.Id, option.Supplier.SupplierNumber, option.Supplier.Name, option.Supplier.IsActive),
                 Unit(option.ItemBaseUnit), option.MinimumOrderQuantity, Ref(option.ShippingMode), Ref(option.Incoterm),

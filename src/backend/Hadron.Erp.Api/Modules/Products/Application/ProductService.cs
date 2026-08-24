@@ -25,11 +25,11 @@ public sealed class ProductService(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(x => x.Item.BusinessNumber.Contains(term) || (x.Item.Code != null && x.Item.Code.Contains(term.ToUpper())) ||
+            query = query.Where(x => x.Item.BusinessNumber.Contains(term) ||
                 x.Item.NameFa.Contains(term) || (x.Item.NameEn != null && x.Item.NameEn.Contains(term)));
         }
         var total = await query.CountAsync(token);
-        var rows = await query.OrderBy(x => x.Item.Code).Skip((page - 1) * pageSize).Take(pageSize)
+        var rows = await query.OrderBy(x => x.Item.BusinessNumber).Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new
             {
                 Product = x,
@@ -47,13 +47,12 @@ public sealed class ProductService(
 
     public async Task<ProductMutationResponse> Create(CreateProductRequest request, CancellationToken token)
     {
-        Validate(request.Code, request.NameFa, request.NameEn, request.Notes, request.SafetyStockQty,
+        Validate(request.NameFa, request.NameEn, request.Notes, request.SafetyStockQty,
             request.CriticalDays, request.SafeStartDays, request.ExcessStartDays, null);
         await using var db = await factory.CreateDbContextAsync(token);
         await ValidateReferences(db, null, request.ProductCategoryId, request.BaseUnitId, request.BusinessUnitId, true, token);
         var number = await NextNumber(db, token);
-        var code = NormalizeCode(request.Code);
-        var item = new Item(ItemTypes.Product, number, code, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
+        var item = new Item(ItemTypes.Product, number, request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
         var product = new Product(item.Id, request.ProductCategoryId, request.BusinessUnitId, request.SafetyStockQty,
             request.CriticalDays, request.SafeStartDays, request.ExcessStartDays);
         db.AddRange(item, product);
@@ -66,14 +65,14 @@ public sealed class ProductService(
 
     public async Task<ProductMutationResponse> Update(Guid id, UpdateProductRequest request, CancellationToken token)
     {
-        Validate(request.Code, request.NameFa, request.NameEn, request.Notes, request.SafetyStockQty,
+        Validate(request.NameFa, request.NameEn, request.Notes, request.SafetyStockQty,
             request.CriticalDays, request.SafeStartDays, request.ExcessStartDays, request.ExpectedVersion);
         await using var db = await factory.CreateDbContextAsync(token);
         var product = await db.Products.Include(x => x.Item).SingleOrDefaultAsync(x => x.ItemId == id, token) ?? throw new KeyNotFoundException();
         EnsureVersion(product.Item.Version, request.ExpectedVersion);
         await ValidateReferences(db, product, request.ProductCategoryId, request.BaseUnitId, request.BusinessUnitId, false, token);
         var old = Snapshot((await LoadResponse(db, id, token))!);
-        product.Item.Edit(NormalizeCode(request.Code), request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
+        product.Item.Edit(request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
         product.Edit(request.ProductCategoryId, request.BusinessUnitId, request.SafetyStockQty, request.CriticalDays, request.SafeStartDays, request.ExcessStartDays);
         await Save(db, token);
         var response = (await LoadResponse(db, id, token))!;
@@ -121,10 +120,9 @@ public sealed class ProductService(
         return invalid;
     }
 
-    private static void Validate(string code, string nameFa, string? nameEn, string? notes, decimal safety, int critical, int safe, int excess, long? version)
+    private static void Validate(string nameFa, string? nameEn, string? notes, decimal safety, int critical, int safe, int excess, long? version)
     {
         var errors = new Dictionary<string, string[]>();
-        if (string.IsNullOrWhiteSpace(code) || code.Trim().Length > 64) errors["code"] = ["کد محصول الزامی و حداکثر ۶۴ نویسه است."];
         if (string.IsNullOrWhiteSpace(nameFa) || nameFa.Trim().Length > 200) errors["nameFa"] = ["نام فارسی الزامی و حداکثر ۲۰۰ نویسه است."];
         if (Clean(nameEn)?.Length > 200) errors["nameEn"] = ["نام انگلیسی حداکثر ۲۰۰ نویسه است."];
         if (Clean(notes)?.Length > 2000) errors["notes"] = ["یادداشت حداکثر ۲۰۰۰ نویسه است."];
@@ -167,7 +165,7 @@ public sealed class ProductService(
     }
 
     private static ProductResponse ToResponse(Product product, Item item, ReferenceValue category, Unit unit, ReferenceValue? businessUnit) =>
-        new(item.Id, item.BusinessNumber, item.Code!, item.NameFa, item.NameEn,
+        new(item.Id, item.BusinessNumber, item.NameFa, item.NameEn,
             new(category.Id, category.Code, category.NameFa, category.NameEn, category.IsActive),
             new(unit.Id, unit.Code, unit.NameFa, unit.NameEn, unit.Symbol, unit.IsActive),
             businessUnit == null ? null : new(businessUnit.Id, businessUnit.Code, businessUnit.NameFa, businessUnit.NameEn, businessUnit.IsActive),
@@ -192,7 +190,7 @@ public sealed class ProductService(
             logger.LogError(exception, "Post-commit Product audit emission failed for {ProductId} action {Action}.", item.Id, action);
         }
     }
-    private static Dictionary<string, object?> Snapshot(ProductResponse p) => new() { ["ProductNumber"] = p.ProductNumber, ["Code"] = p.Code, ["NameFa"] = p.NameFa, ["NameEn"] = p.NameEn, ["ProductCategoryId"] = p.ProductCategory.Id, ["BaseUnitId"] = p.BaseUnit.Id, ["BusinessUnitId"] = p.BusinessUnit?.Id, ["SafetyStockQty"] = p.SafetyStockQty, ["CriticalDays"] = p.CriticalDays, ["SafeStartDays"] = p.SafeStartDays, ["ExcessStartDays"] = p.ExcessStartDays, ["IsActive"] = p.IsActive, ["Notes"] = p.Notes, ["Version"] = p.Version };
+    private static Dictionary<string, object?> Snapshot(ProductResponse p) => new() { ["Code"] = p.Code, ["NameFa"] = p.NameFa, ["NameEn"] = p.NameEn, ["ProductCategoryId"] = p.ProductCategory.Id, ["BaseUnitId"] = p.BaseUnit.Id, ["BusinessUnitId"] = p.BusinessUnit?.Id, ["SafetyStockQty"] = p.SafetyStockQty, ["CriticalDays"] = p.CriticalDays, ["SafeStartDays"] = p.SafeStartDays, ["ExcessStartDays"] = p.ExcessStartDays, ["IsActive"] = p.IsActive, ["Notes"] = p.Notes, ["Version"] = p.Version };
     private static async Task Save(HadronDbContext db, CancellationToken token)
     {
         try { await db.SaveChangesAsync(token); }
@@ -200,7 +198,6 @@ public sealed class ProductService(
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { throw new ProductConflictException("DUPLICATE_CODE", "کد محصول قبلاً ثبت شده است."); }
     }
     private static void EnsureVersion(long actual, long expected) { if (actual != expected) throw new ProductConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
-    private static string NormalizeCode(string value) => value.Trim().ToUpperInvariant();
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static ProductValidationException Validation(string key, string message) => new(new Dictionary<string, string[]> { [key] = [message] });
 }
