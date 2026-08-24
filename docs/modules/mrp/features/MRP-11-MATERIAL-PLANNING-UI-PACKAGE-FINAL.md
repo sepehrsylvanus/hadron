@@ -87,6 +87,36 @@ Run MRP again
 
 This rule is critical for explainability and reconciliation.
 
+Historical Material Planning is strictly Run-snapshot-only. MRP-11 must never query current Catalog, Inventory, Forecast, BOM, Supplier or PO data to complete a historical Run display.
+
+For NEW Runs, MRP-10 owns and preserves the additional immutable presentation context consumed by MRP-11:
+
+```text
+MrpRunItemInput
+    CategoryId
+    CategoryCode
+    CategoryNameFa
+    CategoryNameEn
+    CriticalDays
+    SafeStartDays
+    ExcessStartDays
+
+MrpRunFirmSupplyInput
+    SupplierId
+    SupplierNumber
+    SupplierNameFa
+    SupplierNameEn
+```
+
+Existing historical Runs are not backfilled from live Master Data. If required Risk context is absent:
+
+```text
+RiskBand = INCOMPLETE
+Reason = LEGACY_RUN_CONTEXT_INCOMPLETE
+```
+
+The legacy Run remains viewable for every immutable timeline, trace and exception fact it genuinely contains.
+
 ---
 
 ## 4. Snapshot Context Visibility
@@ -162,7 +192,8 @@ Required baseline fields:
 - Risk Band
 - Planning Completeness
 - Exception count / primary exception
-- Preferred Supplier/Source display where traceable and useful, without creating procurement recommendation
+
+Supplier context belongs to historical Supply Trace only. Material Summary must not imply a Recommended or Preferred Supplier and must not rank sources.
 
 Exact display ordering is a UI implementation choice.
 
@@ -241,32 +272,46 @@ Stock Coverage remains visible as a separate KPI.
 
 ## 12. Risk Threshold Source
 
-Risk classification uses the Material planning thresholds from MRP-04:
+Risk classification uses the MRP-04 Material planning thresholds preserved in the selected Run's immutable `MrpRunItemInput` snapshot:
 
 - Critical Days
 - Safe Start Days
 - Excess Start Days
 
-Baseline rule:
+Locked precedence and threshold rule:
 
 ```text
-if Projected Stockout exists / immediate shortage condition
+if Planning Completeness is INCOMPLETE
+    INCOMPLETE
+
+else if required legacy Run threshold/category context is missing
+    INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE
+
+else if Projected Stockout exists / immediate shortage condition
     STOCKOUT
 
-else if Firm Supply Coverage < Critical Days
+else if Firm Supply Coverage is NO_FUTURE_DEMAND
+    NO_FUTURE_DEMAND
+
+else if Firm Supply Coverage is BEYOND_HORIZON
+    BEYOND_HORIZON
+
+else if Firm Supply Coverage Days < Critical Days
     CRITICAL
 
-else if Critical Days <= Firm Supply Coverage < Safe Start Days
+else if Critical Days <= Firm Supply Coverage Days < Safe Start Days
     LOW
 
-else if Safe Start Days <= Firm Supply Coverage < Excess Start Days
+else if Safe Start Days <= Firm Supply Coverage Days < Excess Start Days
     SAFE
 
-else if Firm Supply Coverage >= Excess Start Days
+else if Firm Supply Coverage Days >= Excess Start Days
     EXCESS
 ```
 
-Special coverage states are handled separately.
+Stock Coverage remains visible but never determines Risk Band.
+
+Safety Stock Breach, Overdue Firm Supply and Missing ETA remain independent warnings. They do not become Procurement Priority.
 
 MRP-11A must ensure exact boundary behavior is deterministic.
 
@@ -431,6 +476,18 @@ The core calculation remains daily.
 
 For an aggregated display period:
 
+### Bucket boundaries
+
+```text
+WEEKLY
+    Saturday through Friday in Asia/Tehran
+    first and last bucket clipped to the actual MRP Run horizon
+
+MONTHLY
+    canonical Jalali Business Period boundaries
+    first and last bucket clipped to the actual MRP Run horizon
+```
+
 ### Flow quantities
 
 ```text
@@ -449,6 +506,7 @@ SUM(daily values)
 
 ```text
 Projected On Hand
+Planning Balance
 ```
 
 uses:
@@ -457,7 +515,7 @@ uses:
 Closing balance of the final day in the period
 ```
 
-Do NOT sum Projected On Hand.
+Do NOT sum Projected On Hand or Planning Balance.
 
 ---
 
@@ -471,12 +529,9 @@ AVERAGE(daily coverage)
 
 or by averaging daily demand.
 
-Coverage in Weekly/Monthly display should either:
+Coverage in Weekly/Monthly display uses the persisted MRP-10 summary/coverage state exposed by the selected Run read model.
 
-- show the MRP-10 summary/coverage state
-- show closing-period derived coverage where explicitly supported by MRP-10 read model
-
-MRP-11 must not invent a different shortcut formula.
+MRP-11 must not average or recompute Coverage from aggregated quantities.
 
 ---
 
@@ -584,6 +639,15 @@ At minimum where available:
 - ETA used
 - relevant PO status used by Run
 
+Supplier fields must come from the immutable `MrpRunFirmSupplyInput` snapshot for that Run:
+
+- Supplier ID
+- Supplier Number
+- Supplier Name FA
+- Supplier Name EN
+
+Supplier context is informational historical lineage only. It is not Supplier ranking or recommendation.
+
 ---
 
 ## 29. Supply Trace Historical Integrity
@@ -597,7 +661,7 @@ Historical Run Supply Trace
 ≠ Current live PO ETA
 ```
 
-The user may optionally navigate to current PO separately, but the snapshot value must remain distinguishable.
+The user may optionally navigate to current PO separately, but the snapshot value must remain distinguishable. No live PO or Supplier fallback is permitted inside the historical Supply Trace.
 
 ---
 
@@ -751,7 +815,6 @@ Baseline Material Planning filters:
 - Risk Band
 - Planning Completeness
 - Expected Stockout date/window
-- Supplier / Preferred Source where meaningful
 - Exception presence
 - optional Business Unit when derivable/useful from product-demand context without ambiguity
 
@@ -806,7 +869,7 @@ Summary should be server-queryable with:
 
 Do not load every daily timeline for every Material when only Summary is shown.
 
-AG Grid Enterprise may be used according to project architecture.
+MRP-11B must use the existing shared server-side `DataTable`. Do not introduce AG Grid Enterprise until a valid license and approved configuration exist.
 
 ---
 
@@ -845,6 +908,15 @@ Use Run-specific trace/read models.
 ## 44. Run Selector
 
 Material Planning should allow selecting another completed Run.
+
+Eligible default/selectable official statuses are:
+
+```text
+COMPLETED
+COMPLETED_WITH_EXCEPTIONS
+```
+
+The latest eligible Run is the default. The selected `runId` is preserved in the URL, and a historical selection remains selected until the user explicitly changes it.
 
 Useful fields:
 
@@ -957,15 +1029,11 @@ Do not introduce `Current Stock` as a second live inventory source.
 
 ---
 
-## 51. Preferred Supplier Display Boundary
+## 51. Supplier Display Boundary
 
-Summary may display Preferred Supplier / Source as informational Master Data context if this can be done without implying the engine selected that Supplier.
+Material Summary does not display or derive a Preferred or Recommended Supplier.
 
-Label must avoid language like:
-
-```text
-Recommended Supplier
-```
+Supplier context is allowed only in Supply Trace when it was captured in the immutable Run snapshot. It is historical evidence, not source ranking or a procurement recommendation.
 
 Package 12 owns sourcing recommendation.
 
@@ -1058,7 +1126,7 @@ PRT-0001
 
 must remain readable in mixed-direction layouts.
 
-AG Grid column alignment should be deliberately configured.
+The shared `DataTable` must configure mixed-direction technical-code and numeric alignment deliberately.
 
 ---
 
@@ -1173,16 +1241,11 @@ No write endpoint for MRP results.
 
 ## 65. Aggregation Location
 
-MRP-11A should determine whether Weekly/Monthly aggregation belongs:
+Locked implementation location:
 
-- server-side read model
-or
-- client-side for the already-loaded selected Material timeline
-
-Baseline preference:
-
-- core Summary server-side
-- selected Material timeline aggregation may be client-side if data volume is small and exact rules remain centralized/tested
+- core Summary is server-side
+- Weekly/Monthly timeline aggregation is server-side
+- React renders the selected persisted/aggregated read result and performs no MRP recomputation
 
 Do not duplicate formulas inconsistently.
 
@@ -1190,11 +1253,9 @@ Do not duplicate formulas inconsistently.
 
 ## 66. Risk Calculation Location
 
-Risk Band is derived from MRP result + Material threshold policy.
+Risk Band is derived from the selected Run result and its snapshotted Material threshold policy.
 
-MRP-11A must choose one authoritative implementation location.
-
-Preferred architecture:
+Locked authoritative implementation location:
 
 ```text
 Backend/Application read model
@@ -1277,43 +1338,30 @@ Do not silently hide stale incoming supply.
 
 ## 72. Exception vs Risk Interaction
 
-Suggested precedence:
+Locked precedence:
 
 ```text
-INCOMPLETE calculation
-    overrides healthy Risk presentation
-
+INCOMPLETE
 STOCKOUT
-    highest valid numeric risk
-
+NO_FUTURE_DEMAND
+BEYOND_HORIZON
 CRITICAL
 LOW
 SAFE
 EXCESS
-
-NO_FUTURE_DEMAND / BEYOND_HORIZON
-    explicit special states
 ```
 
 Warnings such as Overdue Firm Supply may coexist with a Risk Band.
 
-Exact visual combination is finalized in MRP-11A.
+Stock Coverage is separate and does not determine Risk Band. Safety breach, Overdue Firm Supply and Missing ETA remain coexisting warnings.
 
 ---
 
 ## 73. Source Data Freshness
 
-MRP-11 does not display live source freshness inside the historical Result unless clearly separated.
+MRP-11 does not join live source data into a historical Result and does not implement live source-diffing in v1.
 
-Optional informational links may show:
-
-```text
-Current source has changed since this Run
-```
-
-only if a reliable diff mechanism exists.
-
-Do not build source-diffing in v1 unless already available.
+Navigation to a source module may exist as a separate action, but current source values must not complete, replace or alter the selected Run display.
 
 ---
 
@@ -1374,17 +1422,11 @@ Run results are immutable and therefore cache-friendly later, but first implemen
 
 ---
 
-## 79. AG Grid Usage
+## 79. Data Table Usage
 
-Project architecture allows AG Grid Enterprise.
+MRP-11B uses the existing shared server-side `DataTable` foundation for Summary, Exceptions and Timeline.
 
-Use it where appropriate for:
-
-- Summary
-- Exceptions
-- Timeline grid
-
-Do not force AG Grid into small simple forms where unnecessary.
+Do not introduce AG Grid Enterprise in MRP-11B. It may be reconsidered only after a valid license and configuration are explicitly approved.
 
 ---
 
@@ -1483,6 +1525,15 @@ MRP-11 must have meaningful tests for:
 - Demand Trace from Run data
 - Supply Trace from Run data
 - ETA Missing / Overdue visibility
+- legacy Run missing required context returns `INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE`
+- no live Catalog, Inventory, Forecast, BOM, Supplier or PO fallback
+- latest `COMPLETED` / `COMPLETED_WITH_EXCEPTIONS` Run default and `runId` URL persistence
+- Weekly Saturday-Friday grouping in `Asia/Tehran`, including clipped horizon-edge buckets
+- Monthly Jalali Business Period grouping
+- closing `FirmProjected` and `PlanningBalance` semantics
+- Supplier snapshot non-drift in Supply Trace
+- records beyond 100 remain reachable through server paging
+- Reference Data Integrity Gate, Official Item Code and snapshotted FA/EN fallback
 - read-only endpoints
 - filters/sorting
 - no procurement fields/actions
@@ -1524,7 +1575,7 @@ MRP-11 must NOT implement:
 MRP-11 is acceptable when:
 
 1. Material Planning always uses a selected MRP Run.
-2. Default is latest valid completed Run.
+2. Default is latest `COMPLETED` or `COMPLETED_WITH_EXCEPTIONS` Run.
 3. Selected Run identity is visible.
 4. Historical Run results are not mixed with live source values.
 5. Summary is material-centric.
@@ -1535,7 +1586,7 @@ MRP-11 is acceptable when:
 10. Stock Coverage and Firm Supply Coverage are both visible.
 11. Risk Band is derived.
 12. Firm Supply Coverage is primary risk metric.
-13. MRP-04 thresholds drive Risk classification.
+13. MRP-04 thresholds snapshotted by the selected Run drive Risk classification.
 14. Incomplete calculation overrides healthy Risk display.
 15. STOCKOUT and CRITICAL are distinct.
 16. Special coverage states remain explicit.
@@ -1558,6 +1609,13 @@ MRP-11 is acceptable when:
 33. Server-side/API read boundaries are safe.
 34. Historical Run remains explainable after source changes.
 35. Tests validate snapshot isolation and aggregation correctness.
+36. New Runs snapshot Item category identity/names and risk thresholds required by MRP-11.
+37. New Runs snapshot Firm Supply Supplier identity/number/names for historical Supply Trace only.
+38. Existing Runs are never backfilled from live Master Data; missing required context is `INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE`.
+39. Weekly buckets are Saturday-Friday in `Asia/Tehran`, Monthly buckets follow Jalali Business Periods, and edge buckets are clipped to the Run horizon.
+40. `FirmProjected` and `PlanningBalance` use the closing value of the bucket's final day and are never summed or averaged.
+41. Summary, Timeline and Exceptions use the existing shared server-side `DataTable`; records beyond 100 remain reachable.
+42. Reference Data ownership, Official Item Code and snapshotted FA/EN fallback remain intact without shadow masters or live historical fallback.
 
 ---
 
@@ -1566,7 +1624,7 @@ MRP-11 is acceptable when:
 The following are locked for MRP-11:
 
 1. Material Planning UI is Run-based.
-2. Default Run = latest completed official Run.
+2. Default Run = latest `COMPLETED` or `COMPLETED_WITH_EXCEPTIONS` Run.
 3. No live mixing with historical Run result.
 4. Primary view is material-centric.
 5. Summary primary Items = Part/Component.
@@ -1575,7 +1633,7 @@ The following are locked for MRP-11:
 8. Risk Band is Derived.
 9. Firm Supply Coverage is primary Risk metric.
 10. Stock Coverage remains separate.
-11. Risk thresholds use MRP-04 Critical/Safe/Excess Days.
+11. Risk thresholds use MRP-04 Critical/Safe/Excess Days snapshotted in the selected Run.
 12. Incomplete state overrides misleading healthy Risk.
 13. Material Timeline uses daily Run result.
 14. Daily/Weekly/Monthly views are supported.
@@ -1592,6 +1650,18 @@ The following are locked for MRP-11:
 25. Procurement recommendation fields/actions belong to Package 12.
 26. Chart is secondary.
 27. Navigation separates Runs / Material Planning / Exceptions / Order Planning / Purchase Supply.
+28. Historical Material Planning is Run-snapshot-only and never falls back to live Catalog, Inventory, Forecast, BOM, Supplier or PO data.
+29. New `MrpRunItemInput` snapshots preserve category identity/names and Critical/Safe/Excess thresholds.
+30. New `MrpRunFirmSupplyInput` snapshots preserve Supplier identity/number/names for Supply Trace only.
+31. Existing Runs are not backfilled; missing required context produces `INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE` while genuine immutable data remains viewable.
+32. Risk precedence and threshold boundaries are exactly those locked in section 12 and use Firm Supply Coverage only.
+33. Weekly buckets are Saturday-Friday in `Asia/Tehran`; Monthly buckets follow Jalali Business Periods; horizon-edge buckets are clipped.
+34. `FirmProjected` and `PlanningBalance` aggregate by final-day closing value.
+35. Demand Trace, Supply Trace and Exception Center are immutable/read-only Run views; source correction requires a new Run.
+36. MRP-11 performs no calculation recomputation in React or its read service.
+37. MRP-11B uses the existing shared server-side `DataTable`, not AG Grid Enterprise.
+38. Selected `runId` is URL state and remains selected until explicitly changed.
+39. Reference Data Integrity Gate remains mandatory, including `Item.BusinessNumber`, no shadow masters and snapshot-based FA/EN display.
 
 ---
 
@@ -1820,14 +1890,22 @@ If MRP-11A contains unresolved material contradictions, STOP.
 RUN CONTEXT
 Implement:
 - selected MRP Run
-- default latest completed official Run
+- default latest `COMPLETED` or `COMPLETED_WITH_EXCEPTIONS` Run
 - visible Run Number / As-Of / Horizon / Engine Version / status
 - historical Run indicator
+- `runId` in the URL
+- preservation of the explicitly selected historical Run across navigation/refresh until the user changes it
 
-Do not auto-mix live source values into selected Run.
+Historical Material Planning is Run-snapshot-only. Do not read current Catalog, Inventory, Forecast, BOM, Supplier or PO data to complete a selected Run.
+
+For NEW Runs, extend the MRP-10 immutable input snapshot contract so:
+- `MrpRunItemInput` preserves CategoryId, CategoryCode, CategoryNameFa, CategoryNameEn, CriticalDays, SafeStartDays and ExcessStartDays
+- `MrpRunFirmSupplyInput` preserves SupplierId, SupplierNumber, SupplierNameFa and SupplierNameEn
+
+Do not backfill existing Runs from live Master Data. If required snapshot context is absent, return `RiskBand = INCOMPLETE` and `Reason = LEGACY_RUN_CONTEXT_INCOMPLETE`, while retaining access to immutable timeline, trace and exception data genuinely present in that Run.
 
 MATERIAL SUMMARY
-Implement one row per approved Material Item.
+Implement one row per snapshotted PART or COMPONENT Material Item only. Do not show a forecasted PRODUCT as a material-planning coverage row.
 
 Display approved fields:
 - Starting Actual On Hand used by Run
@@ -1847,20 +1925,17 @@ Display approved fields:
 Do not label Net Requirement as Order Qty.
 
 RISK
-Implement exactly the approved backend/application rule from MRP-11A.
+Implement exactly this backend/application precedence:
 
-Primary metric:
-- Firm Supply Coverage
+`INCOMPLETE → STOCKOUT → NO_FUTURE_DEMAND → BEYOND_HORIZON → threshold classification`
 
-Use MRP-04 thresholds:
-- Critical
-- Safe Start
-- Excess Start
+Threshold classification uses Firm Supply `CoverageDays` only:
+- `< CriticalDays` => `CRITICAL`
+- `>= CriticalDays` and `< SafeStartDays` => `LOW`
+- `>= SafeStartDays` and `< ExcessStartDays` => `SAFE`
+- `>= ExcessStartDays` => `EXCESS`
 
-Respect:
-- INCOMPLETE precedence
-- STOCKOUT vs CRITICAL distinction
-- special coverage states
+Stock Coverage remains separately visible and does not determine Risk Band. Safety Breach, Overdue Firm Supply and Missing ETA are independent warnings and are not Procurement Priority.
 
 Do not implement Procurement Priority.
 
@@ -1876,10 +1951,14 @@ Aggregation:
 - Gross Demand = SUM
 - Firm Incoming = SUM
 - Net Requirement = SUM
-- Projected On Hand = closing value of period
-- no coverage averaging
+- FirmProjected = closing value of the final day in the bucket
+- PlanningBalance = closing value of the final day in the bucket
+- no summing/averaging of balances
+- no averaging or recomputation of Coverage
 
-Do not recalculate MRP formulas in React.
+Weekly buckets are Saturday-Friday in `Asia/Tehran`; first/last buckets are clipped to the actual Run horizon. Monthly buckets follow Jalali Business Period boundaries and are clipped to the Run horizon.
+
+Do not recalculate MRP formulas in React or in the MRP-11 read service. Daily values are persisted MRP-10 truth; server-side aggregation is presentation only.
 
 DEMAND TRACE
 Implement on-demand Run-specific Demand Trace.
@@ -1889,9 +1968,9 @@ Do not reconstruct historical trace from current BOM/Forecast.
 SUPPLY TRACE
 Implement on-demand Run-specific PO/Schedule trace.
 
-Display snapshot ETA/status/qty used by selected Run.
+Display only snapshotted PO / Line / Delivery Schedule / Supplier / OpenQty / ETA / ETA status / applied-excluded state used by the selected Run. Supplier context is historical trace only, not ranking.
 
-If navigation to current PO exists, clearly distinguish current source from historical Run snapshot.
+No live Supplier or PO fallback is permitted. If separate navigation to a current PO exists, it must not alter or complete the historical trace.
 
 EXCEPTIONS
 Implement Exception Center using MRP-10 Run Exceptions.
@@ -1906,6 +1985,7 @@ Support approved:
 - filters
 
 Do not edit source data inside Exception Center.
+Exception Center has no resolve/edit state. The user fixes the source module and executes a new MRP Run.
 
 FILTERS
 Implement approved filters:
@@ -1917,7 +1997,6 @@ Implement approved filters:
 - Planning Completeness
 - stockout window
 - exception presence
-- approved Supplier/Source filter where technically sound
 
 READ ONLY
 No editing of:
@@ -1938,7 +2017,9 @@ Follow:
 - RTL
 - Jalali display
 - mixed LTR technical codes
-- AG Grid Enterprise where appropriate
+- existing shared server-side DataTable
+
+Do not introduce AG Grid Enterprise in MRP-11B.
 
 Risk must not rely on color alone.
 
@@ -1953,10 +2034,19 @@ Implement only approved:
 - query services
 - API endpoints
 - risk derivation
-- aggregation helpers if server-side
+- server-side presentation aggregation helpers
 - source-navigation references
 
-Do not modify MRP calculation formulas.
+Do not modify or duplicate MRP calculation formulas.
+
+REFERENCE DATA INTEGRITY GATE
+Preserve MRP-01 ownership and the selected Run snapshot semantics:
+- Official Item Code = `Item.BusinessNumber`
+- no shadow Category/Unit/reference masters
+- immutable snapshot names are historical facts, not editable Reference Data
+- fa-IR displays snapshotted `NameFa`
+- en displays non-empty snapshotted `NameEn`, otherwise snapshotted `NameFa`
+- no live Reference Data fallback for a historical Run
 
 PERMISSIONS
 Reuse existing platform:
@@ -1971,22 +2061,27 @@ At minimum:
 - latest Run default
 - historical Run selection
 - snapshot isolation
-- no live Inventory/PO mixing
+- no live Catalog/Inventory/Forecast/BOM/Supplier/PO fallback
+- legacy Run `INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE`
+- latest eligible completed default and `runId` URL persistence
 - Summary fields
+- PART/COMPONENT rows only
 - Risk boundaries
 - Incomplete precedence
 - Stockout/Critical distinction
 - special coverage states
 - ETA Missing/Overdue warnings
 - daily timeline
-- weekly/monthly aggregation
-- projected closing balance
-- no projected sum
-- no coverage average
+- Weekly Saturday-Friday grouping and clipped edge buckets
+- Jalali Monthly grouping
+- FirmProjected and PlanningBalance closing values
+- no balance sum/average and no coverage recomputation
 - Demand Trace snapshot
 - Supply Trace snapshot
+- Supplier snapshot non-drift
 - source changes do not alter historical Run display
-- filters/sorting
+- server paging/filtering/sorting, including records beyond 100
+- Reference Data Integrity Gate, Official Item Code and snapshotted FA/EN fallback
 - read-only behavior
 - no procurement action fields
 - no independent Mapping PO Status
@@ -2098,18 +2193,21 @@ Audit:
 
 2. Run Context
    - selected Run explicit
-   - default latest completed Run
+   - default latest `COMPLETED` or `COMPLETED_WITH_EXCEPTIONS` Run
    - Run Number / As-Of / Horizon / Engine visible
    - historical Run identifiable
+   - `runId` preserved in URL and selected historical Run does not silently switch
 
 3. No Live Mixing
-   - no live Inventory injected into historical result
-   - no current PO ETA replacing Run snapshot
-   - no current Forecast/BOM recomputation
-   - no hidden live-data joins changing numerical Result
+   - no live Catalog/Inventory/Forecast/BOM/Supplier/PO fallback
+   - new Item snapshot includes CategoryId/Code/NameFa/NameEn and Critical/Safe/Excess thresholds
+   - new Firm Supply snapshot includes SupplierId/Number/NameFa/NameEn
+   - existing Runs are not backfilled
+   - missing required legacy context => `INCOMPLETE / LEGACY_RUN_CONTEXT_INCOMPLETE`
+   - genuine immutable legacy timeline/trace/exception data remains viewable
 
 4. Material Summary
-   - Part/Component rows
+   - Part/Component rows only; no forecasted Product coverage row
    - approved fields
    - snapshot semantics
    - Net Requirement not mislabeled as Order Qty
@@ -2117,8 +2215,10 @@ Audit:
 5. Risk Band
    - derived only
    - primary metric = Firm Supply Coverage
-   - thresholds from MRP-04
-   - exact boundaries
+   - exact precedence = INCOMPLETE, STOCKOUT, NO_FUTURE_DEMAND, BEYOND_HORIZON, threshold classification
+   - exact threshold boundaries use snapshotted Critical/Safe/Excess values
+   - Stock Coverage is separately visible and does not determine Risk Band
+   - Safety Breach, Overdue Firm and Missing ETA remain independent warnings
    - no client/backend drift
    - not Procurement Priority
 
@@ -2132,10 +2232,12 @@ Audit:
 7. Timeline
    - sourced from Daily Run results
    - Daily/Weekly/Monthly
+   - Weekly = Saturday-Friday in Asia/Tehran with clipped horizon edges
+   - Monthly = Jalali Business Period boundaries
    - flow SUM
-   - projected closing balance
-   - no projected summing
-   - no coverage averaging
+   - FirmProjected and PlanningBalance use final-day closing values
+   - no balance summing/averaging
+   - no coverage averaging/recomputation
    - no recalculation drift
 
 8. Demand Trace
@@ -2146,14 +2248,16 @@ Audit:
 
 9. Supply Trace
    - Run-specific PO/Schedule
-   - snapshot ETA/qty/status
+   - snapshot PO/Line/Schedule/Supplier/OpenQty/ETA/status/applied-excluded state
    - later PO changes do not rewrite historical trace
+   - no live Supplier/PO fallback or supplier ranking
 
 10. Exception Center
     - uses MRP-10 exceptions
     - severity preserved
     - source navigation
     - no direct source editing
+    - no resolve state; source fix plus new Run only
     - ETA Missing / Overdue visible
 
 11. Read-Only Integrity
@@ -2165,7 +2269,8 @@ Audit:
 12. Filters / Sorting
     - approved filter set
     - risk-first practical sorting
-    - no expensive/ambiguous joins causing incorrect data
+    - server-side paging/filtering/sorting and records beyond 100 reachable
+    - no expensive/ambiguous live joins causing incorrect data
 
 13. UI / Brand
     - UI-BRAND-RULES
@@ -2173,13 +2278,14 @@ Audit:
     - Jalali
     - mixed technical codes
     - semantic risk not color-only
-    - AG Grid usage appropriate
+    - existing shared server-side DataTable reused
+    - no AG Grid Enterprise introduced
 
 14. API
     - read-only query boundaries
     - safe Run-specific keys
     - no mutation endpoint
-    - no live recomputation endpoint hidden as read
+    - no MRP recomputation in frontend or read service
 
 15. Performance
     - Summary does not preload timelines/traces
@@ -2192,17 +2298,28 @@ Audit:
 16. Historical Integrity
     - selected Run remains explainable after source changes
 
-17. Permissions
+17. Reference Data Integrity Gate
+    - Official Item Code remains `Item.BusinessNumber`
+    - no shadow Category/Unit/reference masters
+    - snapshot FA/EN fallback is correct and does not mutate stored data
+    - historical inactive/snapshotted context remains viewable without live fallback
 
-18. Tests
+18. Permissions
+
+19. Tests
     Verify meaningful assertions especially:
     - historical snapshot isolation
-    - risk boundaries
-    - incomplete precedence
-    - aggregation correctness
+    - legacy Run incomplete context and no live fallback
+    - latest eligible Run selection and URL context
+    - exact Risk precedence/boundaries
+    - Saturday-Friday and Jalali aggregation correctness
+    - closing FirmProjected/PlanningBalance semantics
     - trace historical integrity
+    - Supplier snapshot non-drift
+    - server-paged records beyond 100
+    - read-only scope
 
-19. Specification Drift
+20. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -2249,17 +2366,17 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۲۰ تصمیم تأییدشده Package 11 پوشش داده شده‌اند:
+تمام تصمیم‌های تأییدشده Package 11، از جمله تکمیل قرارداد Snapshot بین MRP-10 و MRP-11، پوشش داده شده‌اند:
 
 1. Run-based UI.
-2. Default latest completed Run.
+2. Default latest `COMPLETED` / `COMPLETED_WITH_EXCEPTIONS` Run.
 3. No historical/live data mixing.
 4. Material-centric Summary.
 5. Product excluded from primary Summary rows.
 6. Approved Summary KPIs included.
 7. Derived Risk Band.
 8. Firm Supply Coverage as primary Risk metric.
-9. MRP-04 thresholds used for Risk.
+9. MRP-04 thresholds snapshotted in the selected Run are used for Risk.
 10. Incomplete calculation overrides healthy Risk.
 11. Material Timeline.
 12. Daily/Weekly/Monthly presentation.
@@ -2271,10 +2388,19 @@ STOP.
 18. Approved filters.
 19. No procurement action fields.
 20. No independent Mapping PO Status.
+21. New Runs snapshot Item category/threshold context.
+22. New Runs snapshot Supplier context for Supply Trace only.
+23. Legacy Runs are not backfilled and surface `LEGACY_RUN_CONTEXT_INCOMPLETE` when required.
+24. Exact Risk precedence and Firm Coverage thresholds are locked.
+25. Weekly Saturday-Friday and Jalali Monthly buckets are locked.
+26. `FirmProjected` and `PlanningBalance` use final-day closing values.
+27. Supply/Demand traces and Exception Center are immutable/read-only.
+28. MRP-11B reuses the shared server-side `DataTable` and does not introduce AG Grid Enterprise.
+29. `runId` is URL state and records beyond 100 remain reachable.
 
 ## Cross-Package Consistency
 
-- MRP-10 remains sole owner of Calculation.
+- MRP-10 remains sole owner of Calculation and the additional immutable Item category/threshold and Supplier trace snapshots for new Runs.
 - MRP-11 does not recompute or mutate MRP results.
 - MRP-04 provides threshold policy for derived Risk.
 - MRP-09 supplies PO/Schedule trace only through the selected Run context.
