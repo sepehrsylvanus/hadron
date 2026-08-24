@@ -237,6 +237,7 @@ Rules:
 - from Shared ERP Unit
 - active Unit required for new assignment
 - historical inactive Unit remains resolvable
+- once any MRP-08 Inventory transaction exists for the Item, ordinary Base Unit change is blocked with `ITEM_BASE_UNIT_LOCKED_BY_INVENTORY`; no UOM conversion or history rewrite
 
 Examples:
 

@@ -77,7 +77,7 @@ A Warehouse should have a stable technical identity.
 Baseline fields may include:
 
 - Internal ID
-- Warehouse Code
+- Official Warehouse Code (`WH-{sequence:D4}`)
 - Name FA
 - Name EN
 - Active Status
@@ -85,7 +85,7 @@ Baseline fields may include:
 - Created At
 - Updated At
 
-Exact field set is proposed in MRP-08A.
+Warehouse uses a UUID technical identity. Its Official Warehouse Code is server-generated from a PostgreSQL sequence, globally unique, immutable, absent from Create input and read-only in ordinary UI. `MAX()+1` is prohibited.
 
 ---
 
@@ -158,13 +158,13 @@ Baseline machine transaction types:
 OPENING
 RECEIPT
 ISSUE
-ADJUSTMENT_IN
-ADJUSTMENT_OUT
+ADJ_IN
+ADJ_OUT
 TRANSFER
 REVERSAL
 ```
 
-Whether `REVERSAL` is implemented as an explicit type or as a linked opposite transaction is finalized in MRP-08A.
+`REVERSAL` is an explicit linked opposite transaction with the locked semantics in this Package.
 
 Machine meanings are system-controlled.
 
@@ -205,14 +205,12 @@ Canonical date is stored Gregorian.
 Opening quantity:
 
 - decimal/numeric
-- normally >= 0
+- must be > 0
 - expressed in Item Base Unit
 
 Opening Balance must be traceable and auditable.
 
-MRP-08A should propose the safest approach for multiple accidental opening entries.
-
-The system must not silently create duplicate openings that distort balance.
+At most one historical `OPENING` may exist for each `Item + Warehouse`, even when that Opening was later reversed. Zero stock requires no Opening row. Correction is the linked `REVERSAL` followed, when needed, by a reasoned `ADJ_IN` or `ADJ_OUT`; a second Opening is prohibited.
 
 ---
 
@@ -284,6 +282,8 @@ Created At:     1405/05/12 09:30
 ```
 
 Backdated entry can therefore be represented without falsifying the audit timeline.
+
+Future physical posting is prohibited. If `EffectiveDate` is later than the current `Asia/Tehran` business date, posting fails with `FUTURE_INVENTORY_POSTING_NOT_ALLOWED`.
 
 ---
 
@@ -357,8 +357,8 @@ Inventory balance cannot be directly typed over.
 Correction of physical difference uses:
 
 ```text
-ADJUSTMENT_IN
-ADJUSTMENT_OUT
+ADJ_IN
+ADJ_OUT
 ```
 
 Adjustment requires:
@@ -536,6 +536,8 @@ Item Base Unit
 
 No hidden Unit Conversion is allowed.
 
+The transaction Unit is a server-captured immutable snapshot of the Item Base Unit. Once any Inventory transaction exists for an Item, an ordinary Item Base Unit change is blocked with `ITEM_BASE_UNIT_LOCKED_BY_INVENTORY`. Inventory never converts quantities or rewrites history.
+
 Examples:
 
 - PCS
@@ -601,13 +603,9 @@ A positive balance in another Warehouse does not automatically authorize issuing
 
 Backdated entries can change historical balance sequence.
 
-MRP-08A must analyze how negative inventory constraints should behave for backdated transactions.
+Ledger validation is at business-date grain. For every posting that has a negative Warehouse effect, every end-of-day closing balance from its `EffectiveDate` through the latest ledger date for the same `Item + Warehouse` must remain nonnegative. Same-day movement ordering is not invented.
 
-The approved business principle remains:
-
-> inventory history should not be silently allowed to become negative through normal operations.
-
-If exact enforcement creates material ambiguity, Codex must STOP and report it rather than silently weaken the rule.
+Posting uses deterministic `Item + Warehouse` locking, with all affected pairs acquired in stable order, plus DB-side protection so concurrent application calls or direct SQL cannot bypass the invariant.
 
 ---
 
@@ -751,9 +749,8 @@ Rules:
 - inactive Warehouse cannot be selected for new ordinary transactions
 - historical transactions remain resolvable
 - deactivation does not delete inventory history
-- Warehouse with nonzero balance should trigger warning before deactivation
-
-Whether nonzero balance blocks deactivation is a UX/business rule to be proposed in MRP-08A and must not be silently assumed.
+- deactivation is blocked if any current Item balance in the Warehouse is nonzero, with `WAREHOUSE_HAS_NONZERO_STOCK`
+- if controlled reversal or legacy circumstances later leave nonzero stock in an inactive Warehouse, company-wide MRP inventory still counts it and surfaces a warning
 
 ---
 
@@ -1038,7 +1035,7 @@ A correction must preserve:
 
 Original posted business movement must remain readable.
 
-MRP-08A must propose the smallest reliable ledger pattern.
+`REVERSAL.EffectiveDate` is server-owned and exactly equals the original transaction `EffectiveDate`. One original transaction may be reversed at most once. A `REVERSAL` cannot itself be reversed. A correction that must affect the current business date uses a reasoned `ADJ_IN`/`ADJ_OUT` instead of changing the reversal date.
 
 ---
 
@@ -1171,9 +1168,7 @@ Do not add caching/materialization without demonstrated need.
 
 Historical On Hand must use transaction Effective Date.
 
-If multiple transactions share the same Effective Date, exact intra-day ordering may not matter for end-of-day As-Of balance but may matter for negative-stock validation.
-
-MRP-08A must identify the minimum ordering semantics required.
+Multiple transactions on one Effective Date contribute to one end-of-day closing balance. No intra-day stock ordering is invented; the locked negative-stock invariant is evaluated by business date.
 
 Do not invent precision beyond actual business need.
 
@@ -1326,6 +1321,14 @@ MRP-08 is acceptable when:
 30. Concurrent Issues cannot bypass negative-stock protection.
 31. Transfer/Reversal operations are atomic.
 32. No real stock data is fabricated.
+33. Canonical machine codes use `ADJ_IN`/`ADJ_OUT`, not alternate adjustment codes.
+34. Future physical posting is blocked using the Asia/Tehran business date.
+35. Backdated negative effects preserve every later end-of-day nonnegative closing balance.
+36. Reversal EffectiveDate equals the original, is single-use and cannot itself be reversed.
+37. Warehouse Official Code is server-generated immutable `WH-{sequence:D4}`.
+38. Warehouse deactivation is blocked while any current Item balance is nonzero.
+39. Opening Qty is positive and at most one historical Opening exists per Item+Warehouse.
+40. Item Base Unit is locked after Inventory history and transaction Unit snapshots are immutable.
 
 ---
 
@@ -1339,7 +1342,7 @@ The following are locked for MRP-08:
 4. No Bin/Shelf/Location in v1.
 5. Actual Inventory source of truth = Inventory Transaction Ledger.
 6. No manually editable Current Stock.
-7. Transaction types baseline = Opening / Receipt / Issue / Adjustment In / Adjustment Out / Transfer / Reversal boundary.
+7. Transaction types = `OPENING` / `RECEIPT` / `ISSUE` / `ADJ_IN` / `ADJ_OUT` / `TRANSFER` / `REVERSAL`.
 8. Opening Balance = Item + Warehouse + Qty + Effective Date transaction.
 9. Actual On Hand is Derived.
 10. Historical On Hand As-Of-Date is required.
@@ -1361,6 +1364,13 @@ The following are locked for MRP-08:
 26. Warehouse demand allocation policy is deferred.
 27. Lot/Serial/Cost/Reservation/Stocktake/WMS are out of scope.
 28. No destructive historical delete.
+29. Negative-stock validation protects all end-of-day closings from a negative-effect posting date through the latest ledger date.
+30. Reversal date equals the original Effective Date; reversal is single-use and non-reversible.
+31. Future physical postings are blocked by the Tehran business date.
+32. Warehouse deactivation is blocked while any current Item balance is nonzero.
+33. At most one historical Opening exists per Item+Warehouse and Opening Qty is positive.
+34. Item Base Unit is locked after the first Inventory transaction.
+35. Official Warehouse Code is server-generated immutable `WH-{sequence:D4}`.
 
 ---
 
@@ -1417,9 +1427,7 @@ Intentionally deferred:
 
 - Warehouse allocation policy for MRP
 - Production explicit issue vs backflush
-- exact backdated negative-stock enforcement strategy if Analysis finds ambiguity
 - future Production Return orchestration
-- whether Warehouse with nonzero balance may be deactivated
 - future Stocktake architecture
 
 None blocks the core MRP-08 ledger architecture.
@@ -1474,13 +1482,15 @@ Required analysis:
 1. Understand Inventory as Actual physical stock source of truth.
 2. Inspect actual Repository and reusable Item/Reference/User/Audit patterns.
 3. Warehouse entity design:
-   - code/name/status
+   - UUID technical identity
+   - server-generated immutable `WH-{sequence:D4}` Official Warehouse Code
+   - name/status
    - multiple Warehouses
    - no bins/locations
 4. Inventory Transaction Ledger relational model.
-5. Transaction types and stable machine semantics.
+5. Verify the canonical transaction codes exactly: `OPENING`, `RECEIPT`, `ISSUE`, `ADJ_IN`, `ADJ_OUT`, `TRANSFER`, `REVERSAL`.
 6. Decide minimum Draft/Posted model, if any.
-7. Opening Balance model and protection against accidental duplicates.
+7. Opening Balance Qty > 0 and at-most-one historical Opening per Item+Warehouse, including after reversal.
 8. Actual On Hand derivation.
 9. Historical As-Of balance.
 10. Effective Date vs Created At.
@@ -1489,21 +1499,22 @@ Required analysis:
     - preserve original
     - opposite ledger effect
     - linked correction
+    - server-owned EffectiveDate equal to the original
+    - one reversal maximum; reversal cannot be reversed
 13. Adjustment with mandatory Reason.
 14. Receipt/Issue behavior.
 15. Atomic Transfer model with linked legs or equivalent clean relational pattern.
 16. Negative inventory protection at Item+Warehouse.
 17. Analyze concurrency-safe Issue posting so simultaneous Issues cannot overspend balance.
-18. Analyze backdated transaction impact on negative-stock rule.
-    If material ambiguity remains, report it explicitly and STOP before implementation.
-19. Confirm Item Base Unit only.
+18. Verify the locked business-date negative-stock rule across every end-of-day closing from EffectiveDate through the latest ledger date, deterministic Item+Warehouse locking and DB-side protection; do not invent same-day ordering.
+19. Confirm Item Base Unit only, immutable transaction Unit snapshot, and `ITEM_BASE_UNIT_LOCKED_BY_INVENTORY` after any Item transaction.
 20. Confirm Actual Warehouse Issue is separate from Expected BOM Consumption.
 21. Production integration boundary:
     explicit issue/backflush deferred.
 22. PO Receipt integration boundary.
 23. Actual vs Projected ownership separation.
 24. Multiple-Warehouse planning allocation boundary.
-25. Item/Warehouse Active/Inactive historical behavior.
+25. Item/Warehouse Active/Inactive historical behavior, including `WAREHOUSE_HAS_NONZERO_STOCK` on deactivation and counting/warning for exceptional inactive-Warehouse stock.
 26. Source-document integration boundary without speculative generic/EAV architecture.
 27. Read models:
     - current balance
@@ -1536,6 +1547,7 @@ Testing proposal must cover at minimum:
 - multiple Warehouses
 - Warehouse lifecycle
 - Opening Balance
+- Opening Qty > 0 and duplicate historical Opening rejection after reversal
 - Receipt
 - Issue
 - Adjustment In/Out
@@ -1549,9 +1561,19 @@ Testing proposal must cover at minimum:
 - posted immutability
 - reversal preserves original
 - reversal inventory effect
+- reversal date equals original date; second reversal and reversal-of-reversal blocked
+- current-date correction uses reasoned `ADJ_IN`/`ADJ_OUT`
+- future Effective Date blocked by Tehran business date
 - concurrent Issues against same stock
 - negative Issue blocked
 - warehouse-specific negative rule
+- backdated negative effect preserves every later end-of-day nonnegative closing
+- no same-day ordering semantics
+- Warehouse Official Code generation/immutability/concurrency and no Create Code input
+- Warehouse deactivation with nonzero balance blocked
+- inactive Warehouse exceptional stock counted company-wide with warning
+- Item Base Unit change blocked after any Inventory transaction
+- transaction Unit snapshot immutable
 - decimal quantities
 - inactive historical Item/Warehouse resolution
 - no editable Current Stock
@@ -1615,23 +1637,29 @@ Inspect actual prior implementation and reuse approved patterns.
 TASK:
 Implement only the approved MRP-08 Inventory Foundation design.
 
-If MRP-08A contains unresolved material contradictions or unresolved negative-stock/backdating integrity issues, STOP.
+If the actual repository cannot implement the locked DB-side negative-stock integrity or sequence-backed Warehouse identity without weakening it, STOP and report the material blocker.
 
 WAREHOUSE
 Implement approved Warehouse entity and lifecycle:
 - multiple Warehouses
 - Active/Inactive
 - no Bin/Shelf/Rack
+- UUID technical identity
+- server-generated globally unique immutable `WH-{sequence:D4}` Official Warehouse Code
+- PostgreSQL sequence; no `MAX()+1`
+- no Code in Create input; generated Code is read-only in UI
+- block deactivation on any current nonzero Item balance with `WAREHOUSE_HAS_NONZERO_STOCK`
+- include exceptional inactive-Warehouse stock in the company pool and surface a warning
 
 INVENTORY LEDGER
 Implement approved Inventory Transaction model and stable types:
 - OPENING
 - RECEIPT
 - ISSUE
-- ADJUSTMENT_IN
-- ADJUSTMENT_OUT
+- ADJ_IN
+- ADJ_OUT
 - TRANSFER / linked transfer effects
-- REVERSAL/correction according to approved 08A design
+- REVERSAL
 
 SOURCE OF TRUTH
 - Actual On Hand must be ledger-derived
@@ -1641,9 +1669,11 @@ OPENING BALANCE
 Implement:
 - Item
 - Warehouse
-- Qty
+- Qty > 0
 - Effective Date
-according to approved duplicate-protection design.
+- at most one historical `OPENING` per Item+Warehouse, even if reversed
+- zero stock needs no Opening row
+- correction uses REVERSAL and then reasoned ADJ_IN/ADJ_OUT when required
 
 POSTING
 Implement approved posting lifecycle.
@@ -1658,12 +1688,16 @@ Do not allow ordinary edit of posted:
 - movement type
 
 CORRECTION
-Implement approved reversal/compensating model:
+Implement the locked reversal/compensating model:
 - preserve original
 - linked correction/reversal
 - Reason
 - actor/audit compatibility
 - opposite inventory effect
+- server-owned EffectiveDate exactly equal to Original.EffectiveDate
+- one reversal maximum per original
+- REVERSAL cannot be reversed
+- current-date compensation uses reasoned ADJ_IN/ADJ_OUT
 
 ADJUSTMENT
 - explicit IN / OUT
@@ -1688,13 +1722,16 @@ Implement atomic transfer:
 - both inventory effects commit together
 
 NEGATIVE STOCK
-Implement concurrency-safe warehouse-level validation according to approved 08A strategy.
+For every posting with a negative Warehouse effect, reject when any end-of-day closing balance from EffectiveDate through the latest ledger date would become negative. Use deterministic locking of all affected Item+Warehouse pairs and DB-side protection. Do not invent same-day ordering.
 
 Two concurrent Issues must not both succeed if combined result would be negative.
+
+Reject `EffectiveDate` after the current Asia/Tehran business date with `FUTURE_INVENTORY_POSTING_NOT_ALLOWED`.
 
 BASE UNIT
 All Qty uses Item Base Unit.
 No UOM conversion.
+Capture an immutable Unit snapshot on each transaction. Block ordinary Item Base Unit change after any Inventory transaction with `ITEM_BASE_UNIT_LOCKED_BY_INVENTORY`.
 
 BALANCE
 Implement approved query/read model:
@@ -1765,6 +1802,7 @@ At minimum:
 - Receipt
 - Issue
 - Adjustment In/Out
+- exact canonical transaction codes; no alternate adjustment machine codes
 - Adjustment Reason
 - Transfer validation
 - Transfer atomicity
@@ -1774,9 +1812,18 @@ At minimum:
 - Effective Date behavior
 - posted immutability
 - reversal preservation/effect
+- reversal EffectiveDate equality, one-reversal limit and reversal-of-reversal prohibition
+- current-date ADJ_IN/ADJ_OUT compensation
+- future posting rejection using the Tehran business date
 - negative Issue rejection
 - concurrent Issue integrity
+- backdated negative-effect validation across all later end-of-day balances
 - warehouse-specific balance rule
+- Warehouse code generation, concurrency, format and DB/API immutability
+- no Warehouse Code in Create contract
+- nonzero-stock deactivation block and inactive-Warehouse company-pool warning
+- Opening positive quantity and historical uniqueness after reversal
+- Item Base Unit lock after Inventory history and immutable Unit snapshot
 - decimal quantities
 - historical inactive resolution
 - no editable Current Stock
@@ -1892,6 +1939,12 @@ Audit:
    - multiple Warehouses
    - Active/Inactive
    - no Bin/Shelf/Rack scope leak
+   - UUID technical identity
+   - server-generated immutable globally unique `WH-{sequence:D4}` Official Code
+   - no client Code on Create and no ordinary rename
+   - no `MAX()+1`
+   - nonzero-stock deactivation blocked with `WAREHOUSE_HAS_NONZERO_STOCK`
+   - exceptional inactive-Warehouse stock remains in company total with warning
 
 3. Ledger Source of Truth
    - no editable Current Stock
@@ -1899,14 +1952,17 @@ Audit:
    - no hidden mutable stock source
 
 4. Transaction Types
-   - stable machine semantics
+   - exactly `OPENING`, `RECEIPT`, `ISSUE`, `ADJ_IN`, `ADJ_OUT`, `TRANSFER`, `REVERSAL`
    - correct effects
    - not user-configurable arbitrary lists
+   - no conflicting alternate adjustment machine codes
 
 5. Opening Balance
    - transaction-based
    - Item+Warehouse+Qty+Effective Date
-   - duplicate opening protection
+   - Qty > 0
+   - at most one historical Opening per Item+Warehouse, including after reversal
+   - zero stock requires no Opening
 
 6. Receipt / Issue
    - correct inventory effect
@@ -1933,6 +1989,9 @@ Audit:
     - opposite inventory effect
     - Reason/audit
     - transfer reversal integrity
+    - EffectiveDate is server-owned and equals Original.EffectiveDate
+    - one reversal maximum; REVERSAL cannot be reversed
+    - current-date compensation uses reasoned ADJ_IN/ADJ_OUT
 
 11. Actual On Hand
     - current balance correct
@@ -1947,7 +2006,10 @@ Audit:
     - normal negative blocked
     - Item+Warehouse grain
     - concurrent Issues cannot bypass rule
-    - backdated behavior matches approved Analysis
+    - every end-of-day closing from a negative-effect EffectiveDate through latest ledger date stays nonnegative
+    - deterministic Item+Warehouse locking and DB-side protection are real
+    - no same-day ordering is invented
+    - future posting is rejected with `FUTURE_INVENTORY_POSTING_NOT_ALLOWED`
 
 14. Actual vs Expected Consumption
     - no Production Actual×BOM decrement
@@ -1971,6 +2033,7 @@ Audit:
     - transaction/reversal relationships
     - atomicity
     - migration safety
+    - direct SQL cannot bypass posted immutability, reversal uniqueness/date, Opening uniqueness, Warehouse Code immutability/format, future-date or negative-stock protections
 
 19. API
     - use-case boundaries
@@ -2001,8 +2064,23 @@ Audit:
     - Reversal
     - As-Of balance
     - posted immutability
+    - transaction code exactness
+    - Warehouse sequence/concurrency/immutability and no client Code
+    - Opening positive quantity and uniqueness after reversal
+    - future posting around Asia/Tehran business date
+    - backdated end-of-day negative-stock integrity and same-day aggregation
+    - reversal date/uniqueness/non-reversibility and compensation
+    - Warehouse deactivation/current balance and inactive-Warehouse company-pool warning
+    - Item Base Unit lock and immutable transaction Unit snapshot
 
-24. Specification Drift
+24. Reference Data Integrity Gate
+    - Unit remains owned by MRP-01; no shadow Unit master
+    - active Unit is required for a new assignment and historical inactive Unit remains resolvable
+    - `fa-IR` displays `NameFa`
+    - `en` displays non-empty `NameEn`, otherwise falls back to `NameFa`
+    - stored Reference Data is never auto-translated or modified by locale
+
+25. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -2047,7 +2125,7 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۲۰ تصمیم تأییدشده Package 08 پوشش داده شده‌اند:
+تصمیم‌های تأییدشده Package 08، شامل Owner closure نهایی MRP-08A، پوشش داده شده‌اند:
 
 1. Inventory supports Product / Part / Component.
 2. Multiple Warehouses from day one.
@@ -2069,6 +2147,14 @@ STOP.
 18. Future PO Receipt integrates into the same ledger.
 19. Inventory owns Actual, not Projected.
 20. Warehouse allocation / Lot / Serial / Cost / Reservation are deferred.
+21. Machine codes are exactly `OPENING` / `RECEIPT` / `ISSUE` / `ADJ_IN` / `ADJ_OUT` / `TRANSFER` / `REVERSAL`.
+22. Negative-stock protection uses business-date end-of-day closings from EffectiveDate through the latest ledger date, without invented same-day ordering.
+23. Reversal date equals the original EffectiveDate, is single-use and cannot be reversed.
+24. Future physical posting is blocked by the Asia/Tehran business date.
+25. Warehouse deactivation is blocked on any current nonzero Item balance; exceptional inactive-Warehouse stock remains counted with warning.
+26. Opening is positive and historically unique per Item+Warehouse.
+27. Item Base Unit is locked after Inventory history and Unit snapshots are immutable.
+28. Warehouse Official Code is server-generated immutable `WH-{sequence:D4}`.
 
 ## Open Question Resolution
 
@@ -2126,6 +2212,10 @@ Explicit Issue vs Backflush automation in future Production integration.
 - Reversal preserves original transactions.
 - Inventory quantity ledger is separated from future costing and WMS concerns.
 - Any performance balance projection remains secondary and reconcilable to ledger.
+- Backdated negative-stock behavior is closed at end-of-day business-date grain with deterministic locks and DB protection.
+- Reversal date/uniqueness and future-posting rules are explicit.
+- Warehouse identity and deactivation semantics are explicit.
+- Opening uniqueness and the Item Base Unit inventory lock are explicit.
 
 ## Remaining Intentional Open Questions
 
@@ -2133,8 +2223,6 @@ Not blockers for MRP-08:
 
 - MRP Warehouse allocation policy.
 - Production explicit material Issue vs Backflush.
-- exact backdated negative-stock enforcement if repository/database constraints make it ambiguous.
-- Warehouse deactivation with nonzero stock.
 - future Stocktake process.
 
 ## Prompt Audit
@@ -2142,17 +2230,17 @@ Not blockers for MRP-08:
 ### MRP-08A
 PASS
 
-Analysis-only, Repository-aware, and specifically requires review of negative-stock concurrency, backdated transactions, ledger/reversal design and transfer atomicity.
+Analysis-only and Repository-aware; the Owner-approved conclusions are now the canonical implementation baseline rather than open design questions.
 
 ### MRP-08B
 PASS
 
-Implementation remains limited to Actual Inventory Foundation and prevents Planning, PO, Production and WMS scope leakage.
+Implementation remains limited to Actual Inventory Foundation, implements the exact locked Warehouse/ledger/reversal/date/unit rules, and prevents Planning, PO, Production and WMS scope leakage.
 
 ### MRP-08C
 PASS
 
-Independent read-only audit checks source-of-truth integrity, transaction immutability, concurrency, As-Of history, atomic transfers and specification drift.
+Independent read-only audit checks source-of-truth integrity, exact codes, Warehouse identity/lifecycle, transaction immutability, date-grain negative-stock protection, reversal rules, Unit Reference Data integrity, As-Of history, atomic transfers and specification drift.
 
 ## Final Decision
 

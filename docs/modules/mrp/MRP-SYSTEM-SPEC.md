@@ -547,6 +547,8 @@ Opening Inventory در ERP باید حداقل شامل:
 
 باشد.
 
+Quantity باید `> 0` باشد و برای هر `Item + Warehouse` حداکثر یک `OPENING` تاریخی مجاز است، حتی اگر بعداً Reverse شده باشد. موجودی صفر به Opening row نیاز ندارد.
+
 Migration Rule از Legacy Initial Inventory در Inventory Feature نهایی می‌شود.
 
 ---
@@ -568,6 +570,16 @@ Opening Balance
 ```
 
 Actual Inventory باید از Transactionها مشتق شود.
+
+کدهای canonical موجودی دقیقاً عبارت‌اند از:
+
+```text
+OPENING / RECEIPT / ISSUE / ADJ_IN / ADJ_OUT / TRANSFER / REVERSAL
+```
+
+Posting فیزیکی آینده نسبت به business date تهران با `FUTURE_INVENTORY_POSTING_NOT_ALLOWED` مسدود است. برای هر اثر منفی، هیچ closing balance پایان‌روز از `EffectiveDate` تا آخرین تاریخ ledger در `Item + Warehouse` نباید منفی شود؛ lock قطعی و DB protection الزامی است و ترتیب درون‌روز اختراع نمی‌شود.
+
+`REVERSAL.EffectiveDate` server-owned و برابر تاریخ Original است؛ هر Original حداکثر یک بار Reverse می‌شود و REVERSAL قابل Reverse نیست. جبران در تاریخ جاری با `ADJ_IN`/`ADJ_OUT` دارای Reason انجام می‌شود.
 
 ---
 
@@ -613,6 +625,10 @@ Inventory باید از ابتدا Warehouse-aware باشد.
 ## LOCKED V1 BASELINE
 
 Actual Inventory در Grain `Item + Warehouse` نگهداری و Company Total مشتق می‌شود. MRP v1 از total company inventory به‌عنوان Warehouse Pool استفاده می‌کند و demand/supply را به Warehouse تخصیص نمی‌دهد. Allocation، reservation و WMS Future Scope هستند.
+
+Warehouse دارای UUID فنی و Official Code تولیدشده و immutable با قالب `WH-{sequence:D4}` است؛ Create ورودی Code ندارد و `MAX()+1` ممنوع است. Deactivation هنگام هر current Item balance غیرصفر با `WAREHOUSE_HAS_NONZERO_STOCK` مسدود می‌شود. اگر در شرایط کنترل‌شده reversal/legacy انبار غیرفعال بعداً stock غیرصفر داشته باشد، Company Pool آن را همچنان می‌شمارد و warning نشان می‌دهد.
+
+Inventory Unit snapshot را از Item Base Unit به‌صورت server-captured و immutable نگه می‌دارد. پس از وجود هر Inventory transaction، تغییر عادی Base Unit با `ITEM_BASE_UNIT_LOCKED_BY_INVENTORY` مسدود است؛ conversion یا historical rewrite وجود ندارد.
 
 ---
 

@@ -1361,11 +1361,7 @@ Do not confuse system posting timestamp with business receipt date.
 
 ## 73. Backdated Receipt
 
-MRP-13A must analyze interaction with MRP-08 backdated inventory rules.
-
-A backdated Receipt must not silently corrupt historical negative-stock integrity.
-
-If current MRP-08 policy does not safely support it, Codex must report and STOP rather than invent behavior.
+MRP-13 consumes the locked MRP-08 business-date rule. A backdated Receipt or its Inventory reversal must preserve every end-of-day closing balance from its EffectiveDate through the latest ledger date for each affected Item+Warehouse. MRP-13 must reuse MRP-08 deterministic locks and DB protection and must not invent intra-day ordering or a second inventory policy.
 
 ---
 
@@ -2234,7 +2230,7 @@ Required analysis:
 35. Derive WAREHOUSE_RECEIPT from Posted Receipt.
 36. Define First Receipt / Final Receipt derivations.
     Analyze partial receipts, receipt plus cancellation, full cancellation, reversal of the completing Receipt, re-completion after reversal, and financial-anchor resolution. Final Receipt is derived from valid Posted/non-reversed history; First Receipt and Cancellation Date are never the WAREHOUSE_RECEIPT credit anchor. Do not add a manually editable Financial Receipt Date.
-37. Analyze Receipt backdating against actual MRP-08 negative-stock/backdated rules.
+37. Verify Receipt backdating uses the locked MRP-08 end-of-day negative-stock rule, deterministic Item+Warehouse locking and DB protection without a parallel policy.
     If materially unresolved, STOP before implementation.
 38. Analyze inactive Item/Warehouse handling.
 39. Analyze Receipt vs Cancellation concurrency.
@@ -2388,7 +2384,7 @@ Inspect actual prior implementation and reuse approved patterns.
 TASK:
 Implement only approved MRP-13 Purchase Order Operations & Receipt.
 
-If MRP-13A contains unresolved material contradictions or unresolved Receipt/backdated Inventory integrity issues, STOP.
+If the actual MRP-08 contract cannot be reused without weakening its locked Receipt/backdated Inventory integrity, STOP and report the material contradiction.
 
 CONVERSION
 Implement controlled idempotent conversion from eligible current:

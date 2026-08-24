@@ -85,7 +85,7 @@
 
 ### Q-020 — Inventory Adjustment Governance
 **Status:** CLOSED FOR BASELINE — MRP-08  
-**Approved:** Adjustment یک posted ledger transaction با permission، reason و audit است؛ correction با reversal/opposite transaction انجام می‌شود.
+**Approved:** Adjustment با `ADJ_IN`/`ADJ_OUT` یک posted ledger transaction با permission، reason و audit است. REVERSAL تاریخ Original را دارد، برای هر Original حداکثر یک‌بار است و خودش قابل Reverse نیست. Backdated negative-stock، Warehouse deactivation، Opening uniqueness، Warehouse Official Code و Base Unit inventory lock نیز با DEC-053 بسته شده‌اند.
 
 ## Genuinely Open Blockers
 

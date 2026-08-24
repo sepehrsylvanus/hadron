@@ -410,3 +410,11 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Decision:** اگر Credit%>0 باشد Credit Days>0 و Credit Anchor required است. codes برابر `ORDERED`, `SHIPPED`, `WAREHOUSE_RECEIPT` است؛ planned date fallback برابر Actual→Revised→Original→Unresolved است. برای `WAREHOUSE_RECEIPT`، anchor برابر operational `Final Receipt Date` است، نه First Receipt یا Cancellation Date. reversal که receipt completion را از بین ببرد anchor را دوباره Unresolved می‌کند.  
 **Status:** LOCKED  
 **Source Package:** MRP-03, MRP-09, MRP-13, MRP-14
+
+---
+
+## DEC-053 — Inventory Posting Integrity and Warehouse Identity
+
+**Decision:** کدهای ledger دقیقاً `OPENING`, `RECEIPT`, `ISSUE`, `ADJ_IN`, `ADJ_OUT`, `TRANSFER`, `REVERSAL` هستند. اثر منفی باید تمام closing balanceهای پایان‌روز از EffectiveDate تا آخرین ledger date را در `Item + Warehouse` غیرمنفی نگه دارد؛ lock قطعی و DB protection الزامی است و ترتیب درون‌روز تعریف نمی‌شود. REVERSAL تاریخ Original را دارد، یک‌بار مصرف و غیرقابل Reverse است؛ future posting نسبت به Tehran business date ممنوع است. Opening مثبت و historically unique است. Base Unit پس از Inventory history قفل می‌شود. Warehouse UUID فنی و Official Code تولیدشده immutable `WH-{sequence:D4}` دارد و با stock غیرصفر غیرفعال نمی‌شود؛ exceptional inactive stock در Company Pool باقی می‌ماند و warning دارد.
+**Status:** LOCKED
+**Source Package:** MRP-08
