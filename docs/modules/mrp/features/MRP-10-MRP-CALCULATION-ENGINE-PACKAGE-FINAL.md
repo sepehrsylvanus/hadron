@@ -68,10 +68,12 @@ Each MRP Run has:
 Default horizon:
 
 ```text
-approximately 12 Jalali months forward
+Jalali Period containing As-Of
++
+next 11 Jalali Periods
 ```
 
-but there is no hard database limit.
+The default Horizon End is the canonical Gregorian end date of the twelfth Period. An explicit override is allowed when `HorizonEnd >= AsOf`. There is no hard database horizon limit.
 
 The user/system may run a shorter or longer horizon when needed.
 
@@ -114,7 +116,13 @@ Each Run should conceptually preserve:
 - simplifications / warnings
 - input trace references
 
-Exact persistence is determined in MRP-10A.
+Run Number is server-generated, immutable and formatted as:
+
+```text
+MRP-RUN-{sequence:D6}
+```
+
+The technical ID remains an internal UUID.
 
 ---
 
@@ -211,7 +219,7 @@ The Run must preserve the actual starting quantity used.
 
 Changing later inventory transactions must not rewrite the historical Run result.
 
-The exact snapshot/reference mechanism is proposed in MRP-10A.
+The Run persists an immutable inventory input snapshot containing the actual starting quantity and source trace used by calculation.
 
 ---
 
@@ -305,7 +313,7 @@ Demand Date > Run As-Of Date
 
 The As-Of date receives zero additional Remaining Forecast allocation and the first eligible date is `As-Of + 1 calendar day`. This prevents same-day Actual Production plus Remaining Forecast double counting.
 
-Eligibility ends at the current Jalali Planning Period End. If Remaining Forecast is positive but zero eligible calendar days remain, the engine must surface an explicit planning exception/state (conceptually `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE`; exact stable code may be finalized by MRP-10A). It must not allocate to As-Of, spill into the next period, discard the quantity, or invent a cross-period allocation.
+Eligibility ends at the current Jalali Planning Period End. If Remaining Forecast is positive but zero eligible calendar days remain, the engine must surface `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE`. It must not allocate to As-Of, spill into the next period, discard the quantity, or invent a cross-period allocation.
 
 ---
 
@@ -317,12 +325,12 @@ Daily distribution must preserve exact monthly total.
 
 Do not independently round every daily share in a way that changes total demand.
 
-Conceptually:
+Allocation is deterministic at 12 decimal places:
 
 ```text
 Monthly Qty = 10,000
-Daily high-precision allocation
-Final day receives any exact decimal residual
+Daily allocation scale = 12 decimal places
+LAST eligible day receives the exact residual
 ```
 
 Required invariant:
@@ -333,7 +341,7 @@ SUM(Daily Distributed Qty)
 Monthly Forecast / Remaining Forecast exactly
 ```
 
-within approved decimal precision.
+The sum must equal the exact Period quantity at the approved 12-decimal persistence scale. The As-Of date receives zero and no residual may spill into another Period.
 
 ---
 
@@ -353,6 +361,8 @@ Use decimal/numeric for:
 Do not use binary floating point.
 
 Do not prematurely round intermediate calculations.
+
+Persisted MRP calculation quantities use PostgreSQL `numeric(28,12)`. Internal calculation uses .NET `decimal` without premature business rounding.
 
 ---
 
@@ -485,7 +495,7 @@ is NOT used in MRP v1.
 
 Scrap applies to lower-level material requirement according to BOM Line / Item Planning Scrap rules.
 
-MRP-10A must ensure Scrap is not accidentally applied multiple times to the same requirement.
+MRP-10 applies the resolved Scrap exactly once on each BOM edge and must not apply it repeatedly to the same edge requirement.
 
 The engine should expose traceability:
 
@@ -622,17 +632,25 @@ The engine should recognize Net Requirement needed both to:
 - prevent negative/shortage
 - restore/protect Safety Stock target
 
-Conceptually:
+For Part and Component time-phased planning, use two distinct balances:
 
 ```text
-Net Requirement
-=
-max(Safety Stock - projected available balance at relevant point, 0)
+FirmProjected
+= previous FirmProjected + eligible Firm Incoming - Gross Demand
+
+PlanningBeforeNeed
+= previous PlanningBalance + eligible Firm Incoming - Gross Demand
+
+NetRequirement
+= MAX(SafetyStock - PlanningBeforeNeed, 0)
+
+PlanningBalance
+= PlanningBeforeNeed + NetRequirement
 ```
 
-subject to time-phased logic.
+`NetRequirement` is hypothetical planning need and never Firm Supply. Stockout and Coverage use factual supply views, not `PlanningBalance`. For MAKE and OUTSOURCE-with-BOM, only `NetRequirement` is exploded to children.
 
-MRP-10A must specify exact sequential implementation so Safety Stock is not repeatedly double-counted each day.
+Root forecasted PRODUCT demand is excluded from this material netting rule: its planned production quantity explodes directly through the effective Product BOM. Product Finished Goods inventory is not netted against Forecast and Product Safety Stock is not applied as a production adjustment in MRP-10 v1.
 
 ---
 
@@ -681,7 +699,7 @@ The engine should derive at minimum:
 - shortage quantity
 - safety stock breach date where applicable
 
-Exact summary fields are refined in MRP-10A.
+The Item summary fields below, the locked Coverage states and separate safety-breach result form the v1 baseline.
 
 ---
 
@@ -833,16 +851,16 @@ Firm supply becomes available only on its dated ETA.
 
 Coverage should not invent fake large numbers.
 
-At minimum support explicit states:
+Support exactly these stable states:
 
 ```text
-DATE / DAYS_COVERED
+DATE
 BEYOND_HORIZON
 NO_FUTURE_DEMAND
 INCOMPLETE_DATA
 ```
 
-Exact representation is finalized in MRP-10A.
+`DATE` means the last fully covered demand date. Stock Coverage uses Starting Actual On Hand only. Firm Supply Coverage uses Starting Actual On Hand plus eligible dated Firm Supply. Safety Stock breach remains a separate result. Do not generate misleading Finished-Goods coverage for a root forecasted Product.
 
 ---
 
@@ -974,7 +992,7 @@ This supports Hadron-provided/planned input materials for outsourced assembly.
 
 Treat Item as requiring external supply at its own level.
 
-MRP-10A must expose which behavior was used in Run trace.
+The Run trace records whether OUTSOURCE used its BOM route or remained an external requirement because no planning BOM existed.
 
 ---
 
@@ -1039,17 +1057,13 @@ Those policies belong to later Planning/Order Planning decisions.
 
 ## 52. Hybrid Route Decision Grain
 
-MRP-10A must propose the smallest appropriate decision grain.
-
-Baseline expectation:
+### LOCKED OWNER DECISION
 
 ```text
 Item + Run
 ```
 
-unless date-specific route choice is required by the approved scenario.
-
-Do not introduce complex split Make/Buy allocation in v1 unless explicitly approved.
+A selected HYBRID route must remain valid for every affected Demand Date in that Run. Date-specific Make/Buy split is forbidden in v1. If no single route covers all affected dates, create an explicit exception and mark the affected result `INCOMPLETE`.
 
 ---
 
@@ -1183,7 +1197,7 @@ Conceptually, the engine may persist/read-model daily result fields including:
 - trace identifiers
 - exception/completeness state
 
-Exact persistence strategy is analyzed in MRP-10A.
+Official Runs persist immutable daily Item results at `numeric(28,12)` together with trace and completeness references.
 
 ---
 
@@ -1274,7 +1288,7 @@ Parent Requirement
 Child Requirement
 ```
 
-The exact trace persistence depth must be balanced against performance in MRP-10A.
+Persist direct, material calculation contributions and source references sufficient for deterministic explanation; avoid recursive path duplication that creates trace explosion.
 
 Do not build an unbounded verbose trace that makes the engine unusable, but preserve explainability.
 
@@ -1361,24 +1375,20 @@ Historical Run should remain explainable even after:
 - PO ETA changes
 - Sourcing configuration changes
 
-This may require storing calculated results plus material input snapshots/references.
-
-MRP-10A must propose the smallest architecture that truly preserves this property.
+This requires storing official calculated results plus the material immutable input snapshots/references used by the Run.
 
 ---
 
 ## 73. Run Persistence Strategy
 
-MRP-10A must analyze whether to persist:
+### LOCKED OWNER DECISION
+
+Official Runs persist:
 
 - full daily results
 - summary results
 - trace tables
 - input snapshot records
-
-versus recomputing.
-
-Baseline business requirement:
 
 > historical official Run result must not drift.
 
@@ -1456,7 +1466,7 @@ Horizon End must be:
 
 The engine should not accidentally pull demand beyond requested horizon except where limited look-ahead is explicitly needed for a defined KPI.
 
-MRP-10A must document any such exception.
+MRP-10 v1 has no implicit look-ahead beyond the explicit Horizon End.
 
 ---
 
@@ -1480,13 +1490,13 @@ Stock Coverage and Firm Supply Coverage measure demand coverage.
 
 Safety Stock Breach may be shown separately.
 
-MRP-10A must avoid ambiguously redefining Coverage as "days until safety stock" unless explicitly labeled.
+Coverage is factual demand coverage and is not redefined as "days until safety stock". Safety Stock breach is labeled separately.
 
 ---
 
 ## 81. Overdue Demand / Past-Dated Requirement
 
-MRP-10A should ensure no future planning demand is generated before Run As-Of Date from monthly distribution.
+No future planning demand is generated before or on Run As-Of Date from monthly distribution.
 
 Historical actual/past demand is trace only.
 
@@ -1508,7 +1518,7 @@ if Package 05 indicates no usable external source exists.
 
 This does not change Net Requirement quantity.
 
-It informs downstream Planning completeness.
+It informs downstream planning/actionability completeness. `NO_PLANNING_READY_EXTERNAL_SOURCE` must never alter the computed Net Requirement quantity.
 
 ---
 
@@ -1572,7 +1582,7 @@ Future demand generation normally uses active Products.
 
 If an inactive Product still has future Forecast, the Run should surface a warning/exception rather than silently ignoring a material forecast record.
 
-MRP-10A must align with MRP-07 behavior.
+This behavior is aligned with the canonical MRP-07 current-period contract.
 
 ---
 
@@ -1607,9 +1617,7 @@ Do not arbitrarily choose one.
 
 Use Part/Component Safety Stock from MRP-04.
 
-Product Safety Stock may be used only if Product-level finished-goods planning is explicitly included in the Run.
-
-MRP-10A should keep Product finished-goods planning scope aligned with current MRP scenario and not unintentionally create sales inventory planning if not required.
+Product Safety Stock is not applied as a production adjustment in MRP-10 v1. Part and Component Safety Stock remains the material planning floor.
 
 ---
 
@@ -1617,9 +1625,7 @@ MRP-10A should keep Product finished-goods planning scope aligned with current M
 
 Inventory supports Products, but core material requirement flow begins from Product Forecast into Product BOM.
 
-MRP-10A must clarify whether Product finished-goods inventory is netted against production Forecast in v1.
-
-Default recommendation for the current manufacturing planning scenario:
+The current manufacturing planning scenario is locked:
 
 ```text
 Forecast is Production Plan demand,
@@ -1628,9 +1634,7 @@ not Sales Demand.
 
 Therefore Product finished-goods stock should NOT automatically reduce planned production Forecast unless the Master Scenario explicitly states Forecast is market/sales demand.
 
-Codex must verify project documents and report any contradiction before implementation.
-
-This is a critical semantic check.
+Product Finished Goods inventory is not netted against production Forecast in MRP-10 v1.
 
 ---
 
@@ -1830,20 +1834,19 @@ Avoid:
 
 ## 105. Calculation Architecture
 
-MRP-10A should propose a deterministic in-process calculation pipeline appropriate for Modular Monolith architecture.
+### LOCKED OWNER DECISION
 
-Likely pattern:
+MRP-10 v1 uses bounded synchronous execution. Do not hold a long `REPEATABLE READ` transaction during calculation.
 
-1. load validated input set
-2. normalize daily Product demand
-3. resolve effective BOMs
-4. aggregate material gross demand
-5. apply time-phased netting
-6. recursively propagate Net Make requirements
-7. calculate coverage/summary
-8. persist Run outputs/trace
+Required pipeline:
 
-Exact implementation must be justified against actual Repository.
+1. create the immutable-identity `RUNNING` Run
+2. open a short `REPEATABLE READ` transaction and bulk-read the source snapshot
+3. persist immutable Run input snapshots and commit the snapshot transaction
+4. calculate deterministically from those persisted snapshots outside the source-snapshot transaction
+5. atomically persist all official results, exceptions, summaries and final status
+
+A `FAILED` Run must not expose partial official results. The calculation must use only the persisted Run inputs and must not re-read mutable source truth during calculation.
 
 Do not introduce microservices/Kafka/Redis solely for MRP calculation.
 
@@ -1862,7 +1865,7 @@ Do not repeatedly fetch:
 
 inside deeply nested loops.
 
-MRP-10A must explicitly inspect likely N+1/per-day query risks.
+MRP-10B must use bounded bulk internal read contracts and must not introduce N+1 or per-day database queries.
 
 ---
 
@@ -2055,7 +2058,7 @@ One Run must not overwrite another's:
 - results
 - exceptions
 
-Exact job execution/concurrency policy is proposed in MRP-10A.
+MRP-10A approved bounded synchronous execution with independent immutable input and result snapshots per Run.
 
 No distributed job infrastructure is required unless actual Repository needs it.
 
@@ -2063,21 +2066,15 @@ No distributed job infrastructure is required unless actual Repository needs it.
 
 ## 117. Background Execution
 
-If Run duration requires asynchronous processing, MRP-10A may use already-approved application/job patterns.
+Asynchronous processing and Hangfire are not introduced in MRP-10 v1. Future measured need may add background execution without changing persisted Run or calculation semantics.
 
-Do not introduce Hangfire solely because it was mentioned as a future architecture option unless calculation duration/user experience actually requires it.
-
-Synchronous execution may be acceptable initially if bounded.
+Execution v1 is bounded synchronous. Do not add Hangfire solely for MRP-10. The persisted Run boundary may support future background execution without changing calculation semantics.
 
 ---
 
 ## 118. Run Cancellation
 
-Run cancellation is not a locked requirement for v1.
-
-MRP-10A may propose it only if necessary for long-running execution.
-
-Do not add unnecessary orchestration complexity.
+Run cancellation is not implemented in v1. Do not add unnecessary orchestration complexity.
 
 ---
 
@@ -2141,7 +2138,7 @@ MRP-10 is acceptable when:
 
 1. Core calculation grain is daily.
 2. Run has As-Of Date + Horizon End.
-3. Default horizon can be approx. 12 Jalali months without hard DB cap.
+3. Default horizon is the Jalali Period containing As-Of plus the next 11 Periods; Horizon End is the Gregorian end of the twelfth Period, explicit override requires `HorizonEnd >= AsOf`, and there is no hard DB cap.
 4. Every official Run is immutable and independent.
 5. Engine Version is preserved.
 6. Forecast Revision inputs are traceable.
@@ -2153,8 +2150,8 @@ MRP-10 is acceptable when:
 12. Current month uses Remaining Forecast only.
 13. Current-period Remaining Forecast uses `Demand Date > As-Of` through the same Jalali Period End; As-Of allocation is zero.
 14. Zero eligible future days with positive remainder produces an explicit unallocatable-current-period state and no cross-period spill.
-15. Daily distribution total exactly reconciles to monthly quantity.
-16. No premature intermediate rounding changes total.
+15. Daily distribution uses deterministic 12-decimal allocation, assigns the exact residual to the last eligible day, and exactly reconciles to Period quantity.
+16. Persisted calculation quantities use `numeric(28,12)` and internal decimal calculation has no premature business rounding.
 17. BOM is selected by demand date.
 18. Base Output Qty is applied correctly.
 19. Scrap resolution respects Override / Default / explicit zero.
@@ -2162,28 +2159,34 @@ MRP-10 is acceptable when:
 21. Shared Material demand aggregates across all parents.
 22. Item stock is shared and not double-counted by Product.
 23. Multi-level netting occurs before lower-level explosion.
-24. Safety Stock is Planning Floor, not Gross Demand.
-25. Firm Projected On Hand uses actual stock + Firm Incoming - Gross Demand.
+24. Part/Component Safety Stock uses the locked two-balance Planning Floor algorithm and is not Gross Demand.
+25. Firm Projected On Hand uses actual stock + Firm Incoming - Gross Demand; PlanningBalance and hypothetical NetRequirement remain separate.
 26. Projected On Hand may become negative.
 27. Recommendations are not counted as Firm Incoming.
 28. First Expected Stockout Date is derived.
 29. Stock Coverage uses sequential demand.
 30. Firm Supply Coverage uses dated Firm Incoming.
-31. Coverage uses explicit Beyond Horizon / No Demand / Incomplete states.
+31. Coverage uses exactly DATE / BEYOND_HORIZON / NO_FUTURE_DEMAND / INCOMPLETE_DATA; DATE is the last fully covered demand date.
 32. Firm Qty with missing ETA is excluded from timed projection and surfaced.
 33. Overdue unreceived Firm Supply is excluded until ETA correction.
 34. BUY stops BOM explosion.
 35. MAKE nets then explodes BOM.
 36. OUTSOURCE behavior follows approved BOM/no-BOM rule.
-37. HYBRID does not guess when both routes are ready.
-38. Internal Process Lead Time baseline = 0 Calendar Days.
+37. HYBRID decision grain is Item + Run, must remain valid for all affected Demand Dates, and never silently splits by date.
+38. Internal Process Lead Time baseline = 0 Calendar Days, child demand equals parent Net Requirement date, and the assumption is stored on the Run.
 39. Missing critical data creates exceptions, not silent zero.
 40. Affected results expose Planning Completeness.
 41. Historical Run result does not drift with later source changes.
 42. Engine is deterministic.
 43. Calculation does not mutate Forecast/BOM/Inventory/PO source data.
 44. No MOQ/Supplier/Order recommendation logic leaks into MRP-10.
-45. Tests validate numeric scenarios, not only execution success.
+45. Tests validate fixed Golden Dataset v1 expected outputs independently from the production calculator, not only execution success.
+46. Root forecasted PRODUCT explodes planned production directly; Product Finished Goods inventory and Product Safety Stock do not adjust it in v1.
+47. Missing/Overdue Firm Supply is excluded and surfaced but normally does not make demand unknown.
+48. `NO_PLANNING_READY_EXTERNAL_SOURCE` does not alter Net Requirement quantity.
+49. Run Number is server-generated immutable `MRP-RUN-{sequence:D6}`.
+50. Execution follows the short-snapshot-transaction, out-of-transaction calculation, atomic-finalization pipeline and exposes no partial official result on failure.
+51. MRP-01 Reference Data/Unit ownership, ReferenceType count 8, Item.BusinessNumber identity and FA/EN fallback rules remain intact with no shadow masters.
 
 ---
 
@@ -2193,7 +2196,7 @@ The following are locked for MRP-10:
 
 1. Calculation grain = Daily.
 2. Run-specific As-Of Date + Horizon End.
-3. Default Horizon ≈ 12 Jalali months.
+3. Default Horizon = Jalali Period containing As-Of + next 11 Periods; default Horizon End = Gregorian end of the twelfth Period; explicit override requires `HorizonEnd >= AsOf`.
 4. No hard database horizon limit.
 5. Every official execution creates immutable MRP Run.
 6. Run records Engine Version.
@@ -2210,11 +2213,11 @@ The following are locked for MRP-10:
 17. Future monthly Forecast distributes evenly over calendar days.
 18. Current month distributes Remaining Forecast only from As-Of + 1 through the same Jalali Period End.
 19. As-Of allocation is zero; positive remainder with zero eligible days is surfaced explicitly and never spills periods.
-20. Daily allocation must reconcile exactly to monthly total.
+20. Daily allocation uses deterministic 12-decimal quantities, assigns exact residual to the last eligible day and reconciles exactly to Period total.
 21. BOM Revision selected by each Demand Date.
 22. Shared material Gross Demand aggregates across parent paths.
 23. Multi-Level Netting happens before lower-level BOM explosion.
-24. Safety Stock is Planning Floor.
+24. Part/Component Safety Stock is Planning Floor using separate FirmProjected and PlanningBalance calculations.
 25. Firm Projected On Hand = Actual + Firm Incoming - Gross Demand.
 26. Firm projection may be negative.
 27. Hypothetical recommendations are not Firm Supply.
@@ -2222,20 +2225,27 @@ The following are locked for MRP-10:
 29. Inactive Warehouse stock may count if physically present but creates warning.
 30. Stock Coverage and Firm Supply Coverage are separate.
 31. Coverage uses sequential demand.
-32. No fake numeric coverage for no demand/beyond horizon/incomplete data.
+32. Coverage states are exactly DATE / BEYOND_HORIZON / NO_FUTURE_DEMAND / INCOMPLETE_DATA; DATE means last fully covered demand date.
 33. Missing ETA Firm Supply is excluded from dated projection.
 34. Overdue unreceived Firm Supply is excluded until revised/received.
 35. BUY = external net requirement, no lower explosion.
 36. MAKE = net then BOM explosion.
 37. OUTSOURCE with valid BOM = net then explosion.
 38. OUTSOURCE without BOM = external requirement.
-39. HYBRID with both routes ready requires explicit Run route decision.
-40. HYBRID with only one ready route may use that route automatically.
-41. Internal Process Lead Time baseline = 0 Calendar Days.
+39. HYBRID decision grain is Item + Run; both-ready requires an explicit Run route decision.
+40. HYBRID with only one ready route may use it automatically only when that route remains valid for every affected Demand Date; no silent date split.
+41. Internal Process Lead Time baseline = 0 Calendar Days; child demand date equals parent Net Requirement date and the assumption is stored on the Run.
 42. Missing critical input creates Exception.
 43. No silent zero/guessing.
-44. Forecast means Production Plan in v1; Product finished-goods stock does not automatically reduce planned production.
+44. Forecast means Production Plan in v1; Product finished-goods stock and Product Safety Stock do not adjust root Product production demand.
 45. Package 10 does not create procurement recommendation or PO.
+46. Persisted calculation quantities use `numeric(28,12)` and internal calculation uses decimal without premature business rounding.
+47. Run Number is server-generated immutable `MRP-RUN-{sequence:D6}`.
+48. Stock Coverage uses Starting Actual On Hand only; Firm Coverage adds only eligible dated Firm Supply; neither uses PlanningBalance.
+49. Missing/Overdue Firm Supply is excluded from timed projection and surfaced without normally making demand unknown.
+50. `NO_PLANNING_READY_EXTERNAL_SOURCE` does not change Net Requirement quantity.
+51. Execution v1 is bounded synchronous with a short `REPEATABLE READ` snapshot transaction, calculation from immutable snapshots, and atomic official finalization.
+52. Golden Dataset v1 FINAL fixed expected outputs are mandatory and must not be generated by the production calculator.
 
 ---
 
@@ -2265,7 +2275,9 @@ Approved:
 
 ```text
 Run-specific As-Of Date + Horizon End
-Default ≈ 12 Jalali months forward
+Default = Jalali Period containing As-Of + next 11 Periods
+Default Horizon End = Gregorian end date of the twelfth Period
+Explicit override allowed when HorizonEnd >= AsOf
 No hard database limit
 ```
 
@@ -2571,7 +2583,8 @@ If MRP-10A contains unresolved material contradictions, STOP.
 
 RUN
 Implement approved MRP Run model:
-- ID/Run Number
+- UUID technical ID
+- server-generated immutable Run Number `MRP-RUN-{sequence:D6}`
 - As-Of Date
 - Horizon End
 - Engine Version
@@ -2584,6 +2597,19 @@ Implement approved MRP Run model:
 - exceptions
 
 Do not overwrite previous official Runs.
+
+Default horizon is the Jalali Period containing As-Of plus the next 11 Periods; default Horizon End is the canonical Gregorian end date of the twelfth Period. Permit explicit override only when `HorizonEnd >= AsOf`; do not impose a hard database horizon limit.
+
+EXECUTION
+Use bounded synchronous execution in v1:
+- create RUNNING Run
+- use a short `REPEATABLE READ` transaction for bulk source capture and immutable Run-input persistence
+- commit that snapshot transaction before calculation
+- calculate only from persisted Run input snapshots without re-reading mutable sources
+- atomically persist all official results and final status
+- FAILED Run exposes no partial official results
+
+Do not hold a long `REPEATABLE READ` transaction while calculating.
 
 INPUT TRACE
 Preserve approved:
@@ -2600,13 +2626,16 @@ Implement approved daily distribution:
 - future month forecast across calendar days
 - current month Remaining Forecast only where `Demand Date > As-Of Date` and `Demand Date <= Jalali Planning Period End`
 - As-Of allocation = 0; allocation begins at As-Of + 1 calendar day
-- no cross-period spill; positive remainder with zero eligible days returns an explicit stable unallocatable-current-period state finalized by MRP-10A
-- exact monthly reconciliation
-- high precision
+- no cross-period spill; positive remainder with zero eligible days returns `CURRENT_PERIOD_REMAINDER_UNALLOCATABLE`
+- deterministic 12-decimal allocation
+- exact residual assigned to the LAST eligible day
+- exact Period-quantity reconciliation
 - no double counting of past actual demand
 
 Treat Forecast as Production Plan under approved baseline.
 Do not net Product Finished Goods inventory against planned production.
+Do not apply Product Safety Stock as a production adjustment in MRP-10 v1.
+Explode root forecasted Product demand directly through its effective Product BOM.
 
 BOM
 Resolve effective BOM by each demand date.
@@ -2637,7 +2666,22 @@ Implement approved shared-material, time-phased multi-level netting:
 - for MAKE/Outsource-BOM route, explode only Net Requirement
 - do NOT explode gross requirement already covered by parent stock/firm supply
 
+For Part/Component use exactly:
+
+```text
+FirmProjected = previous FirmProjected + eligible Firm Incoming - Gross Demand
+PlanningBeforeNeed = previous PlanningBalance + eligible Firm Incoming - Gross Demand
+NetRequirement = MAX(SafetyStock - PlanningBeforeNeed, 0)
+PlanningBalance = PlanningBeforeNeed + NetRequirement
+```
+
+`NetRequirement` is hypothetical planning need, never Firm Supply. Stockout and Coverage use factual supply views, not `PlanningBalance`.
+
 Use internal process lead time = 0 days.
+Child demand date equals Parent Net Requirement date. Persist this assumption in the Run.
+
+PRECISION
+Persist MRP calculation quantities as `numeric(28,12)`. Use internal .NET decimal calculation without premature business rounding.
 
 PROJECTED ON HAND
 Use actual/firm facts only.
@@ -2658,6 +2702,7 @@ Exclude from timed projection:
 - Overdue unreceived supply
 
 Surface both as exceptions/summary quantities.
+Missing/Overdue Firm Supply normally does not make demand itself unknown.
 
 WAREHOUSE POOL
 Use total actual company inventory across Warehouses.
@@ -2672,12 +2717,13 @@ Implement approved sequential:
 - Firm Supply Coverage
 
 Use explicit states:
-- date/days where determinable
+- DATE, meaning the last fully covered demand date
 - BEYOND_HORIZON
 - NO_FUTURE_DEMAND
 - INCOMPLETE_DATA
 
 Do not use fake 9999/infinity values.
+Stock Coverage uses Starting Actual On Hand only. Firm Supply Coverage adds eligible dated Firm Supply. Safety Stock breach is separate. Do not generate Finished-Goods coverage for a root forecasted Product.
 
 ROUTES
 Implement approved logic:
@@ -2700,6 +2746,10 @@ HYBRID:
 - if both ready, require approved Run route decision
 - if both ready and no decision, exception/incomplete
 - do not automatically prefer price/speed/make/buy
+- decision grain is Item + Run
+- selected route must remain valid for every affected Demand Date in the Run
+- if no single route covers all affected dates, return explicit exception/incomplete
+- never silently split Make/Buy by date
 
 EXCEPTIONS
 Do not silently replace missing critical data with zero.
@@ -2709,6 +2759,8 @@ Implement approved derived completeness:
 - COMPLETE_WITH_WARNINGS
 - INCOMPLETE
 or exact approved labels from 10A.
+
+`NO_PLANNING_READY_EXTERNAL_SOURCE` affects downstream actionability/completeness but must not alter computed Net Requirement quantity.
 
 RESULTS
 Implement approved persistent/read model for:
@@ -2744,6 +2796,9 @@ MRP execution must not modify:
 - Sourcing
 - Purchase Supply
 
+REFERENCE DATA / ITEM IDENTITY
+Reuse MRP-01 typed Reference Data and Unit ownership. Do not create shadow Unit, Category, Business Unit, Currency or other reference masters. Historical inactive references remain resolvable; newly assigned references follow their owning module's active-reference rules. Official Item Code is `Item.BusinessNumber`; do not reintroduce manual or parallel Item Code fields. Preserve `fa-IR => NameFa` and `en => non-empty NameEn, otherwise NameFa` without translating stored business values.
+
 BACKEND
 Implement only approved:
 - calculation domain/services
@@ -2769,6 +2824,8 @@ Implement only approved minimal Run UI:
 - high-level result inspection
 - trace access where approved
 
+Use the existing Hadron ERP shared UI/UX and i18n foundation with FA/EN, RTL/LTR, server paging/filtering, URL context preservation and locale-aware reference display.
+
 Full Material Planning UI belongs to MRP-11.
 
 PERMISSIONS/AUDIT
@@ -2781,6 +2838,10 @@ Implement meaningful deterministic tests for all approved MRP-10A scenarios, inc
 - expected values encoded independently from engine outputs; never invoke the production calculator to generate expectations and never edit Golden values to make tests pass
 - Forecast distribution
 - exact residual
+- persisted `numeric(28,12)` quantities and no premature business rounding
+- default 12-Jalali-Period horizon and explicit override validation
+- immutable generated `MRP-RUN-{sequence:D6}` numbering
+- short snapshot transaction / calculation outside transaction / atomic finalization
 - effective BOM by date
 - Base Output Qty
 - Scrap formula/default/override/zero
@@ -2788,6 +2849,8 @@ Implement meaningful deterministic tests for all approved MRP-10A scenarios, inc
 - parent stock reducing child demand
 - shared Item aggregation
 - Safety Stock
+- separate FirmProjected and PlanningBalance formulas
+- Product Finished Goods and Product Safety Stock excluded from root production adjustment
 - negative projected balance
 - stockout
 - Firm schedule date handling
@@ -2796,11 +2859,17 @@ Implement meaningful deterministic tests for all approved MRP-10A scenarios, inc
 - missing ETA
 - overdue ETA
 - coverage states
+- DATE as last fully covered demand date and factual Stock/Firm views
 - BUY/MAKE/OUTSOURCE/HYBRID
+- HYBRID Item+Run validity across every affected Demand Date and no date split
+- `NO_PLANNING_READY_EXTERNAL_SOURCE` leaves Net Requirement unchanged
 - missing BOM
 - missing forecast
-- historical Run immutability/reproducibility
+- historical Run immutability/reproducibility and FAILED Run with no partial official results
 - pooled warehouse stock warning
+- ReferenceType count = 8 and no shadow reference masters
+- Official Item Code = Item.BusinessNumber
+- FA/EN locale-aware reference display without modifying stored values
 - no source-data mutation
 
 VERIFICATION
@@ -2917,11 +2986,16 @@ Audit:
 
 2. Run Integrity
    - immutable official Runs
-   - Run Number/identity
+   - UUID technical identity
+   - server-generated immutable `MRP-RUN-{sequence:D6}` Run Number
    - As-Of/Horizon
+   - default Horizon is As-Of Jalali Period plus next 11 Periods, ending at the Gregorian end of the twelfth Period
+   - explicit override requires HorizonEnd >= AsOf and no hard DB limit exists
    - Engine Version
    - status
    - failure/incomplete handling
+   - bounded synchronous pipeline uses a short REPEATABLE READ source-snapshot transaction, calculates outside it from persisted immutable inputs, and atomically finalizes official results
+   - FAILED Run exposes no partial official results
 
 3. Historical Reproducibility
    - Forecast Revision trace
@@ -2933,7 +3007,9 @@ Audit:
 
 4. Forecast Semantics
    - Forecast treated as production plan
-   - no finished-goods inventory net against production plan unless specifically approved
+   - no Product finished-goods inventory net against production plan
+   - no Product Safety Stock production adjustment in MRP-10 v1
+   - root forecasted Product demand explodes directly through effective Product BOM
    - current month uses Remaining Forecast
    - no past-actual double counting
 
@@ -2945,6 +3021,8 @@ Audit:
    - no allocation beyond current Jalali Period End
    - zero eligible days handled as explicit unallocatable state
    - exact residual reconciliation
+   - deterministic 12-decimal allocation with residual on the last eligible day
+   - persisted quantities use numeric(28,12) and internal decimal calculation has no premature business rounding
    - no damaging early rounding
    - future tests cover normal mid-period, exact division, decimal residual, final day, Actual >= Forecast and Jalali leap/month boundary
 
@@ -2965,12 +3043,16 @@ Audit:
    - shared stock not double-counted
    - parent Item supply netted before child explosion
    - only Net Make requirement explodes
+   - Part/Component FirmProjected and PlanningBalance are separate
+   - NetRequirement = MAX(SafetyStock - PlanningBeforeNeed, 0)
+   - hypothetical NetRequirement never becomes Firm Supply
 
 9. Safety Stock
    - Planning Floor
    - not Gross Demand
    - not Firm Supply
    - no repeated daily double-counting
+   - Product Safety Stock is not applied to root forecasted production in v1
 
 10. Projected On Hand
     - Actual + dated Firm Incoming - Gross Demand
@@ -2991,7 +3073,8 @@ Audit:
     - no invented date
     - missing ETA excluded from timed balance
     - overdue unreceived supply not assumed available
-    - surfaced clearly
+   - surfaced clearly
+   - normally does not make demand itself unknown
 
 14. Warehouse Pool
     - total actual company stock baseline
@@ -3003,9 +3086,12 @@ Audit:
     - Stock Coverage
     - Firm Supply Coverage
     - no average-demand shortcut
-    - Beyond Horizon
-    - No Future Demand
-    - Incomplete Data
+    - exact DATE / BEYOND_HORIZON / NO_FUTURE_DEMAND / INCOMPLETE_DATA states
+    - DATE means last fully covered demand date
+    - Stock Coverage uses Starting Actual On Hand only
+    - Firm Coverage adds only eligible dated Firm Supply
+    - factual coverage does not use PlanningBalance
+    - root forecasted Product has no misleading Finished-Goods coverage
 
 16. Route Logic
     - BUY
@@ -3013,12 +3099,16 @@ Audit:
     - OUTSOURCE with/without BOM
     - HYBRID no guessing
     - one-route automatic resolution trace
+    - HYBRID decision grain = Item + Run and route remains valid for every affected Demand Date
+    - no silent date-specific Make/Buy split; no single valid route creates exception/incomplete
     - internal process lead = 0 day assumption visible
+    - child demand date equals parent Net Requirement date
 
 17. Exceptions
     - no silent zero
     - incomplete affected results
     - unaffected items may still calculate where safe
+    - NO_PLANNING_READY_EXTERNAL_SOURCE does not alter Net Requirement quantity
 
 18. Explainability
     - demand/BOM/source trace sufficient
@@ -3027,7 +3117,7 @@ Audit:
 
 19. Database Integrity
     - result/run relations
-    - numeric precision
+    - numeric(28,12) persisted calculation precision
     - indexes
     - migration safety
     - no destructive cascades
@@ -3045,13 +3135,23 @@ Audit:
 22. Source Data Safety
     - MRP Run does not mutate Forecast/BOM/Inventory/Sourcing/PO
 
-23. UI Boundary
+23. Reference Data / Item Identity
+    - MRP-01 remains the typed Reference Data and Unit source of truth
+    - no shadow reference master exists
+    - historical inactive references remain resolvable
+    - ReferenceType canonical seed count remains 8
+    - Official Item Code is Item.BusinessNumber with no manual/parallel Item Code
+    - fa-IR uses NameFa and en uses non-empty NameEn with NameFa fallback
+    - stored business/reference values are never auto-translated
+
+24. UI Boundary
     - minimal Run UI only
     - Material Planning UI not prematurely duplicated
+    - FA/EN and RTL/LTR use the existing Hadron ERP UX/i18n foundation
 
-24. Permissions / Auditability
+25. Permissions / Auditability
 
-25. Tests
+26. Tests
     Verify meaningful numerical assertions, especially:
     - Golden inputs and expected outputs exactly match canonical v1.0
     - GD-01, GD-02, GD-03, MRP portions of GD-08 and GD-09 are asserted
@@ -3061,9 +3161,17 @@ Audit:
     - Scrap
     - missing/overdue ETA
     - current-month distribution
+    - exact last-day residual at 12-decimal precision
+    - default/override horizon semantics
+    - separate FirmProjected/PlanningBalance equations
+    - root Product inventory/Safety Stock exclusion
+    - HYBRID Item+Run all-date validity
+    - external-source incompleteness without Net Requirement mutation
+    - synchronous snapshot/finalization transaction boundaries and failed-run atomicity
     - historical Run reproducibility
+    - ReferenceType count 8, no shadow masters, Item.BusinessNumber identity and FA/EN reference fallback
 
-26. Specification Drift
+27. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -3153,7 +3261,9 @@ CLOSED:
 
 ```text
 Run-specific As-Of + Horizon End
-Default ≈ 12 Jalali months
+Default = Jalali Period containing As-Of + next 11 Periods
+Default Horizon End = Gregorian end of the twelfth Period
+Explicit override requires HorizonEnd >= AsOf
 No hard database limit
 ```
 
@@ -3185,7 +3295,7 @@ Therefore Finished Goods inventory must not automatically reduce planned Product
 
 Part/Component inventory is netted normally.
 
-This must be verified against actual master documentation by MRP-10A before implementation; if existing documents contradict it, Codex must STOP instead of silently choosing one meaning.
+MRP-10A verified this meaning against the canonical project documents. It is locked for MRP-10B.
 
 ## Cross-Package Consistency
 
@@ -3250,4 +3360,4 @@ Independent read-only audit checks calculation correctness, reproducibility, net
 
 `MRP-10 MRP Calculation Engine` is approved for the project Prompt Baseline.
 
-It should not yet be sent to Codex until all MRP Packages are designed and the complete prompt set receives the final cross-package audit.
+MRP-10A has been finalized and synchronized. MRP-10B is ready only when explicitly authorized by the Owner.
