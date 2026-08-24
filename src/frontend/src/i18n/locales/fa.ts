@@ -23,6 +23,7 @@ const fa = {
       suppliersAndSourcing: 'تأمین‌کنندگان و منابع تأمین',
       engineering: 'مهندسی',
       planning: 'برنامه‌ریزی',
+      inventory: 'انبار و موجودی',
     },
     items: {
       products: 'محصولات',
@@ -33,6 +34,7 @@ const fa = {
       sourcing: 'منابع تأمین',
       bom: 'BOM',
       forecastActual: 'پیش‌بینی و تولید واقعی',
+      inventory: 'موجودی',
     },
   },
   breadcrumbs: {
@@ -115,6 +117,15 @@ const fa = {
     reason: 'دلیل', createdAt: 'زمان ثبت', dailyActual: 'تولید واقعی روزانه', productionDate: 'تاریخ تولید', actualQty: 'مقدار واقعی',
     enterActual: 'ثبت تولید واقعی', actualList: 'سوابق تولید واقعی', correct: 'اصلاح', unallocatable: 'باقیمانده دوره جاری قابل تخصیص نیست',
     readiness: { READY: 'آماده', NOT_APPLICABLE: 'برای برنامه‌ریزی کاربرد ندارد', BLOCKED: 'مسدود', MISSING_BOM: 'BOM موجود نیست', PARTIAL_PERIOD_BOM_COVERAGE: 'پوشش BOM ناقص است' },
+  },
+  inventory: {
+    title: 'موجودی', subtitle: 'حقیقت فیزیکی هر انبار و دفترکل تغییرناپذیر', balances: 'موجودی واقعی', warehouses: 'انبارها',
+    ledger: 'دفترکل تراکنش‌ها', itemPosition: 'وضعیت موجودی قلم', companyTotal: 'جمع کل شرکت', warehouse: 'انبار', transaction: 'تراکنش',
+    newWarehouse: 'انبار جدید', editWarehouse: 'ویرایش انبار', posting: 'ثبت تراکنش موجودی', effectiveDate: 'تاریخ مؤثر', quantity: 'مقدار',
+    type: 'نوع تراکنش', fromWarehouse: 'انبار مبدأ', toWarehouse: 'انبار مقصد', reason: 'دلیل', reverse: 'برگشت تراکنش',
+    inactiveStock: 'موجودی انبار غیرفعال همچنان در جمع کل شرکت لحاظ شده است.', OPENING: 'موجودی افتتاحیه', RECEIPT: 'رسید', ISSUE: 'خروج',
+    ADJ_IN: 'اصلاح افزایشی', ADJ_OUT: 'اصلاح کاهشی', TRANSFER: 'انتقال', REVERSAL: 'برگشت', post: 'ثبت', searchItem: 'جست‌وجوی کد رسمی یا نام قلم', searchWarehouse: 'جست‌وجوی کد رسمی یا نام انبار',
+    generatedCode: 'پس از ایجاد توسط سیستم تولید می‌شود', historyOnly: 'تراکنش ثبت‌شده تغییرناپذیر است؛ اصلاح از طریق برگشت یا تعدیل جبرانی انجام می‌شود.',
   },
 } as const
 

@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Modules.Products.Application;
+using Hadron.Erp.Api.Modules.Catalog.Application;
 
 namespace Hadron.Erp.Api.Modules.Products.Api;
 
@@ -32,6 +33,8 @@ public static class ProductEndpoints
     private static IResult Problem(Exception ex) => ex switch
     {
         ProductValidationException validation => Results.ValidationProblem(validation.Errors),
+        ItemBaseUnitChangeBlockedException blocked => Results.Problem(statusCode: 409, title: "Product conflict", detail: blocked.Message,
+            extensions: new Dictionary<string, object?> { ["code"] = "ITEM_BASE_UNIT_LOCKED_BY_INVENTORY" }),
         ProductConflictException conflict => Results.Problem(statusCode: 409, title: "Product conflict", detail: conflict.Message,
             extensions: new Dictionary<string, object?> { ["code"] = conflict.Code, ["details"] = conflict.Details }),
         KeyNotFoundException => Results.NotFound(),

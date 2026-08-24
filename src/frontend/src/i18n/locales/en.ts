@@ -23,6 +23,7 @@ const en = {
       suppliersAndSourcing: 'Suppliers & Sourcing',
       engineering: 'Engineering',
       planning: 'Planning',
+      inventory: 'Inventory',
     },
     items: {
       products: 'Products',
@@ -33,6 +34,7 @@ const en = {
       sourcing: 'Sourcing',
       bom: 'BOM',
       forecastActual: 'Forecast & Actual',
+      inventory: 'Inventory',
     },
   },
   breadcrumbs: {
@@ -115,6 +117,15 @@ const en = {
     reason: 'Reason', createdAt: 'Created at', dailyActual: 'Daily Production Actual', productionDate: 'Production date', actualQty: 'Actual quantity',
     enterActual: 'Record actual', actualList: 'Production actual records', correct: 'Correct', unallocatable: 'Current-period remainder cannot be allocated',
     readiness: { READY: 'Ready', NOT_APPLICABLE: 'Not a planning gate', BLOCKED: 'Blocked', MISSING_BOM: 'Missing BOM', PARTIAL_PERIOD_BOM_COVERAGE: 'Partial BOM coverage' },
+  },
+  inventory: {
+    title: 'Inventory', subtitle: 'Warehouse-specific physical stock and immutable ledger', balances: 'Actual on-hand', warehouses: 'Warehouses',
+    ledger: 'Transaction ledger', itemPosition: 'Item inventory position', companyTotal: 'Company total', warehouse: 'Warehouse', transaction: 'Transaction',
+    newWarehouse: 'New warehouse', editWarehouse: 'Edit warehouse', posting: 'Post inventory transaction', effectiveDate: 'Effective date', quantity: 'Quantity',
+    type: 'Transaction type', fromWarehouse: 'Source warehouse', toWarehouse: 'Destination warehouse', reason: 'Reason', reverse: 'Reverse transaction',
+    inactiveStock: 'Stock exists in an inactive warehouse and remains included in the company total.', OPENING: 'Opening', RECEIPT: 'Receipt', ISSUE: 'Issue',
+    ADJ_IN: 'Adjustment in', ADJ_OUT: 'Adjustment out', TRANSFER: 'Transfer', REVERSAL: 'Reversal', post: 'Post', searchItem: 'Search official code or item name', searchWarehouse: 'Search warehouse code or name',
+    generatedCode: 'Generated after creation', historyOnly: 'Posted transactions are immutable. Corrections use reversal or a compensating adjustment.',
   },
 } as const
 

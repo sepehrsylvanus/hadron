@@ -50,6 +50,9 @@ public static class MaterialItemEndpoints
     private static IResult Problem(Exception ex) => ex switch
     {
         MaterialItemValidationException validation => Results.ValidationProblem(validation.Errors),
+        ItemBaseUnitChangeBlockedException blocked => Results.Problem(statusCode: 409, title: "Material Item conflict",
+            detail: blocked.Message, extensions: new Dictionary<string, object?>
+            { ["code"] = "ITEM_BASE_UNIT_LOCKED_BY_INVENTORY" }),
         MaterialItemConflictException conflict => Results.Problem(statusCode: 409, title: "Material Item conflict",
             detail: conflict.Message, extensions: new Dictionary<string, object?>
             { ["code"] = conflict.Code, ["details"] = conflict.Details }),

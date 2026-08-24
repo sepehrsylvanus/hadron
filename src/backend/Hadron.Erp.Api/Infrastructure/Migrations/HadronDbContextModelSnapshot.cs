@@ -34,6 +34,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
 
+            modelBuilder.HasSequence("warehouse_number_seq", "inventory");
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -303,6 +305,183 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryLedgerEffect", b =>
+                {
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("QuantityEffect")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("ledger_effects", "inventory");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("OriginalTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid?>("SourceDocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceDocumentType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationWarehouseId");
+
+                    b.HasIndex("OriginalTransactionId")
+                        .IsUnique()
+                        .HasFilter("\"OriginalTransactionId\" IS NOT NULL");
+
+                    b.HasIndex("SourceDocumentId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("EffectiveDate", "TransactionType");
+
+                    b.HasIndex("ItemId", "WarehouseId")
+                        .IsUnique()
+                        .HasFilter("\"TransactionType\" = 'OPENING'");
+
+                    b.HasIndex("ItemId", "DestinationWarehouseId", "EffectiveDate");
+
+                    b.HasIndex("ItemId", "WarehouseId", "EffectiveDate");
+
+                    b.ToTable("transactions", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_original_shape", "(\"TransactionType\" = 'REVERSAL') = (\"OriginalTransactionId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_inventory_quantity", "\"Quantity\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_reason", "\"TransactionType\" NOT IN ('ADJ_IN','ADJ_OUT','REVERSAL') OR NULLIF(BTRIM(\"Reason\"), '') IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_inventory_source_pair", "(\"SourceDocumentType\" IS NULL) = (\"SourceDocumentId\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_inventory_source_type", "\"SourceDocumentType\" IS NULL OR \"SourceDocumentType\" IN ('PURCHASE_RECEIPT','PRODUCTION_ISSUE','LEGACY_IMPORT')");
+
+                            t.HasCheckConstraint("ck_inventory_transaction_type", "\"TransactionType\" IN ('OPENING','RECEIPT','ISSUE','ADJ_IN','ADJ_OUT','TRANSFER','REVERSAL')");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_shape", "(\"TransactionType\" = 'TRANSFER' AND \"DestinationWarehouseId\" IS NOT NULL AND \"DestinationWarehouseId\" <> \"WarehouseId\") OR (\"TransactionType\" <> 'TRANSFER' AND \"TransactionType\" <> 'REVERSAL' AND \"DestinationWarehouseId\" IS NULL) OR (\"TransactionType\" = 'REVERSAL')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "BusinessNumber");
+
+                    b.ToTable("warehouses", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("ck_warehouses_business_number_format", "\"BusinessNumber\" ~ '^WH-[0-9]{4,}$'");
+
+                            t.HasCheckConstraint("ck_warehouses_version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", b =>
                 {
                     b.Property<Guid>("Id")
@@ -328,6 +507,7 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
                         .HasDefaultValue("OPEN");
@@ -1363,6 +1543,47 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "DestinationWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DestinationWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", "OriginalTransaction")
+                        .WithMany()
+                        .HasForeignKey("OriginalTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DestinationWarehouse");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("OriginalTransaction");
+
+                    b.Navigation("Unit");
+
+                    b.Navigation("Warehouse");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>

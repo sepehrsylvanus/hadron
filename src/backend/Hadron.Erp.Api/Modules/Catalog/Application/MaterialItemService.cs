@@ -11,7 +11,8 @@ public sealed class MaterialItemService(
     IDbContextFactory<HadronDbContext> factory,
     IAuditEventSink auditSink,
     IHttpContextAccessor accessor,
-    ILogger<MaterialItemService> logger)
+    ILogger<MaterialItemService> logger,
+    IItemBaseUnitChangeGuard? baseUnitChangeGuard = null)
 {
     public async Task<MaterialItemListResponse> GetList(string itemType, string? search, bool includeInactive,
         Guid? categoryId, string? supplyMethod, int page, int pageSize, CancellationToken token)
@@ -89,6 +90,9 @@ public sealed class MaterialItemService(
             .SingleOrDefaultAsync(x => x.ItemId == id && x.Item.ItemType == itemType, token)
             ?? throw new KeyNotFoundException();
         EnsureVersion(profile.Item.Version, request.ExpectedVersion);
+        if (baseUnitChangeGuard is not null)
+            await baseUnitChangeGuard.EnsureCanChange(profile.Item.Id, profile.Item.BaseUnitId,
+                request.BaseUnitId, token);
         await ValidateReferences(db, itemType, profile, request.CategoryId, request.BaseUnitId, false, token);
         var old = Snapshot((await LoadResponse(db, itemType, id, token))!);
         profile.Item.Edit(request.NameFa.Trim(), Clean(request.NameEn),
@@ -266,6 +270,9 @@ public sealed class MaterialItemService(
         try { await db.SaveChangesAsync(token); }
         catch (DbUpdateConcurrencyException)
         { throw new MaterialItemConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        { ConstraintName: "ck_item_base_unit_inventory" })
+        { throw new ItemBaseUnitChangeBlockedException(); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
         { SqlState: PostgresErrorCodes.UniqueViolation })
         { throw new MaterialItemConflictException("DUPLICATE_CODE", "کد آیتم قبلاً ثبت شده است."); }

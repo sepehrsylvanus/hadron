@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Infrastructure;
+using Hadron.Erp.Api.Modules.Catalog.Application;
 using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
@@ -12,7 +13,8 @@ public sealed class ProductService(
     IDbContextFactory<HadronDbContext> factory,
     IAuditEventSink auditSink,
     IHttpContextAccessor accessor,
-    ILogger<ProductService> logger)
+    ILogger<ProductService> logger,
+    IItemBaseUnitChangeGuard? baseUnitChangeGuard = null)
 {
     public async Task<ProductListResponse> GetList(string? search, bool includeInactive, Guid? productCategoryId,
         Guid? businessUnitId, int page, int pageSize, CancellationToken token)
@@ -70,6 +72,9 @@ public sealed class ProductService(
         await using var db = await factory.CreateDbContextAsync(token);
         var product = await db.Products.Include(x => x.Item).SingleOrDefaultAsync(x => x.ItemId == id, token) ?? throw new KeyNotFoundException();
         EnsureVersion(product.Item.Version, request.ExpectedVersion);
+        if (baseUnitChangeGuard is not null)
+            await baseUnitChangeGuard.EnsureCanChange(product.Item.Id, product.Item.BaseUnitId,
+                request.BaseUnitId, token);
         await ValidateReferences(db, product, request.ProductCategoryId, request.BaseUnitId, request.BusinessUnitId, false, token);
         var old = Snapshot((await LoadResponse(db, id, token))!);
         product.Item.Edit(request.NameFa.Trim(), Clean(request.NameEn), request.BaseUnitId, Clean(request.Notes));
@@ -195,6 +200,9 @@ public sealed class ProductService(
     {
         try { await db.SaveChangesAsync(token); }
         catch (DbUpdateConcurrencyException) { throw new ProductConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        { ConstraintName: "ck_item_base_unit_inventory" })
+        { throw new ItemBaseUnitChangeBlockedException(); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { throw new ProductConflictException("DUPLICATE_CODE", "کد محصول قبلاً ثبت شده است."); }
     }
     private static void EnsureVersion(long actual, long expected) { if (actual != expected) throw new ProductConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
