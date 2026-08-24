@@ -23,3 +23,9 @@ test('MRP-06 current and historical inactive Unit references follow the same lan
   assert.equal(localizedName(inactiveUnit, 'fa-IR'), 'واحد فارسی')
   assert.equal(localizedName({ ...inactiveUnit, nameEn: null }, 'en'), 'واحد فارسی')
 })
+
+test('MRP-07 Forecast and Actual Product, Unit, Category, and Business Unit references use the canonical bilingual fallback', () => {
+  assert.equal(localizedName(bilingual, 'en'), 'English name')
+  assert.equal(localizedName({ nameFa: 'فقط فارسی', nameEn: null }, 'en'), 'فقط فارسی')
+  assert.equal(localizedName(bilingual, 'fa-IR'), 'نام فارسی')
+})

@@ -22,6 +22,7 @@ const en = {
       masterData: 'Master Data',
       suppliersAndSourcing: 'Suppliers & Sourcing',
       engineering: 'Engineering',
+      planning: 'Planning',
     },
     items: {
       products: 'Products',
@@ -31,6 +32,7 @@ const en = {
       suppliers: 'Suppliers',
       sourcing: 'Sourcing',
       bom: 'BOM',
+      forecastActual: 'Forecast & Actual',
     },
   },
   breadcrumbs: {
@@ -103,6 +105,16 @@ const en = {
     effectiveScrap: 'Effective scrap', effectiveRange: 'Effective range', copy: 'Copy Draft', validate: 'Validate', approve: 'Approve', obsolete: 'Obsolete',
     addLine: 'Add line', removeLine: 'Remove line', DRAFT: 'Draft', APPROVED: 'Approved', OBSOLETE: 'Obsolete',
     resolver: 'Effective BOM Resolution', businessDate: 'Business date', operational: 'Operational', historical: 'Historical', resolve: 'Resolve revision', noResolved: 'No effective revision was found.',
+  },
+  forecastActual: {
+    title: 'Forecast & Actual', subtitle: 'Monthly production plan, daily production actual, and planning truth', periods: 'Planning Periods',
+    period: 'Jalali period', jalaliYear: 'Jalali year', jalaliMonth: 'Jalali month', createPeriod: 'Create period', evaluationDate: 'Evaluation date',
+    OPEN: 'Open', CLOSED: 'Closed', closePeriod: 'Close period', reopenPeriod: 'Reopen period', forecastGrid: 'Product production plan',
+    product: 'Product', forecast: 'Production forecast', actualMtd: 'Actual to date', remaining: 'Remaining forecast', planningQty: 'Planning quantity',
+    bomReadiness: 'BOM readiness', missing: 'Missing', revise: 'Create revision', enterForecast: 'Enter forecast', history: 'Revision history',
+    reason: 'Reason', createdAt: 'Created at', dailyActual: 'Daily Production Actual', productionDate: 'Production date', actualQty: 'Actual quantity',
+    enterActual: 'Record actual', actualList: 'Production actual records', correct: 'Correct', unallocatable: 'Current-period remainder cannot be allocated',
+    readiness: { READY: 'Ready', NOT_APPLICABLE: 'Not a planning gate', BLOCKED: 'Blocked', MISSING_BOM: 'Missing BOM', PARTIAL_PERIOD_BOM_COVERAGE: 'Partial BOM coverage' },
   },
 } as const
 

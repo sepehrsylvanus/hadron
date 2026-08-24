@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, UsersRound, Wrench } from 'lucide-react'
+import { CalendarRange, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, UsersRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import officialHadronLogo from '../../../docs/brand/Hadron Logo new-01.png'
 import ProductMaster, { ProductObjectPage } from './ProductMaster'
@@ -10,6 +10,7 @@ import MaterialItemMaster, { MaterialItemObjectPage } from './MaterialItemMaster
 import SourcingMaster, { SourcingObjectPage } from './SourcingMaster'
 import BomMaster from './BomMaster'
 import ReferenceDataPage from './ReferenceDataPage'
+import ForecastActualPage from './ForecastActualPage'
 import { languageDirection, normalizeLanguage, type SupportedLanguage } from './i18n'
 
 type NavigationItem = { labelKey: string; path: string; Icon: LucideIcon; aliases?: string[] }
@@ -26,6 +27,7 @@ const navigationGroups: NavigationGroup[] = [
     { labelKey: 'navigation.items.sourcing', path: '/mrp/supply/sourcing', aliases: ['/mrp/sourcing'], Icon: SourcingRoute },
   ] },
   { labelKey: 'navigation.groups.engineering', items: [{ labelKey: 'navigation.items.bom', path: '/mrp/engineering/bom', Icon: Network }] },
+  { labelKey: 'navigation.groups.planning', items: [{ labelKey: 'navigation.items.forecastActual', path: '/mrp/planning/forecast-actual', Icon: CalendarRange }] },
 ]
 
 function findRoute(pathname: string) {
@@ -94,7 +96,8 @@ function App() {
     <Route path="/mrp/master-data/reference-data" element={<ReferenceDataPage />} />
     <Route path="/mrp/supply/suppliers" element={<SupplierMaster />} /><Route path="/mrp/suppliers/new" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id/edit" element={<SupplierObjectPage />} />
     <Route path="/mrp/supply/sourcing" element={<SourcingMaster />} /><Route path="/mrp/sourcing/new" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id/edit" element={<SourcingObjectPage />} />
-    <Route path="/mrp/engineering/bom" element={<BomMaster />} /><Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="/mrp/engineering/bom" element={<BomMaster />} /><Route path="/mrp/planning/forecast-actual" element={<ForecastActualPage />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></AppShell></BrowserRouter>
 }
 

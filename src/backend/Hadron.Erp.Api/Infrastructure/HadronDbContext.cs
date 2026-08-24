@@ -5,6 +5,7 @@ using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Modules.Bom.Domain;
+using Hadron.Erp.Api.Modules.Planning.Domain;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
@@ -26,6 +27,12 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<SourcingPrice> SourcingPrices => Set<SourcingPrice>();
     public DbSet<BomRevision> BomRevisions => Set<BomRevision>();
     public DbSet<BomLine> BomLines => Set<BomLine>();
+    public DbSet<BusinessPeriod> BusinessPeriods => Set<BusinessPeriod>();
+    public DbSet<ForecastSeries> ForecastSeries => Set<ForecastSeries>();
+    public DbSet<ForecastRevision> ForecastRevisions => Set<ForecastRevision>();
+    public DbSet<DailyActual> DailyActuals => Set<DailyActual>();
+    public DbSet<DailyActualRevision> DailyActualRevisions => Set<DailyActualRevision>();
+    public DbSet<PeriodLifecycleEvent> PeriodLifecycleEvents => Set<PeriodLifecycleEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

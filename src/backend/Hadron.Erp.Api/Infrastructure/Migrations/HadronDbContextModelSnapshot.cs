@@ -303,6 +303,294 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("JalaliMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JalaliYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("OPEN");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JalaliYear", "JalaliMonth")
+                        .IsUnique();
+
+                    b.HasIndex("StartDate", "EndDate");
+
+                    b.ToTable("business_periods", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_business_periods_dates", "\"EndDate\" >= \"StartDate\"");
+
+                            t.HasCheckConstraint("ck_business_periods_jalali_month", "\"JalaliMonth\" BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("ck_business_periods_status", "\"Status\" IN ('OPEN','CLOSED')");
+
+                            t.HasCheckConstraint("ck_business_periods_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("CurrentRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("ProductionDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrentRevisionId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("BusinessPeriodId", "ProductId");
+
+                    b.HasIndex("ProductId", "ProductionDate")
+                        .IsUnique();
+
+                    b.ToTable("daily_actuals", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_daily_actuals_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActualRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("ActualQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("DailyActualId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DailyActualId", "RevisionNumber")
+                        .IsUnique();
+
+                    b.ToTable("daily_actual_revisions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_daily_actual_revisions_number", "\"RevisionNumber\" >= 1");
+
+                            t.HasCheckConstraint("ck_daily_actual_revisions_qty", "\"ActualQty\" >= 0");
+
+                            t.HasCheckConstraint("ck_daily_actual_revisions_reason", "\"RevisionNumber\" = 1 OR (\"Reason\" IS NOT NULL AND btrim(\"Reason\") <> '')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<decimal>("ForecastQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("ForecastSeriesId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastSeriesId", "RevisionNumber")
+                        .IsUnique();
+
+                    b.ToTable("forecast_revisions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_forecast_revisions_number", "\"RevisionNumber\" >= 1");
+
+                            t.HasCheckConstraint("ck_forecast_revisions_qty", "\"ForecastQty\" >= 0");
+
+                            t.HasCheckConstraint("ck_forecast_revisions_reason", "\"RevisionNumber\" = 1 OR (\"Reason\" IS NOT NULL AND btrim(\"Reason\") <> '')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("CurrentRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPeriodId");
+
+                    b.HasIndex("CurrentRevisionId");
+
+                    b.HasIndex("ProductBaseUnitId");
+
+                    b.HasIndex("ProductId", "BusinessPeriodId")
+                        .IsUnique();
+
+                    b.ToTable("forecast_series", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_forecast_series_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.PeriodLifecycleEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPeriodId", "OccurredAtUtc");
+
+                    b.ToTable("period_lifecycle_events", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_period_lifecycle_events_transition", "(\"FromStatus\" = 'OPEN' AND \"ToStatus\" = 'CLOSED') OR (\"FromStatus\" = 'CLOSED' AND \"ToStatus\" = 'OPEN')");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -1077,6 +1365,107 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Item");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", "BusinessPeriod")
+                        .WithMany()
+                        .HasForeignKey("BusinessPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.DailyActualRevision", "CurrentRevision")
+                        .WithMany()
+                        .HasForeignKey("CurrentRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Products.Domain.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPeriod");
+
+                    b.Navigation("CurrentRevision");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActualRevision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", "DailyActual")
+                        .WithMany("Revisions")
+                        .HasForeignKey("DailyActualId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DailyActual");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", "ForecastSeries")
+                        .WithMany("Revisions")
+                        .HasForeignKey("ForecastSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ForecastSeries");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", "BusinessPeriod")
+                        .WithMany()
+                        .HasForeignKey("BusinessPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", "CurrentRevision")
+                        .WithMany()
+                        .HasForeignKey("CurrentRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ProductBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ProductBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Products.Domain.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPeriod");
+
+                    b.Navigation("CurrentRevision");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ProductBaseUnit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.PeriodLifecycleEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", "BusinessPeriod")
+                        .WithMany()
+                        .HasForeignKey("BusinessPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPeriod");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.ReferenceValue", "BusinessUnit")
@@ -1224,6 +1613,16 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", b =>
+                {
+                    b.Navigation("Revisions");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>

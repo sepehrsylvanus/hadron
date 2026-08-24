@@ -22,6 +22,7 @@ const fa = {
       masterData: 'اطلاعات پایه',
       suppliersAndSourcing: 'تأمین‌کنندگان و منابع تأمین',
       engineering: 'مهندسی',
+      planning: 'برنامه‌ریزی',
     },
     items: {
       products: 'محصولات',
@@ -31,6 +32,7 @@ const fa = {
       suppliers: 'تأمین‌کنندگان',
       sourcing: 'منابع تأمین',
       bom: 'BOM',
+      forecastActual: 'پیش‌بینی و تولید واقعی',
     },
   },
   breadcrumbs: {
@@ -103,6 +105,16 @@ const fa = {
     effectiveScrap: 'ضایعات مؤثر', effectiveRange: 'بازه اثر', copy: 'کپی Draft', validate: 'اعتبارسنجی', approve: 'تأیید', obsolete: 'منسوخ‌سازی',
     addLine: 'افزودن خط', removeLine: 'حذف خط', DRAFT: 'پیش‌نویس', APPROVED: 'تأییدشده', OBSOLETE: 'منسوخ',
     resolver: 'حل BOM مؤثر', businessDate: 'تاریخ کسب‌وکار', operational: 'عملیاتی', historical: 'تاریخی', resolve: 'حل Revision', noResolved: 'Revision مؤثری یافت نشد.',
+  },
+  forecastActual: {
+    title: 'پیش‌بینی و تولید واقعی', subtitle: 'برنامه تولید ماهانه، تولید واقعی روزانه و حقیقت برنامه‌ریزی', periods: 'دوره‌های برنامه‌ریزی',
+    period: 'دوره جلالی', jalaliYear: 'سال جلالی', jalaliMonth: 'ماه جلالی', createPeriod: 'ایجاد دوره', evaluationDate: 'تاریخ ارزیابی',
+    OPEN: 'باز', CLOSED: 'بسته', closePeriod: 'بستن دوره', reopenPeriod: 'بازگشایی دوره', forecastGrid: 'برنامه تولید محصولات',
+    product: 'محصول', forecast: 'پیش‌بینی تولید', actualMtd: 'تولید واقعی تا تاریخ', remaining: 'پیش‌بینی باقیمانده', planningQty: 'مقدار برنامه‌ریزی',
+    bomReadiness: 'آمادگی BOM', missing: 'ثبت نشده', revise: 'ثبت Revision جدید', enterForecast: 'ثبت پیش‌بینی', history: 'تاریخچه Revision',
+    reason: 'دلیل', createdAt: 'زمان ثبت', dailyActual: 'تولید واقعی روزانه', productionDate: 'تاریخ تولید', actualQty: 'مقدار واقعی',
+    enterActual: 'ثبت تولید واقعی', actualList: 'سوابق تولید واقعی', correct: 'اصلاح', unallocatable: 'باقیمانده دوره جاری قابل تخصیص نیست',
+    readiness: { READY: 'آماده', NOT_APPLICABLE: 'برای برنامه‌ریزی کاربرد ندارد', BLOCKED: 'مسدود', MISSING_BOM: 'BOM موجود نیست', PARTIAL_PERIOD_BOM_COVERAGE: 'پوشش BOM ناقص است' },
   },
 } as const
 
