@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.IO.Compression;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Analytics.Application;
 using Hadron.Erp.Api.Modules.Catalog.Domain;
@@ -173,9 +175,12 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
             BusinessPeriodStatuses.Closed, "GD09 F1 close", "GD09"));
         await db.SaveChangesAsync();
         await Task.Delay(5);
-        var cutoff = DateTime.UtcNow;
+        var cutoff = await DatabaseUtcNow();
 
         var historicalBefore = await Forecast(product.Item.BusinessNumber, cutoff);
+        var exportBefore = await ExportData(
+            $"/api/v1/analytics/exports/forecast-accuracy/xlsx?evaluationDate={period.EndDate:yyyy-MM-dd}" +
+            $"&language=en&maximumRows=100&search={product.Item.BusinessNumber}{Cutoff(cutoff)}");
         Assert.Equal(40m, historicalBefore.GetProperty("finalForecast").GetDecimal());
         Assert.Equal(0m, historicalBefore.GetProperty("actual").GetDecimal());
 
@@ -193,10 +198,239 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         await db.SaveChangesAsync();
 
         var historicalAfter = await Forecast(product.Item.BusinessNumber, cutoff);
+        var exportAfter = await ExportData(
+            $"/api/v1/analytics/exports/forecast-accuracy/xlsx?evaluationDate={period.EndDate:yyyy-MM-dd}" +
+            $"&language=en&maximumRows=100&search={product.Item.BusinessNumber}{Cutoff(cutoff)}");
         var current = await Forecast(product.Item.BusinessNumber, null);
         Assert.Equal(40m, historicalAfter.GetProperty("finalForecast").GetDecimal());
         Assert.Equal(historicalBefore.GetRawText(), historicalAfter.GetRawText());
+        Assert.Equal(exportBefore, exportAfter);
         Assert.Equal(99m, current.GetProperty("finalForecast").GetDecimal());
+    }
+
+    [Fact]
+    public async Task GD09_all_analytics_context_and_schedule_allocation_remain_frozen_at_cutoff()
+    {
+        var order = await AddOrder(new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 12));
+        await using var db = await Db();
+        var warehouse = new Warehouse($"WH-{Random.Shared.Next(100000, 999999)}", "انبار تاریخچه",
+            "Historical warehouse", null);
+        db.Warehouses.Add(warehouse);
+        await db.SaveChangesAsync();
+        db.InventoryTransactions.Add(new InventoryTransaction(InventoryTransactionTypes.Opening, _master.Item.Id,
+            warehouse.Id, null, 5m, _master.Unit.Id, new DateOnly(2026, 8, 1), "opening", null, null, null, "GD09"));
+        await db.SaveChangesAsync();
+        await Task.Delay(10);
+        var cutoff = await DatabaseUtcNow();
+
+        var leadBefore = await LeadTime(_master.Option.SourcingNumber, cutoff);
+        var commercialBefore = await Commercial(order.Number, cutoff);
+        var inventoryBefore = await InventoryPosition(_master.Item.BusinessNumber, new DateOnly(2026, 8, 1), cutoff);
+        var leadExportBefore = await ExportData(
+            $"/api/v1/analytics/exports/lead-time/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={_master.Option.SourcingNumber}{Cutoff(cutoff)}");
+        var commercialExportBefore = await ExportData(
+            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
+        var inventoryExportBefore = await ExportData(
+            $"/api/v1/analytics/exports/inventory-position/xlsx?evaluationDate=2026-08-01&language=en" +
+            $"&maximumRows=100&search={_master.Item.BusinessNumber}{Cutoff(cutoff)}");
+
+        var option = await db.SourcingOptions.SingleAsync(x => x.Id == _master.Option.Id);
+        option.Edit(option.MinimumOrderQuantity, option.ShippingModeId, option.IncotermId, 9, 8, 7, 6);
+        var item = await db.Items.SingleAsync(x => x.Id == _master.Item.Id);
+        item.Edit("قطعه تحلیل جدید", "Renamed analytics part", item.BaseUnitId, item.Notes);
+        var supplier = await db.Suppliers.SingleAsync(x => x.Id == _master.Supplier.Id);
+        supplier.Edit("تأمین‌کننده تحلیل جدید", "تأمین‌کننده تحلیل جدید", supplier.CountryId, supplier.OwnerId,
+            supplier.Notes, supplier.ExpertLeadTimeScore, supplier.ExpertQualityScore);
+        await db.SaveChangesAsync();
+
+        await using (var tx = await db.Database.BeginTransactionAsync())
+        {
+            var current = await db.DeliverySchedules.Where(x => x.PurchaseOrderLine.PurchaseOrderId == order.Id)
+                .OrderBy(x => x.ScheduleNumber).ToListAsync();
+            var before = JsonSerializer.Serialize(current.Select(x => new
+            {
+                x.Id,
+                x.ScheduleNumber,
+                x.AllocatedQuantity,
+                x.RequestedReceiptDate
+            }));
+            current[0].Reallocate(20m, current[0].RequestedReceiptDate);
+            current[1].Reallocate(40m, current[1].RequestedReceiptDate);
+            db.DeliverySchedules.Add(new(current[0].PurchaseOrderLineId, 3, 20m, new DateOnly(2026, 9, 15)));
+            db.DeliveryScheduleAllocationEvents.Add(new(order.Id, current[0].PurchaseOrderLineId, before,
+                "[]", "GD09 later reallocation", "GD09", DateTime.UtcNow));
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+
+        db.InventoryTransactions.Add(new InventoryTransaction(InventoryTransactionTypes.AdjustmentOut,
+            _master.Item.Id, warehouse.Id, null, 5m, _master.Unit.Id, new DateOnly(2026, 8, 2),
+            "later zeroing", null, null, null, "GD09"));
+        await db.SaveChangesAsync();
+        warehouse.ChangeState(false);
+        await db.SaveChangesAsync();
+
+        var leadAfter = await LeadTime(_master.Option.SourcingNumber, cutoff);
+        var commercialAfter = await Commercial(order.Number, cutoff);
+        var inventoryAfter = await InventoryPosition(_master.Item.BusinessNumber, new DateOnly(2026, 8, 1), cutoff);
+        var currentLead = await LeadTime(_master.Option.SourcingNumber, null);
+        var currentCommercial = await Commercial(order.Number, null);
+        var currentInventory = await InventoryPosition(_master.Item.BusinessNumber, new DateOnly(2026, 8, 1), null);
+        var leadExportAfter = await ExportData(
+            $"/api/v1/analytics/exports/lead-time/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={_master.Option.SourcingNumber}{Cutoff(cutoff)}");
+        var commercialExportAfter = await ExportData(
+            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
+        var inventoryExportAfter = await ExportData(
+            $"/api/v1/analytics/exports/inventory-position/xlsx?evaluationDate=2026-08-01&language=en" +
+            $"&maximumRows=100&search={_master.Item.BusinessNumber}{Cutoff(cutoff)}");
+
+        Assert.Equal(leadBefore.GetRawText(), leadAfter.GetRawText());
+        Assert.Equal(commercialBefore.GetRawText(), commercialAfter.GetRawText());
+        Assert.Equal(inventoryBefore.GetRawText(), inventoryAfter.GetRawText());
+        Assert.Equal(leadExportBefore, leadExportAfter);
+        Assert.Equal(commercialExportBefore, commercialExportAfter);
+        Assert.Equal(inventoryExportBefore, inventoryExportAfter);
+        Assert.Equal("قطعه تحلیل", leadAfter.GetProperty("itemNameFa").GetString());
+        Assert.Equal(2, commercialAfter.GetProperty("requiredScheduleCount").GetInt32());
+        Assert.True(inventoryAfter.GetProperty("warehouseIsActive").GetBoolean());
+        Assert.Equal(9, currentLead.GetProperty("stages")[0].GetProperty("configuredDays").GetInt32());
+        Assert.Equal("تأمین‌کننده تحلیل جدید", currentCommercial.GetProperty("supplierNameFa").GetString());
+        Assert.Equal(3, currentCommercial.GetProperty("requiredScheduleCount").GetInt32());
+        Assert.False(currentInventory.GetProperty("warehouseIsActive").GetBoolean());
+    }
+
+    [Fact]
+    public async Task GD06_persisted_delivery_facts_match_literal_API_and_Excel_statistics()
+    {
+        await using var db = await Db();
+        var warehouse = new Warehouse($"WH-{Random.Shared.Next(100000, 999999)}", "انبار GD06", "GD06 warehouse", null);
+        db.Warehouses.Add(warehouse);
+        await db.SaveChangesAsync();
+        var completion = new DateOnly(2026, 8, 25);
+        int[] literalLeadDays = [10, 12, 14, 16, 21];
+        foreach (var days in literalLeadDays)
+        {
+            var fixture = await AddLeadTimeOrder(completion.AddDays(-days), completion.AddDays(-days).AddDays(14));
+            await PostReceipt(fixture, warehouse.Id, 1m, completion);
+        }
+        var cancelled = await AddLeadTimeOrder(completion.AddDays(-5), completion.AddDays(14));
+        var cancelledPo = await PurchaseOrder(cancelled.Id);
+        var cancellationResponse = await _client.PostAsJsonAsync(
+            $"/api/purchase-orders/{cancelled.Id}/schedules/{cancelled.FirstScheduleId}/cancel", new
+            {
+                expectedPurchaseOrderVersion = cancelledPo.GetProperty("version").GetInt64(),
+                quantity = 1m,
+                effectiveDate = completion.ToString("yyyy-MM-dd"),
+                reason = "GD06 excluded cancellation"
+            });
+        cancellationResponse.EnsureSuccessStatusCode();
+
+        var row = await LeadTime(_master.Option.SourcingNumber, null, completion);
+        var total = row.GetProperty("total");
+        Assert.Equal(5, total.GetProperty("sampleCount").GetInt32());
+        Assert.Equal(14.6m, total.GetProperty("mean").GetDecimal());
+        Assert.Equal(14m, total.GetProperty("p50").GetDecimal());
+        Assert.Equal(17m, total.GetProperty("p80").GetDecimal());
+        Assert.Equal(19m, total.GetProperty("p90").GetDecimal());
+        Assert.Equal(60m, row.GetProperty("onTimePercent").GetDecimal());
+        Assert.Equal(1, row.GetProperty("cancelledScheduleCount").GetInt32());
+
+        var export = await _client.GetAsync($"/api/v1/analytics/exports/lead-time/xlsx?evaluationDate={completion:yyyy-MM-dd}" +
+            $"&language=en&maximumRows=100&search={_master.Option.SourcingNumber}");
+        export.EnsureSuccessStatusCode();
+        var xml = await Sheet(export);
+        Assert.Contains(_master.Option.SourcingNumber, xml, StringComparison.Ordinal);
+        var excelNumbers = SheetDecimals(xml);
+        Assert.Contains(14.6m, excelNumbers);
+        Assert.Contains(14m, excelNumbers);
+        Assert.Contains(17m, excelNumbers);
+        Assert.Contains(19m, excelNumbers);
+    }
+
+    [Fact]
+    public async Task GD07_persisted_forecast_history_matches_literal_API_and_Excel_accuracy()
+    {
+        await using var db = await Db();
+        var period = new BusinessPeriod(1405, 10, new DateOnly(2026, 1, 10), new DateOnly(2026, 2, 8));
+        db.BusinessPeriods.Add(period);
+        await db.SaveChangesAsync();
+        var baselineAt = new DateTime(2026, 1, 9, 8, 0, 0, DateTimeKind.Utc);
+        var finalAt = new DateTime(2026, 1, 11, 8, 0, 0, DateTimeKind.Utc);
+        var actualAt = new DateTime(2026, 1, 15, 8, 0, 0, DateTimeKind.Utc);
+        await AddForecastAccuracyProduct(db, period, "GD07-METRIC-F1", 100m, 110m, 105m,
+            baselineAt, finalAt, actualAt);
+        await AddForecastAccuracyProduct(db, period, "GD07-METRIC-F2", 200m, 180m, 150m,
+            baselineAt.AddMinutes(1), finalAt.AddMinutes(1), actualAt.AddMinutes(1));
+        await AddForecastAccuracyProduct(db, period, "GD07-EDGE-ZERO", 10m, 10m, 0m,
+            baselineAt.AddMinutes(2), finalAt.AddMinutes(2), actualAt.AddMinutes(2));
+        await AddForecastAccuracyProduct(db, period, "GD07-EDGE-MISSING", null, null, 0m,
+            baselineAt.AddMinutes(3), finalAt.AddMinutes(3), actualAt.AddMinutes(3));
+
+        period.Close();
+        var close1 = new PeriodLifecycleEvent(period.Id, BusinessPeriodStatuses.Open,
+            BusinessPeriodStatuses.Closed, "GD07 first close", "GD07");
+        db.PeriodLifecycleEvents.Add(close1);
+        db.Entry(close1).Property(x => x.OccurredAtUtc).CurrentValue =
+            new DateTime(2026, 1, 20, 8, 0, 0, DateTimeKind.Utc);
+        await db.SaveChangesAsync();
+        period.Reopen();
+        var reopen = new PeriodLifecycleEvent(period.Id, BusinessPeriodStatuses.Closed,
+            BusinessPeriodStatuses.Open, "GD07 reopen", "GD07");
+        db.PeriodLifecycleEvents.Add(reopen);
+        db.Entry(reopen).Property(x => x.OccurredAtUtc).CurrentValue =
+            new DateTime(2026, 1, 21, 8, 0, 0, DateTimeKind.Utc);
+        await db.SaveChangesAsync();
+        period.Close();
+        var close2 = new PeriodLifecycleEvent(period.Id, BusinessPeriodStatuses.Open,
+            BusinessPeriodStatuses.Closed, "GD07 effective reclose", "GD07");
+        db.PeriodLifecycleEvents.Add(close2);
+        db.Entry(close2).Property(x => x.OccurredAtUtc).CurrentValue =
+            new DateTime(2026, 1, 22, 8, 0, 0, DateTimeKind.Utc);
+        await db.SaveChangesAsync();
+
+        var response = await _client.GetAsync(
+            "/api/v1/analytics/forecast-accuracy?search=GD07-METRIC&page=1&pageSize=25");
+        response.EnsureSuccessStatusCode();
+        var payload = await Read(response);
+        var summary = payload.GetProperty("summary");
+        Assert.Equal(21.5686274510m, decimal.Round(summary.GetProperty("baselineWape").GetDecimal(), 10));
+        Assert.Equal(17.6470588235m, decimal.Round(summary.GetProperty("baselineBias").GetDecimal(), 10));
+        Assert.Equal(13.7254901961m, decimal.Round(summary.GetProperty("finalWape").GetDecimal(), 10));
+        Assert.Equal(13.7254901961m, decimal.Round(summary.GetProperty("finalBias").GetDecimal(), 10));
+        Assert.Equal([100m, 200m], payload.GetProperty("page").GetProperty("items").EnumerateArray()
+            .Select(x => x.GetProperty("baselineForecast").GetDecimal()).Order().ToArray());
+        Assert.Equal([110m, 180m], payload.GetProperty("page").GetProperty("items").EnumerateArray()
+            .Select(x => x.GetProperty("finalForecast").GetDecimal()).Order().ToArray());
+
+        var edgeResponse = await _client.GetAsync(
+            "/api/v1/analytics/forecast-accuracy?search=GD07-EDGE&page=1&pageSize=25");
+        edgeResponse.EnsureSuccessStatusCode();
+        var edgeRows = (await Read(edgeResponse)).GetProperty("page").GetProperty("items").EnumerateArray().ToArray();
+        var zero = Assert.Single(edgeRows, x => x.GetProperty("productNameEn").GetString()!.Contains("ZERO"));
+        Assert.Equal(0m, zero.GetProperty("actual").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, zero.GetProperty("baselineApe").ValueKind);
+        Assert.Equal(JsonValueKind.Null, zero.GetProperty("finalApe").ValueKind);
+        var missing = Assert.Single(edgeRows, x => x.GetProperty("productNameEn").GetString()!.Contains("MISSING"));
+        Assert.Equal("MISSING_FORECAST", missing.GetProperty("baselineState").GetString());
+        Assert.Equal("MISSING_FORECAST", missing.GetProperty("finalState").GetString());
+
+        var export = await _client.GetAsync(
+            "/api/v1/analytics/exports/forecast-accuracy/xlsx?evaluationDate=2026-02-08&language=en" +
+            "&maximumRows=100&search=GD07-METRIC");
+        export.EnsureSuccessStatusCode();
+        var xml = await Sheet(export);
+        var excelNumbers = SheetDecimals(xml);
+        Assert.Contains(100m, excelNumbers);
+        Assert.Contains(110m, excelNumbers);
+        Assert.Contains(105m, excelNumbers);
+        Assert.Contains(200m, excelNumbers);
+        Assert.Contains(180m, excelNumbers);
+        Assert.Contains(150m, excelNumbers);
+        Assert.Contains("search=GD07-METRIC", xml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -205,15 +439,26 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         var d1a = new DateOnly(2026, 9, 10);
         var d1b = new DateOnly(2026, 9, 12);
         var order = await AddOrder(d1a, d1b);
-        await Task.Delay(5);
         var cutoff = DateTime.UtcNow;
-        await AddRevisedPlans(order, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 22));
+        var historicalBefore = await Commercial(order.Number, cutoff);
+        var exportBefore = await ExportData(
+            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
+
+        await AddRevisedPlans(order, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 22),
+            cutoff.AddMilliseconds(1));
         var laterOrder = await AddOrder(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2));
 
         var historical = await Commercial(order.Number, cutoff);
-        var current = await Commercial(order.Number, null);
+        var exportAfter = await ExportData(
+            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
+        var newerCutoff = DateTime.UtcNow;
+        var current = await Commercial(order.Number, newerCutoff);
         var cutoffAll = await CommercialPage(null, cutoff);
 
+        Assert.Equal(historicalBefore.GetRawText(), historical.GetRawText());
+        Assert.Equal(exportBefore, exportAfter);
         Assert.Equal(80m, historical.GetProperty("orderedQuantity").GetDecimal());
         Assert.Equal(560m, historical.GetProperty("originalAmount").GetDecimal());
         Assert.Equal(d1b.ToString("yyyy-MM-dd"), historical.GetProperty("creditAnchorDate").GetString());
@@ -246,7 +491,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
                 _master.Unit.Id, new DateOnly(2026, 8, 1), "opening", null, null, null, "MRP14"));
         await db.SaveChangesAsync();
         await Task.Delay(5);
-        var cutoff = DateTime.UtcNow;
+        var cutoff = await DatabaseUtcNow();
         db.InventoryTransactions.Add(new InventoryTransaction(InventoryTransactionTypes.AdjustmentIn,
             _master.Item.Id, first.Id, null, 5m, _master.Unit.Id, new DateOnly(2026, 8, 2),
             "later correction", null, null, null, "MRP14"));
@@ -271,7 +516,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         var order = await AddOrder(new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 12));
         await AddOrder(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2));
         await Task.Delay(5);
-        var cutoff = DateTime.UtcNow;
+        var cutoff = await DatabaseUtcNow();
         await AddRevisedPlans(order, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 22));
         var row = await Commercial(order.Number, cutoff);
         var query = $"evaluationDate=2026-12-01&language=en&maximumRows=100&search={order.Number}" +
@@ -330,6 +575,44 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         return product;
     }
 
+    private async Task AddForecastAccuracyProduct(HadronDbContext db, BusinessPeriod period, string suffix,
+        decimal? baselineQty, decimal? finalQty, decimal actualQty, DateTime baselineAt, DateTime finalAt,
+        DateTime actualAt)
+    {
+        var product = await AddProduct(db, suffix);
+        ForecastSeries? series = null;
+        if (baselineQty.HasValue)
+        {
+            series = new ForecastSeries(product.ItemId, period.Id, _master.Unit.Id);
+            db.ForecastSeries.Add(series);
+            db.Entry(series).Property(x => x.CreatedAtUtc).CurrentValue = baselineAt.AddSeconds(-1);
+            await db.SaveChangesAsync();
+            var baseline = new ForecastRevision(series.Id, 1, baselineQty.Value, null, "GD07");
+            db.ForecastRevisions.Add(baseline);
+            db.Entry(baseline).Property(x => x.CreatedAtUtc).CurrentValue = baselineAt;
+            await db.SaveChangesAsync();
+            series.SetCurrent(baseline);
+            if (finalQty.HasValue)
+            {
+                var final = new ForecastRevision(series.Id, 2, finalQty.Value, "GD07 final", "GD07");
+                db.ForecastRevisions.Add(final);
+                db.Entry(final).Property(x => x.CreatedAtUtc).CurrentValue = finalAt;
+                series.Advance(final);
+            }
+            await db.SaveChangesAsync();
+        }
+
+        var actual = new DailyActual(product.ItemId, period.Id, period.StartDate.AddDays(5), _master.Unit.Id);
+        db.DailyActuals.Add(actual);
+        db.Entry(actual).Property(x => x.CreatedAtUtc).CurrentValue = actualAt.AddSeconds(-1);
+        await db.SaveChangesAsync();
+        var revision = new DailyActualRevision(actual.Id, 1, actualQty, null, "GD07");
+        db.DailyActualRevisions.Add(revision);
+        db.Entry(revision).Property(x => x.CreatedAtUtc).CurrentValue = actualAt;
+        actual.SetCurrent(revision);
+        await db.SaveChangesAsync();
+    }
+
     private async Task<OrderFixture> AddOrder(DateOnly firstWarehouseDate, DateOnly? secondWarehouseDate)
     {
         await using var db = await Db();
@@ -361,10 +644,11 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         return new(po.Id, po.PurchaseOrderNumber, first.Id, second.Id);
     }
 
-    private async Task AddRevisedPlans(OrderFixture order, DateOnly first, DateOnly second)
+    private async Task AddRevisedPlans(OrderFixture order, DateOnly first, DateOnly second,
+        DateTime? createdAtUtc = null)
     {
         await using var db = await Db();
-        var created = DateTime.UtcNow;
+        var created = createdAtUtc ?? DateTime.UtcNow;
         db.DeliverySchedulePlanRevisions.AddRange(Plan(order.FirstScheduleId, 2, first, created, true),
             Plan(order.SecondScheduleId, 2, second, created, true));
         await db.SaveChangesAsync();
@@ -382,6 +666,87 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         var response = await _client.GetAsync(url);
         response.EnsureSuccessStatusCode();
         return Assert.Single((await Read(response)).GetProperty("page").GetProperty("items").EnumerateArray());
+    }
+
+    private Task<JsonElement> LeadTime(string search, DateTime? cutoff) =>
+        LeadTime(search, cutoff, new DateOnly(2026, 12, 1));
+
+    private async Task<JsonElement> LeadTime(string search, DateTime? cutoff, DateOnly evaluationDate)
+    {
+        var url = $"/api/v1/analytics/lead-time?evaluationDate={evaluationDate:yyyy-MM-dd}&search={search}&page=1&pageSize=25" +
+            Cutoff(cutoff);
+        var response = await _client.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        return Assert.Single((await Read(response)).GetProperty("items").EnumerateArray());
+    }
+
+    private async Task<OrderFixture> AddLeadTimeOrder(DateOnly orderedDate, DateOnly originalReceiptDate)
+    {
+        await using var db = await Db();
+        var po = new PurchaseOrder($"PO-{Random.Shared.Next(100000, 999999)}", _master.Supplier.Id,
+            _master.Currency.Id, _master.Payment.Id, 20m, 50m, 30m, 60,
+            PurchaseMilestoneCodes.WarehouseReceipt, _master.Shipping.Id, _master.Incoterm.Id, null);
+        db.PurchaseOrders.Add(po);
+        await db.SaveChangesAsync();
+        var line = new PurchaseOrderLine(po.Id, 1, _master.Item.Id, _master.Option.Id, _master.Price.Id,
+            _master.Unit.Id, 1m, 7m, 0m, 2, 1, 3, 1, null);
+        var schedule = new DeliverySchedule(line.Id, 1, 1m, originalReceiptDate);
+        db.AddRange(line, schedule);
+        await db.SaveChangesAsync();
+        var from = po.Status;
+        po.Approve(DateTime.UtcNow);
+        db.PurchaseOrderLifecycleEvents.Add(new(po.Id, from, po.Status, null, "GD06", DateTime.UtcNow));
+        await db.SaveChangesAsync();
+        from = po.Status;
+        po.MarkOrdered(orderedDate, DateTime.UtcNow);
+        db.PurchaseOrderLifecycleEvents.Add(new(po.Id, from, po.Status, null, "GD06", DateTime.UtcNow));
+        await db.SaveChangesAsync();
+        db.DeliverySchedulePlanRevisions.Add(Plan(schedule.Id, 1, originalReceiptDate, DateTime.UtcNow));
+        await db.SaveChangesAsync();
+        return new(po.Id, po.PurchaseOrderNumber, schedule.Id, schedule.Id);
+    }
+
+    private async Task PostReceipt(OrderFixture order, Guid warehouseId, decimal quantity, DateOnly effectiveDate)
+    {
+        var po = await PurchaseOrder(order.Id);
+        var line = po.GetProperty("lines")[0];
+        var create = await _client.PostAsJsonAsync("/api/purchase-receipts", new
+        {
+            purchaseOrderId = order.Id,
+            warehouseId,
+            effectiveDate = effectiveDate.ToString("yyyy-MM-dd"),
+            notes = "GD06 persisted completion",
+            lines = new[] { new
+            {
+                purchaseOrderLineId = line.GetProperty("id").GetGuid(),
+                deliveryScheduleId = order.FirstScheduleId,
+                quantity
+            } }
+        });
+        create.EnsureSuccessStatusCode();
+        var receipt = await Read(create);
+        var post = await _client.PostAsJsonAsync($"/api/purchase-receipts/{receipt.GetProperty("id").GetGuid()}/post", new
+        {
+            expectedReceiptVersion = receipt.GetProperty("version").GetInt64(),
+            expectedPurchaseOrderVersion = po.GetProperty("version").GetInt64()
+        });
+        post.EnsureSuccessStatusCode();
+    }
+
+    private async Task<JsonElement> PurchaseOrder(Guid id)
+    {
+        var response = await _client.GetAsync($"/api/purchase-orders/{id}");
+        response.EnsureSuccessStatusCode();
+        return await Read(response);
+    }
+
+    private async Task<JsonElement> InventoryPosition(string search, DateOnly asOf, DateTime? cutoff)
+    {
+        var url = $"/api/v1/analytics/inventory/positions?asOfDate={asOf:yyyy-MM-dd}&search={search}" +
+            $"&page=1&pageSize=25{Cutoff(cutoff)}";
+        var response = await _client.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        return Assert.Single((await Read(response)).GetProperty("items").EnumerateArray());
     }
 
     private async Task<JsonElement> Commercial(string number, DateTime? cutoff)
@@ -411,6 +776,27 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         return await reader.ReadToEndAsync();
     }
 
+    private static decimal[] SheetDecimals(string xml) => XDocument.Parse(xml).Descendants()
+        .Where(x => x.Name.LocalName == "t")
+        .Select(x => x.Value)
+        .Select(x => decimal.TryParse(x, NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+            ? (decimal?)value : null)
+        .Where(x => x.HasValue)
+        .Select(x => x!.Value)
+        .ToArray();
+
+    private async Task<string> ExportData(string url)
+    {
+        var response = await _client.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        return string.Join('\n', XDocument.Parse(await Sheet(response)).Descendants()
+            .Where(x => x.Name.LocalName == "row")
+            .Skip(1)
+            .Select(row => string.Join('|', row.Descendants()
+                .Where(x => x.Name.LocalName == "t")
+                .Select(x => x.Value))));
+    }
+
     private static async Task<JsonElement> Read(HttpResponseMessage response) =>
         JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync(),
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -418,11 +804,23 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
     private async Task<HadronDbContext> Db() =>
         await _factory.Services.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync();
 
+    private async Task<DateTime> DatabaseUtcNow()
+    {
+        await using var db = await Db();
+        return await db.Database.SqlQueryRaw<DateTime>("SELECT clock_timestamp() AS \"Value\"").SingleAsync();
+    }
+
     private static async Task<MasterData> AddMasterData(HadronDbContext db)
     {
         var unitCode = $"A{Random.Shared.Next(100000, 999999)}";
         var unit = new Unit(unitCode, unitCode, "واحد تحلیل", "Analytics unit", null, 1);
-        var currencyCode = $"A{(char)('A' + Random.Shared.Next(0, 26))}{(char)('A' + Random.Shared.Next(0, 26))}";
+        var existingCurrencyCodes = (await db.Currencies.AsNoTracking().Select(x => x.Code).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currencyCode = (from first in Enumerable.Range('A', 26)
+                            from second in Enumerable.Range('A', 26)
+                            from third in Enumerable.Range('A', 26)
+                            select $"{(char)first}{(char)second}{(char)third}")
+            .First(code => !existingCurrencyCodes.Contains(code));
         var currency = new Currency(currencyCode, currencyCode, "ارز تحلیل", "Analytics currency", null, 2);
         db.Units.Add(unit);
         db.Currencies.Add(currency);

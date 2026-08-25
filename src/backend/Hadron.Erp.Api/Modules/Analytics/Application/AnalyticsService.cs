@@ -32,17 +32,13 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         ValidatePage(page, pageSize);
         var cutoff = ValidateCutoff(dataCutoffUtc);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.SourcingOptions.AsNoTracking().Include(x => x.Item).Include(x => x.Supplier)
-            .Where(x => x.CreatedAtUtc <= cutoff);
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var value = search.Trim();
-            query = query.Where(x => x.SourcingNumber.Contains(value) || x.Item.BusinessNumber.Contains(value) ||
-                x.Item.NameFa.Contains(value) || x.Supplier.SupplierNumber.Contains(value) || x.Supplier.Name.Contains(value));
-        }
-        var total = await query.CountAsync(ct);
-        var options = await query.OrderBy(x => x.SourcingNumber).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
-        var optionIds = options.Select(x => x.Id).ToArray();
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? string.Empty : $"%{search.Trim()}%";
+        var contexts = await db.Database.SqlQueryRaw<LeadTimeContextDbRow>(LeadTimeContextSql,
+            new NpgsqlParameter("cutoff", cutoff), new NpgsqlParameter("search", searchPattern),
+            new NpgsqlParameter("limit", pageSize), new NpgsqlParameter("offset", (page - 1) * pageSize))
+            .ToListAsync(ct);
+        var total = contexts.FirstOrDefault()?.TotalCount ?? 0;
+        var optionIds = contexts.Select(x => x.SourcingOptionId).ToArray();
         var earliest = evaluationDate.AddMonths(-24);
         var schedules = optionIds.Length == 0 ? [] : await db.DeliverySchedules.AsNoTracking()
             .Include(x => x.PurchaseOrderLine).ThenInclude(x => x.PurchaseOrder)
@@ -52,14 +48,18 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
             .Include(x => x.Cancellations)
             .Where(x => optionIds.Contains(x.PurchaseOrderLine.SourcingOptionId) &&
                 x.PurchaseOrderLine.PurchaseOrder.OrderedDate != null &&
+                x.PurchaseOrderLine.PurchaseOrder.LifecycleEvents.Any(e =>
+                    e.CreatedAtUtc <= cutoff && e.ToStatus == PurchaseOrderStatuses.Ordered) &&
                 x.PurchaseOrderLine.PurchaseOrder.OrderedDate <= evaluationDate &&
                 (x.PurchaseOrderLine.PurchaseOrder.OrderedDate > earliest ||
                     x.ReceiptLines.Any(y => y.Receipt.EffectiveDate > earliest &&
                         y.Receipt.EffectiveDate <= evaluationDate)))
             .AsSplitQuery().ToListAsync(ct);
+        var scheduleStates = await AnalyticsCutoffContext.Schedules(db, schedules, cutoff, ct);
 
-        var rows = options.Select(option => BuildLeadTime(option, schedules.Where(x =>
-            x.PurchaseOrderLine.SourcingOptionId == option.Id).ToArray(), evaluationDate, cutoff)).ToList();
+        var rows = contexts.Select(context => BuildLeadTime(context, scheduleStates.Where(x =>
+            x.Source.PurchaseOrderLine.SourcingOptionId == context.SourcingOptionId).ToArray(), evaluationDate, cutoff))
+            .ToList();
         return new(rows, page, pageSize, total, evaluationDate, cutoff,
             Provenance(cutoff, new Dictionary<string, string?> { ["search"] = search, ["evaluationDate"] = evaluationDate.ToString("O") },
                 "MRP-09 schedules + MRP-13 operational facts"));
@@ -128,36 +128,30 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         ValidatePage(page, pageSize);
         var cutoff = ValidateCutoff(dataCutoffUtc);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.PurchaseOrders.AsNoTracking().Where(x => x.CreatedAtUtc <= cutoff &&
-            x.LifecycleEvents.Any(e => e.CreatedAtUtc <= cutoff &&
-                OperationalPurchaseOrderStatuses.Contains(e.ToStatus)));
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var value = search.Trim();
-            query = query.Where(x => x.PurchaseOrderNumber.Contains(value) || x.Supplier.SupplierNumber.Contains(value) ||
-                x.Supplier.Name.Contains(value));
-        }
-        var total = await query.CountAsync(ct);
-        var pageIds = await query.OrderBy(x => x.PurchaseOrderNumber).Select(x => x.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? string.Empty : $"%{search.Trim()}%";
+        var contexts = await db.Database.SqlQueryRaw<CommercialContextDbRow>(CommercialContextSql,
+            new NpgsqlParameter("cutoff", cutoff), new NpgsqlParameter("search", searchPattern),
+            new NpgsqlParameter("limit", pageSize), new NpgsqlParameter("offset", (page - 1) * pageSize))
+            .ToListAsync(ct);
+        var total = contexts.FirstOrDefault()?.TotalCount ?? 0;
+        var pageIds = contexts.Select(x => x.PurchaseOrderId).ToArray();
         var loaded = await db.PurchaseOrders.AsNoTracking().Where(x => pageIds.Contains(x.Id))
-            .Include(x => x.Supplier).Include(x => x.Currency)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.PlanRevisions)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ActualMilestones)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ReceiptLines).ThenInclude(x => x.Receipt)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.Cancellations)
             .Include(x => x.LifecycleEvents)
             .AsSplitQuery().ToListAsync(ct);
-        var rows = loaded.Select(x => BuildCommercial(x, evaluationDate, cutoff))
+        var schedules = loaded.SelectMany(x => x.Lines).SelectMany(x => x.Schedules).ToArray();
+        var scheduleStates = await AnalyticsCutoffContext.Schedules(db, schedules, cutoff, ct);
+        var contextById = contexts.ToDictionary(x => x.PurchaseOrderId);
+        var rows = loaded.Select(x => BuildCommercial(x, contextById[x.Id], scheduleStates.Where(s =>
+                s.Source.PurchaseOrderLine.PurchaseOrderId == x.Id).ToArray(), evaluationDate, cutoff))
             .OrderBy(x => x.PurchaseOrderNumber).ToList();
-        var filteredOrderIds = query.Select(x => x.Id);
-        var totals = await db.PurchaseOrderLines.AsNoTracking()
-            .Where(x => filteredOrderIds.Contains(x.PurchaseOrderId))
-            .GroupBy(x => new { x.PurchaseOrder.CurrencyId, x.PurchaseOrder.Currency.Code })
-            .Select(x => new CurrencyCommitmentTotal(x.Key.CurrencyId, x.Key.Code,
-                x.Sum(y => y.OrderedQuantity * y.UnitPrice)))
-            .ToListAsync(ct);
-        totals = totals.OrderBy(x => x.CurrencyCode).ToList();
+        var totalRows = await db.Database.SqlQueryRaw<CurrencyCommitmentDbRow>(CommercialTotalsSql,
+            new NpgsqlParameter("cutoff", cutoff), new NpgsqlParameter("search", searchPattern)).ToListAsync(ct);
+        var totals = totalRows.Select(x => new CurrencyCommitmentTotal(x.CurrencyId, x.CurrencyCode,
+            x.OriginalAmount)).OrderBy(x => x.CurrencyCode).ToList();
         var resultPage = new AnalyticsPage<CommercialCommitmentRow>(rows, page, pageSize, total, evaluationDate, cutoff,
             Provenance(cutoff, new Dictionary<string, string?>
             {
@@ -173,44 +167,16 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         ValidatePage(page, pageSize);
         var cutoff = ValidateCutoff(dataCutoffUtc);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var eligibleEffects = from effect in db.InventoryLedgerEffects.AsNoTracking()
-                              join transaction in db.InventoryTransactions.AsNoTracking()
-                                  on effect.TransactionId equals transaction.Id
-                              where effect.EffectiveDate <= asOfDate && transaction.CreatedAtUtc <= cutoff
-                              select effect;
-        var balances = eligibleEffects
-            .GroupBy(x => new { x.ItemId, x.WarehouseId, x.UnitId }).Select(x => new
-            { x.Key.ItemId, x.Key.WarehouseId, x.Key.UnitId, OnHand = x.Sum(y => y.QuantityEffect) });
-        var companyBalances = eligibleEffects.GroupBy(x => new { x.ItemId, x.UnitId }).Select(x => new
-        { x.Key.ItemId, x.Key.UnitId, OnHand = x.Sum(y => y.QuantityEffect) });
-        var query = from balance in balances
-                    join company in companyBalances
-                        on new { balance.ItemId, balance.UnitId } equals new { company.ItemId, company.UnitId }
-                    join item in db.Items.AsNoTracking() on balance.ItemId equals item.Id
-                    join warehouse in db.Warehouses.AsNoTracking() on balance.WarehouseId equals warehouse.Id
-                    join unit in db.Units.AsNoTracking() on balance.UnitId equals unit.Id
-                    where balance.OnHand != 0
-                    select new
-                    {
-                        Item = item,
-                        Warehouse = warehouse,
-                        Unit = unit,
-                        balance.OnHand,
-                        CompanyOnHand = company.OnHand
-                    };
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var value = search.Trim();
-            query = query.Where(x => x.Item.BusinessNumber.Contains(value) || x.Item.NameFa.Contains(value) ||
-                x.Warehouse.BusinessNumber.Contains(value) || x.Warehouse.NameFa.Contains(value));
-        }
-        var total = await query.CountAsync(ct);
-        var loaded = await query.OrderBy(x => x.Item.BusinessNumber).ThenBy(x => x.Warehouse.BusinessNumber)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
-        var rows = loaded.Select(x => new InventoryPositionAnalytics(x.Item.Id, x.Item.BusinessNumber,
-            x.Item.NameFa, x.Item.NameEn, x.Warehouse.Id, x.Warehouse.BusinessNumber, x.Warehouse.NameFa,
-            x.Warehouse.NameEn, x.Warehouse.IsActive, x.Unit.Id, x.Unit.Code, x.Unit.NameFa, x.Unit.NameEn,
-            x.OnHand, x.CompanyOnHand, !x.Warehouse.IsActive && x.OnHand != 0)).ToList();
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? string.Empty : $"%{search.Trim()}%";
+        var data = await db.Database.SqlQueryRaw<InventoryPositionDbRow>(InventoryPositionSql,
+            new NpgsqlParameter("asOfDate", asOfDate), new NpgsqlParameter("cutoff", cutoff),
+            new NpgsqlParameter("search", searchPattern), new NpgsqlParameter("limit", pageSize),
+            new NpgsqlParameter("offset", (page - 1) * pageSize)).ToListAsync(ct);
+        var total = data.FirstOrDefault()?.TotalCount ?? 0;
+        var rows = data.Select(x => new InventoryPositionAnalytics(x.ItemId, x.ItemCode,
+            x.ItemNameFa, x.ItemNameEn, x.WarehouseId, x.WarehouseCode, x.WarehouseNameFa,
+            x.WarehouseNameEn, x.WarehouseIsActive, x.UnitId, x.UnitCode, x.UnitNameFa, x.UnitNameEn,
+            x.OnHand, x.CompanyOnHand, !x.WarehouseIsActive && x.OnHand != 0)).ToList();
         return new(rows, page, pageSize, total, asOfDate, cutoff,
             Provenance(cutoff, new Dictionary<string, string?> { ["asOfDate"] = asOfDate.ToString("O"), ["search"] = search },
                 "MRP-08 immutable inventory ledger effects"));
@@ -225,28 +191,16 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
             { ["toDate"] = ["To date must be on or after from date."] });
         var cutoff = ValidateCutoff(dataCutoffUtc);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = from effect in db.InventoryLedgerEffects.AsNoTracking()
-                    join transaction in db.InventoryTransactions.AsNoTracking()
-                        on effect.TransactionId equals transaction.Id
-                    join item in db.Items.AsNoTracking() on effect.ItemId equals item.Id
-                    join warehouse in db.Warehouses.AsNoTracking() on effect.WarehouseId equals warehouse.Id
-                    where effect.EffectiveDate >= fromDate && effect.EffectiveDate <= toDate &&
-                        transaction.CreatedAtUtc <= cutoff
-                    select new { Effect = effect, Transaction = transaction, Item = item, Warehouse = warehouse };
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var value = search.Trim();
-            query = query.Where(x => x.Item.BusinessNumber.Contains(value) ||
-                x.Warehouse.BusinessNumber.Contains(value) || x.Transaction.TransactionType.Contains(value));
-        }
-        var total = await query.CountAsync(ct);
-        var rows = await query.OrderByDescending(x => x.Effect.EffectiveDate)
-            .ThenBy(x => x.Transaction.CreatedAtUtc).ThenBy(x => x.Transaction.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(x => new InventoryMovementAnalytics(x.Transaction.Id, x.Transaction.TransactionType,
-                x.Effect.EffectiveDate, x.Item.Id, x.Item.BusinessNumber, x.Warehouse.Id,
-                x.Warehouse.BusinessNumber, x.Effect.QuantityEffect, x.Transaction.SourceDocumentType,
-                x.Transaction.SourceDocumentId, x.Transaction.CreatedAtUtc)).ToListAsync(ct);
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? string.Empty : $"%{search.Trim()}%";
+        var data = await db.Database.SqlQueryRaw<InventoryMovementDbRow>(InventoryMovementSql,
+            new NpgsqlParameter("fromDate", fromDate), new NpgsqlParameter("toDate", toDate),
+            new NpgsqlParameter("cutoff", cutoff), new NpgsqlParameter("search", searchPattern),
+            new NpgsqlParameter("limit", pageSize), new NpgsqlParameter("offset", (page - 1) * pageSize))
+            .ToListAsync(ct);
+        var total = data.FirstOrDefault()?.TotalCount ?? 0;
+        var rows = data.Select(x => new InventoryMovementAnalytics(x.TransactionId, x.TransactionType,
+            x.EffectiveDate, x.ItemId, x.ItemCode, x.WarehouseId, x.WarehouseCode, x.Quantity,
+            x.SourceDocumentType, x.SourceDocumentId, x.CreatedAtUtc)).ToList();
         return new(rows, page, pageSize, total, toDate, cutoff,
             Provenance(cutoff, new Dictionary<string, string?>
             {
@@ -256,16 +210,18 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
             }, "MRP-08 immutable inventory ledger effects"));
     }
 
-    private static LeadTimeOptionAnalytics BuildLeadTime(SourcingOption option, DeliverySchedule[] schedules,
+    private static LeadTimeOptionAnalytics BuildLeadTime(LeadTimeContextDbRow option,
+        DeliveryScheduleAtCutoff[] schedules,
         DateOnly evaluationDate, DateTime cutoff)
     {
         var observations = new List<LeadObservation>();
-        foreach (var schedule in schedules)
+        foreach (var state in schedules)
         {
+            var schedule = state.Source;
             var cancels = schedule.Cancellations.Where(x => x.CreatedAtUtc <= cutoff).Sum(x => x.Quantity);
             var validReceipts = schedule.ReceiptLines.Where(x => x.Receipt.PostedAtUtc <= cutoff &&
                 (x.Receipt.ReversedAtUtc == null || x.Receipt.ReversedAtUtc > cutoff)).ToArray();
-            if (cancels > 0 || validReceipts.Sum(x => x.Quantity) != schedule.AllocatedQuantity) continue;
+            if (cancels > 0 || validReceipts.Sum(x => x.Quantity) != state.AllocatedQuantity) continue;
             var completion = validReceipts.MaxBy(x => x.Receipt.EffectiveDate)?.Receipt.EffectiveDate;
             if (completion is null || completion > evaluationDate || schedule.PurchaseOrderLine.PurchaseOrder.OrderedDate is null) continue;
             var currentActuals = CurrentMilestones(schedule.ActualMilestones.Where(x => x.CreatedAtUtc <= cutoff));
@@ -278,14 +234,14 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         }
         var selected = SelectWindow(observations, evaluationDate);
         var reliabilityStart = evaluationDate.AddMonths(selected.Label == "12M" ? -12 : -24);
-        var reliability = schedules.Where(x => x.PurchaseOrderLine.PurchaseOrder.OrderedDate > reliabilityStart &&
-            x.PurchaseOrderLine.PurchaseOrder.OrderedDate <= evaluationDate).ToArray();
+        var reliability = schedules.Where(x => x.Source.PurchaseOrderLine.PurchaseOrder.OrderedDate > reliabilityStart &&
+            x.Source.PurchaseOrderLine.PurchaseOrder.OrderedDate <= evaluationDate).ToArray();
         var allocated = reliability.Sum(x => x.AllocatedQuantity);
-        var cancelledQuantities = reliability.Select(x => x.Cancellations.Where(y => y.CreatedAtUtc <= cutoff)
+        var cancelledQuantities = reliability.Select(x => x.Source.Cancellations.Where(y => y.CreatedAtUtc <= cutoff)
             .Sum(y => y.Quantity)).ToArray();
         var cancelledCount = cancelledQuantities.Count(x => x > 0);
         var cancelledQty = cancelledQuantities.Sum();
-        var received = reliability.Sum(x => x.ReceiptLines.Where(y => y.Receipt.PostedAtUtc <= cutoff &&
+        var received = reliability.Sum(x => x.Source.ReceiptLines.Where(y => y.Receipt.PostedAtUtc <= cutoff &&
             (y.Receipt.ReversedAtUtc == null || y.Receipt.ReversedAtUtc > cutoff)).Sum(y => y.Quantity));
         var totalValues = selected.Items.Select(x => x.Completion.DayNumber - x.Ordered.DayNumber).ToArray();
         var stages = new[]
@@ -297,9 +253,9 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         };
         var onTimeDenominator = selected.Items.Count(x => x.OriginalWarehouseReceipt.HasValue);
         decimal? onTime = onTimeDenominator == 0 ? null : selected.Items.Count(x => x.OriginalWarehouseReceipt >= x.Completion) * 100m / onTimeDenominator;
-        return new(option.Id, option.SourcingNumber, option.Version, option.ItemId, option.Item.BusinessNumber,
-            option.Item.NameFa, option.Item.NameEn, option.SupplierId, option.Supplier.SupplierNumber,
-            option.Supplier.Name, null, AnalyticsMath.Statistics(totalValues, selected.Label), stages,
+        return new(option.SourcingOptionId, option.SourcingNumber, option.Version, option.ItemId, option.ItemCode,
+            option.ItemNameFa, option.ItemNameEn, option.SupplierId, option.SupplierNumber,
+            option.SupplierNameFa, option.SupplierNameEn, AnalyticsMath.Statistics(totalValues, selected.Label), stages,
             selected.Items.Count, cancelledCount, cancelledQty, allocated == 0 ? 0 : received / allocated * 100m, onTime);
     }
 
@@ -355,36 +311,36 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         .. additional
     ];
 
-    private static CommercialCommitmentRow BuildCommercial(PurchaseOrder po, DateOnly evaluationDate, DateTime cutoff)
+    private static CommercialCommitmentRow BuildCommercial(PurchaseOrder po, CommercialContextDbRow context,
+        DeliveryScheduleAtCutoff[] schedules, DateOnly evaluationDate, DateTime cutoff)
     {
-        var schedules = po.Lines.SelectMany(x => x.Schedules).ToArray();
         var required = schedules.Where(s =>
         {
-            var received = EffectiveReceipts(s, cutoff).Sum(x => x.Quantity);
-            var cancelled = s.Cancellations.Where(x => x.CreatedAtUtc <= cutoff).Sum(x => x.Quantity);
+            var received = EffectiveReceipts(s.Source, cutoff).Sum(x => x.Quantity);
+            var cancelled = s.Source.Cancellations.Where(x => x.CreatedAtUtc <= cutoff).Sum(x => x.Quantity);
             return !(received == 0 && cancelled >= s.AllocatedQuantity);
         }).ToArray();
-        var validReceipts = schedules.SelectMany(x => EffectiveReceipts(x, cutoff)).ToArray();
+        var validReceipts = schedules.SelectMany(x => EffectiveReceipts(x.Source, cutoff)).ToArray();
         var receivedQuantity = validReceipts.Sum(x => x.Quantity);
-        var cancelledQuantity = schedules.Sum(x => x.Cancellations.Where(y => y.CreatedAtUtc <= cutoff)
+        var cancelledQuantity = schedules.Sum(x => x.Source.Cancellations.Where(y => y.CreatedAtUtc <= cutoff)
             .Sum(y => y.Quantity));
         var orderedQuantity = schedules.Sum(x => x.AllocatedQuantity);
         var openQuantity = orderedQuantity - receivedQuantity - cancelledQuantity;
-        var originalEtas = required.Select(x => x.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
+        var originalEtas = required.Select(x => x.Source.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
             y.PlanType == PurchasePlanTypes.Original).OrderBy(y => y.RevisionNumber)
             .FirstOrDefault()?.WarehouseReceiptDate).ToArray();
-        var currentEtas = required.Select(x => x.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
+        var currentEtas = required.Select(x => x.Source.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
             y.PlanType == PurchasePlanTypes.Revised).OrderByDescending(y => y.RevisionNumber)
-            .FirstOrDefault()?.WarehouseReceiptDate ?? x.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
+            .FirstOrDefault()?.WarehouseReceiptDate ?? x.Source.PlanRevisions.Where(y => y.CreatedAtUtc <= cutoff &&
                 y.PlanType == PurchasePlanTypes.Original).OrderBy(y => y.RevisionNumber)
                 .FirstOrDefault()?.WarehouseReceiptDate).ToArray();
         var originalEta = required.Length == 0 || originalEtas.Any(x => !x.HasValue) ? null : originalEtas.Max();
         var currentEta = required.Length == 0 || currentEtas.Any(x => !x.HasValue) ? null : currentEtas.Max();
         var firstReceipt = validReceipts.MinBy(x => x.Receipt.EffectiveDate)?.Receipt.EffectiveDate;
-        var shippedAnchors = required.Select(s => ResolveShippedAnchor(s, cutoff)).ToArray();
-        var warehouseReceiptAnchors = required.Select(s => ResolveWarehouseReceiptAnchor(s, cutoff)).ToArray();
+        var shippedAnchors = required.Select(s => ResolveShippedAnchor(s.Source, cutoff)).ToArray();
+        var warehouseReceiptAnchors = required.Select(s => ResolveWarehouseReceiptAnchor(s.Source, cutoff)).ToArray();
         DateOnly? anchor = null;
-        var finalReceipt = ResolveFinalReceipt(po, cutoff);
+        var finalReceipt = ResolveFinalReceipt(schedules, cutoff);
         if (po.CreditAnchor == PurchaseMilestoneCodes.WarehouseReceipt)
             anchor = finalReceipt ?? (required.Length == 0 || warehouseReceiptAnchors.Any(x => !x.HasValue)
                 ? null : warehouseReceiptAnchors.Max());
@@ -396,8 +352,8 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         var status = po.LifecycleEvents.Where(x => x.CreatedAtUtc <= cutoff)
             .OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id)
             .Select(x => x.ToStatus).FirstOrDefault() ?? PurchaseOrderStatuses.Draft;
-        return new(po.Id, po.PurchaseOrderNumber, po.SupplierId, po.Supplier.SupplierNumber, po.Supplier.Name,
-            po.CurrencyId, po.Currency.Code, po.Lines.Sum(x => x.OrderedQuantity * x.UnitPrice), orderedQuantity,
+        return new(po.Id, po.PurchaseOrderNumber, po.SupplierId, context.SupplierNumber, context.SupplierNameFa,
+            po.CurrencyId, context.CurrencyCode, po.Lines.Sum(x => x.OrderedQuantity * x.UnitPrice), orderedQuantity,
             receivedQuantity, cancelledQuantity, openQuantity, originalEta, currentEta, firstReceipt, finalReceipt,
             completion, status, po.CreditAnchor ?? string.Empty, anchor, expected,
             anchor.HasValue ? "RESOLVED" : "UNRESOLVED", required.Length);
@@ -428,14 +384,14 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
             .OrderBy(x => x.RevisionNumber).FirstOrDefault()?.WarehouseReceiptDate;
     }
 
-    private static DateOnly? ResolveFinalReceipt(PurchaseOrder po, DateTime cutoff)
+    private static DateOnly? ResolveFinalReceipt(IReadOnlyCollection<DeliveryScheduleAtCutoff> schedules,
+        DateTime cutoff)
     {
-        var schedules = po.Lines.SelectMany(x => x.Schedules).ToArray();
-        var received = schedules.Sum(x => EffectiveReceipts(x, cutoff).Sum(y => y.Quantity));
-        var cancelled = schedules.Sum(x => x.Cancellations.Where(y => y.CreatedAtUtc <= cutoff).Sum(y => y.Quantity));
+        var received = schedules.Sum(x => EffectiveReceipts(x.Source, cutoff).Sum(y => y.Quantity));
+        var cancelled = schedules.Sum(x => x.Source.Cancellations.Where(y => y.CreatedAtUtc <= cutoff).Sum(y => y.Quantity));
         var allocated = schedules.Sum(x => x.AllocatedQuantity);
         if (allocated - received - cancelled > 0 || received == 0) return null;
-        return schedules.SelectMany(x => EffectiveReceipts(x, cutoff)).MaxBy(x => x.Receipt.EffectiveDate)?.Receipt.EffectiveDate;
+        return schedules.SelectMany(x => EffectiveReceipts(x.Source, cutoff)).MaxBy(x => x.Receipt.EffectiveDate)?.Receipt.EffectiveDate;
     }
 
     private static PurchaseReceiptLine[] EffectiveReceipts(DeliverySchedule schedule, DateTime cutoff) =>
@@ -475,6 +431,138 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
     private static AnalyticsValidationException Validation(string key, string message) =>
         new(new Dictionary<string, string[]> { [key] = [message] });
 
+    private const string LeadTimeContextSql = """
+        SELECT so."Id" AS "SourcingOptionId", so."SourcingNumber", so."ItemId", so."SupplierId",
+               item."Code" AS "ItemCode", item."NameFa" AS "ItemNameFa", item."NameEn" AS "ItemNameEn",
+               supplier."Code" AS "SupplierNumber", supplier."NameFa" AS "SupplierNameFa",
+               supplier."NameEn" AS "SupplierNameEn", source."Version",
+               source."SupplierLeadTimeDays", source."ForwarderToShipmentDays",
+               source."ShippingPeriodDays", source."DestinationCustomsDays",
+               COUNT(*) OVER()::integer AS "TotalCount"
+        FROM procurement.sourcing_options so
+        JOIN LATERAL (
+          SELECT h."Code",h."NameFa",h."NameEn" FROM analytics.master_context_history h
+          WHERE h."EntityType"='ITEM' AND h."EntityId"=so."ItemId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) item ON true
+        JOIN LATERAL (
+          SELECT h."Code",h."NameFa",h."NameEn" FROM analytics.master_context_history h
+          WHERE h."EntityType"='SUPPLIER' AND h."EntityId"=so."SupplierId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) supplier ON true
+        JOIN LATERAL (
+          SELECT h."Version",h."SupplierLeadTimeDays",h."ForwarderToShipmentDays",
+                 h."ShippingPeriodDays",h."DestinationCustomsDays"
+          FROM analytics.sourcing_option_context_history h
+          WHERE h."SourcingOptionId"=so."Id" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) source ON true
+        WHERE so."CreatedAtUtc"<=@cutoff AND (@search='' OR so."SourcingNumber" ILIKE @search
+          OR item."Code" ILIKE @search OR item."NameFa" ILIKE @search OR COALESCE(item."NameEn",'') ILIKE @search
+          OR supplier."Code" ILIKE @search OR supplier."NameFa" ILIKE @search)
+        ORDER BY so."SourcingNumber" LIMIT @limit OFFSET @offset
+        """;
+
+    private const string CommercialContextSql = """
+        SELECT po."Id" AS "PurchaseOrderId", supplier."Code" AS "SupplierNumber",
+               supplier."NameFa" AS "SupplierNameFa", currency."Code" AS "CurrencyCode",
+               COUNT(*) OVER()::integer AS "TotalCount"
+        FROM procurement.purchase_orders po
+        JOIN LATERAL (
+          SELECT h."Code",h."NameFa" FROM analytics.master_context_history h
+          WHERE h."EntityType"='SUPPLIER' AND h."EntityId"=po."SupplierId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) supplier ON true
+        JOIN LATERAL (
+          SELECT h."Code" FROM analytics.master_context_history h
+          WHERE h."EntityType"='CURRENCY' AND h."EntityId"=po."CurrencyId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) currency ON true
+        WHERE po."CreatedAtUtc"<=@cutoff AND EXISTS (
+          SELECT 1 FROM procurement.purchase_order_lifecycle_events e
+          WHERE e."PurchaseOrderId"=po."Id" AND e."CreatedAtUtc"<=@cutoff
+            AND e."ToStatus" IN ('ORDERED','SHIPPED','CUSTOMS','PARTIALLY_RECEIVED','RECEIVED','CANCELLED'))
+          AND (@search='' OR po."PurchaseOrderNumber" ILIKE @search OR supplier."Code" ILIKE @search
+               OR supplier."NameFa" ILIKE @search)
+        ORDER BY po."PurchaseOrderNumber" LIMIT @limit OFFSET @offset
+        """;
+
+    private const string CommercialTotalsSql = """
+        SELECT po."CurrencyId", currency."Code" AS "CurrencyCode",
+               SUM(line."OrderedQuantity"*line."UnitPrice") AS "OriginalAmount"
+        FROM procurement.purchase_orders po
+        JOIN procurement.purchase_order_lines line ON line."PurchaseOrderId"=po."Id"
+        JOIN LATERAL (
+          SELECT h."Code",h."NameFa" FROM analytics.master_context_history h
+          WHERE h."EntityType"='SUPPLIER' AND h."EntityId"=po."SupplierId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) supplier ON true
+        JOIN LATERAL (
+          SELECT h."Code" FROM analytics.master_context_history h
+          WHERE h."EntityType"='CURRENCY' AND h."EntityId"=po."CurrencyId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1
+        ) currency ON true
+        WHERE po."CreatedAtUtc"<=@cutoff AND EXISTS (
+          SELECT 1 FROM procurement.purchase_order_lifecycle_events e
+          WHERE e."PurchaseOrderId"=po."Id" AND e."CreatedAtUtc"<=@cutoff
+            AND e."ToStatus" IN ('ORDERED','SHIPPED','CUSTOMS','PARTIALLY_RECEIVED','RECEIVED','CANCELLED'))
+          AND (@search='' OR po."PurchaseOrderNumber" ILIKE @search OR supplier."Code" ILIKE @search
+               OR supplier."NameFa" ILIKE @search)
+        GROUP BY po."CurrencyId",currency."Code"
+        """;
+
+    private const string InventoryPositionSql = """
+        WITH eligible AS (
+          SELECT e.* FROM inventory.ledger_effects e
+          JOIN inventory.transactions t ON t."Id"=e."TransactionId"
+          WHERE e."EffectiveDate"<=@asOfDate AND t."CreatedAtUtc"<=@cutoff
+        ), balances AS (
+          SELECT "ItemId","WarehouseId","UnitId",SUM("QuantityEffect") AS "OnHand"
+          FROM eligible GROUP BY "ItemId","WarehouseId","UnitId"
+        ), company AS (
+          SELECT "ItemId","UnitId",SUM("QuantityEffect") AS "CompanyOnHand"
+          FROM eligible GROUP BY "ItemId","UnitId"
+        )
+        SELECT b."ItemId",item."Code" AS "ItemCode",item."NameFa" AS "ItemNameFa",item."NameEn" AS "ItemNameEn",
+               b."WarehouseId",warehouse."Code" AS "WarehouseCode",warehouse."NameFa" AS "WarehouseNameFa",
+               warehouse."NameEn" AS "WarehouseNameEn",warehouse."IsActive" AS "WarehouseIsActive",
+               b."UnitId",unit."Code" AS "UnitCode",unit."NameFa" AS "UnitNameFa",unit."NameEn" AS "UnitNameEn",
+               b."OnHand",company."CompanyOnHand",COUNT(*) OVER()::integer AS "TotalCount"
+        FROM balances b JOIN company ON company."ItemId"=b."ItemId" AND company."UnitId"=b."UnitId"
+        JOIN LATERAL (SELECT h."Code",h."NameFa",h."NameEn" FROM analytics.master_context_history h
+          WHERE h."EntityType"='ITEM' AND h."EntityId"=b."ItemId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1) item ON true
+        JOIN LATERAL (SELECT h."Code",h."NameFa",h."NameEn",h."IsActive" FROM analytics.master_context_history h
+          WHERE h."EntityType"='WAREHOUSE' AND h."EntityId"=b."WarehouseId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1) warehouse ON true
+        JOIN LATERAL (SELECT h."Code",h."NameFa",h."NameEn" FROM analytics.master_context_history h
+          WHERE h."EntityType"='UNIT' AND h."EntityId"=b."UnitId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1) unit ON true
+        WHERE b."OnHand"<>0 AND (@search='' OR item."Code" ILIKE @search OR item."NameFa" ILIKE @search
+          OR COALESCE(item."NameEn",'') ILIKE @search OR warehouse."Code" ILIKE @search
+          OR warehouse."NameFa" ILIKE @search OR COALESCE(warehouse."NameEn",'') ILIKE @search)
+        ORDER BY item."Code",warehouse."Code" LIMIT @limit OFFSET @offset
+        """;
+
+    private const string InventoryMovementSql = """
+        SELECT t."Id" AS "TransactionId",t."TransactionType",e."EffectiveDate",e."ItemId",
+               item."Code" AS "ItemCode",e."WarehouseId",warehouse."Code" AS "WarehouseCode",
+               e."QuantityEffect" AS "Quantity",t."SourceDocumentType",t."SourceDocumentId",t."CreatedAtUtc",
+               COUNT(*) OVER()::integer AS "TotalCount"
+        FROM inventory.ledger_effects e JOIN inventory.transactions t ON t."Id"=e."TransactionId"
+        JOIN LATERAL (SELECT h."Code" FROM analytics.master_context_history h
+          WHERE h."EntityType"='ITEM' AND h."EntityId"=e."ItemId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1) item ON true
+        JOIN LATERAL (SELECT h."Code" FROM analytics.master_context_history h
+          WHERE h."EntityType"='WAREHOUSE' AND h."EntityId"=e."WarehouseId" AND h."EffectiveAtUtc"<=@cutoff
+          ORDER BY h."EffectiveAtUtc" DESC,h."Id" DESC LIMIT 1) warehouse ON true
+        WHERE e."EffectiveDate">=@fromDate AND e."EffectiveDate"<=@toDate AND t."CreatedAtUtc"<=@cutoff
+          AND (@search='' OR item."Code" ILIKE @search OR warehouse."Code" ILIKE @search
+               OR t."TransactionType" ILIKE @search)
+        ORDER BY e."EffectiveDate" DESC,t."CreatedAtUtc",t."Id"
+        LIMIT @limit OFFSET @offset
+        """;
+
     private const string ForecastAccuracyFactsSql = """
         WITH effective_periods AS (
             SELECT bp."Id", bp."JalaliYear", bp."JalaliMonth", bp."StartDate", bp."EndDate",
@@ -498,7 +586,7 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
             JOIN effective_periods period ON period."Id" = actual."BusinessPeriodId"
             WHERE actual."CreatedAtUtc" <= @cutoff
         ), facts AS (
-            SELECT item."Id" AS "ProductId", item."BusinessNumber" AS "ProductCode",
+            SELECT scope."ProductId", item."Code" AS "ProductCode",
                 item."NameFa" AS "ProductNameFa", item."NameEn" AS "ProductNameEn",
                 period."Id" AS "PeriodId", period."JalaliYear", period."JalaliMonth",
                 period."StartDate" AS "PeriodStart", period."EndDate" AS "PeriodEnd",
@@ -539,12 +627,18 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
                 ), 0) AS "Actual"
             FROM scope_keys scope
             JOIN effective_periods period ON period."Id" = scope."BusinessPeriodId"
-            JOIN catalog.items item ON item."Id" = scope."ProductId"
+            JOIN LATERAL (
+                SELECT history."Code",history."NameFa",history."NameEn"
+                FROM analytics.master_context_history history
+                WHERE history."EntityType"='ITEM' AND history."EntityId"=scope."ProductId"
+                    AND history."EffectiveAtUtc"<=@cutoff
+                ORDER BY history."EffectiveAtUtc" DESC,history."Id" DESC LIMIT 1
+            ) item ON true
             LEFT JOIN planning.forecast_series series
                 ON series."ProductId" = scope."ProductId"
                 AND series."BusinessPeriodId" = scope."BusinessPeriodId"
                 AND series."CreatedAtUtc" <= @cutoff
-            WHERE @search = '' OR item."BusinessNumber" ILIKE @search
+            WHERE @search = '' OR item."Code" ILIKE @search
                 OR item."NameFa" ILIKE @search OR COALESCE(item."NameEn", '') ILIKE @search
         )
         """;
@@ -571,6 +665,78 @@ public sealed class AnalyticsService(IDbContextFactory<HadronDbContext> factory,
         ORDER BY "PeriodStart" DESC, "ProductCode"
         LIMIT @limit OFFSET @offset
         """;
+
+    private sealed class LeadTimeContextDbRow
+    {
+        public Guid SourcingOptionId { get; init; }
+        public string SourcingNumber { get; init; } = string.Empty;
+        public Guid ItemId { get; init; }
+        public string ItemCode { get; init; } = string.Empty;
+        public string ItemNameFa { get; init; } = string.Empty;
+        public string? ItemNameEn { get; init; }
+        public Guid SupplierId { get; init; }
+        public string SupplierNumber { get; init; } = string.Empty;
+        public string SupplierNameFa { get; init; } = string.Empty;
+        public string? SupplierNameEn { get; init; }
+        public long Version { get; init; }
+        public int? SupplierLeadTimeDays { get; init; }
+        public int? ForwarderToShipmentDays { get; init; }
+        public int? ShippingPeriodDays { get; init; }
+        public int? DestinationCustomsDays { get; init; }
+        public int TotalCount { get; init; }
+    }
+
+    private sealed class CommercialContextDbRow
+    {
+        public Guid PurchaseOrderId { get; init; }
+        public string SupplierNumber { get; init; } = string.Empty;
+        public string SupplierNameFa { get; init; } = string.Empty;
+        public string CurrencyCode { get; init; } = string.Empty;
+        public int TotalCount { get; init; }
+    }
+
+    private sealed class CurrencyCommitmentDbRow
+    {
+        public Guid CurrencyId { get; init; }
+        public string CurrencyCode { get; init; } = string.Empty;
+        public decimal OriginalAmount { get; init; }
+    }
+
+    private sealed class InventoryPositionDbRow
+    {
+        public Guid ItemId { get; init; }
+        public string ItemCode { get; init; } = string.Empty;
+        public string ItemNameFa { get; init; } = string.Empty;
+        public string? ItemNameEn { get; init; }
+        public Guid WarehouseId { get; init; }
+        public string WarehouseCode { get; init; } = string.Empty;
+        public string WarehouseNameFa { get; init; } = string.Empty;
+        public string? WarehouseNameEn { get; init; }
+        public bool WarehouseIsActive { get; init; }
+        public Guid UnitId { get; init; }
+        public string UnitCode { get; init; } = string.Empty;
+        public string UnitNameFa { get; init; } = string.Empty;
+        public string? UnitNameEn { get; init; }
+        public decimal OnHand { get; init; }
+        public decimal CompanyOnHand { get; init; }
+        public int TotalCount { get; init; }
+    }
+
+    private sealed class InventoryMovementDbRow
+    {
+        public Guid TransactionId { get; init; }
+        public string TransactionType { get; init; } = string.Empty;
+        public DateOnly EffectiveDate { get; init; }
+        public Guid ItemId { get; init; }
+        public string ItemCode { get; init; } = string.Empty;
+        public Guid WarehouseId { get; init; }
+        public string WarehouseCode { get; init; } = string.Empty;
+        public decimal Quantity { get; init; }
+        public string? SourceDocumentType { get; init; }
+        public Guid? SourceDocumentId { get; init; }
+        public DateTime CreatedAtUtc { get; init; }
+        public int TotalCount { get; init; }
+    }
 
     private sealed class ForecastAccuracyDbRow
     {
