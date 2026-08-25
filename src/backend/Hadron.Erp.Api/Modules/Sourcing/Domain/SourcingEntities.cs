@@ -117,3 +117,52 @@ public sealed class SourcingPrice
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }
+
+public static class LeadTimeStageCodes
+{
+    public const string Supplier = "SUPPLIER";
+    public const string ForwarderPreShipment = "FORWARDER_PRE_SHIPMENT";
+    public const string Shipping = "SHIPPING";
+    public const string DestinationCustoms = "DESTINATION_CUSTOMS";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
+    { Supplier, ForwarderPreShipment, Shipping, DestinationCustoms };
+}
+
+/// <summary>Durable Sourcing-owned audit history for an explicitly applied analytics recommendation.</summary>
+public sealed class LeadTimeRecommendationApplication
+{
+    private LeadTimeRecommendationApplication() { }
+
+    public LeadTimeRecommendationApplication(Guid sourcingOptionId, string stageCode, int? previousDays,
+        int recommendedDays, int sampleCount, DateOnly windowStartExclusive, DateOnly windowEndInclusive,
+        string? reason, string? actorIdentifier)
+    {
+        Id = Guid.NewGuid();
+        SourcingOptionId = sourcingOptionId;
+        StageCode = stageCode;
+        PreviousDays = previousDays;
+        RecommendedDays = recommendedDays;
+        AppliedDays = recommendedDays;
+        SampleCount = sampleCount;
+        WindowStartExclusive = windowStartExclusive;
+        WindowEndInclusive = windowEndInclusive;
+        Reason = reason;
+        ActorIdentifier = actorIdentifier;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid SourcingOptionId { get; private set; }
+    public SourcingOption SourcingOption { get; private set; } = null!;
+    public string StageCode { get; private set; } = string.Empty;
+    public int? PreviousDays { get; private set; }
+    public int RecommendedDays { get; private set; }
+    public int AppliedDays { get; private set; }
+    public int SampleCount { get; private set; }
+    public DateOnly WindowStartExclusive { get; private set; }
+    public DateOnly WindowEndInclusive { get; private set; }
+    public string Method { get; private set; } = "P80_PERCENTILE_CONT_CEILING";
+    public string? Reason { get; private set; }
+    public string? ActorIdentifier { get; private set; }
+    public DateTime AppliedAtUtc { get; private set; }
+}

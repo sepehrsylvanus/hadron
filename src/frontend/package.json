@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "node --test --test-concurrency=1 src/i18n/localizedName.test.ts src/MaterialPlanning.test.ts src/OrderPlanning.test.ts",
+    "test": "node --test --test-concurrency=1 src/i18n/localizedName.test.ts src/MaterialPlanning.test.ts src/OrderPlanning.test.ts src/Analytics.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -38,6 +38,14 @@ public sealed record SetPreferredSourcingOptionRequest(long ExpectedVersion, Gui
 public sealed record CreateSourcingPriceRequest(decimal UnitPrice, Guid CurrencyId, DateOnly EffectiveFrom,
     DateOnly? EffectiveTo, long ExpectedVersion);
 public sealed record CloseSourcingPriceRequest(DateOnly EffectiveTo, long ExpectedVersion, string? Reason);
+public sealed record LeadTimeStageApplication(string StageCode, int RecommendedDays, int SampleCount,
+    DateOnly WindowStartExclusive, DateOnly WindowEndInclusive);
+public sealed record ApplyLeadTimeRecommendationCommand(long ExpectedVersion,
+    IReadOnlyList<LeadTimeStageApplication> Stages, string? Reason);
+public sealed record LeadTimeRecommendationApplicationResponse(Guid Id, Guid SourcingOptionId,
+    string StageCode, int? PreviousDays, int RecommendedDays, int AppliedDays, int SampleCount,
+    DateOnly WindowStartExclusive, DateOnly WindowEndInclusive, string Method, string? Reason,
+    string? ActorIdentifier, DateTime AppliedAtUtc);
 
 public sealed class SourcingValidationException(IReadOnlyDictionary<string, string[]> errors)
     : Exception("Sourcing validation failed.")

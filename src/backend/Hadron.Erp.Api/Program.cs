@@ -22,6 +22,8 @@ using Hadron.Erp.Api.Modules.Mrp.Api;
 using Hadron.Erp.Api.Modules.Mrp.Application;
 using Hadron.Erp.Api.Modules.OrderPlanning.Api;
 using Hadron.Erp.Api.Modules.OrderPlanning.Application;
+using Hadron.Erp.Api.Modules.Analytics.Api;
+using Hadron.Erp.Api.Modules.Analytics.Application;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,6 +50,8 @@ builder.Services.AddSingleton<IPurchaseReceiptFaultInjector, NoOpPurchaseReceipt
 builder.Services.AddScoped<MrpService>();
 builder.Services.AddScoped<MaterialPlanningService>();
 builder.Services.AddScoped<OrderPlanningService>();
+builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<AnalyticsExportService>();
 builder.Services.AddSingleton<IOrderPlanningGenerationFaultInjector, NoOpOrderPlanningGenerationFaultInjector>();
 builder.Services.AddSingleton<OrderPlanningCalculator>();
 builder.Services.AddSingleton<MrpCalculator>();
@@ -106,6 +110,7 @@ app.MapPurchaseSupplyEndpoints();
 app.MapMrpEndpoints();
 app.MapMaterialPlanningEndpoints();
 app.MapOrderPlanningEndpoints();
+app.MapAnalyticsEndpoints();
 
 app.Run();
 

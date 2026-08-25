@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Boxes, CalendarRange, Calculator, ChartNoAxesCombined, ClipboardCheck, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, ShoppingCart, UsersRound, Wrench } from 'lucide-react'
+import { BarChart3, Boxes, CalendarRange, Calculator, ChartNoAxesCombined, ClipboardCheck, Component, Database, House, Languages, Network, PackageOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Route as SourcingRoute, ShoppingCart, UsersRound, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import officialHadronLogo from '../../../docs/brand/Hadron Logo new-01.png'
 import ProductMaster, { ProductObjectPage } from './ProductMaster'
@@ -16,6 +16,7 @@ import PurchaseOrderPage from './PurchaseOrderPage'
 import MrpRunsPage from './MrpRunsPage'
 import MaterialPlanningPage from './MaterialPlanningPage'
 import OrderPlanningPage from './OrderPlanningPage'
+import AnalyticsPage from './AnalyticsPage'
 import { languageDirection, normalizeLanguage, type SupportedLanguage } from './i18n'
 
 type NavigationItem = { labelKey: string; path: string; Icon: LucideIcon; aliases?: string[] }
@@ -40,6 +41,7 @@ const navigationGroups: NavigationGroup[] = [
     { labelKey: 'navigation.items.materialPlanning', path: '/mrp/planning/material-planning', Icon: ChartNoAxesCombined },
   ] },
   { labelKey: 'navigation.groups.inventory', items: [{ labelKey: 'navigation.items.inventory', path: '/mrp/inventory', aliases: ['/mrp/inventory'], Icon: Boxes }] },
+  { labelKey: 'navigation.groups.analytics', items: [{ labelKey: 'navigation.items.analytics', path: '/mrp/analytics/lead-time', aliases: ['/mrp/analytics'], Icon: BarChart3 }] },
 ]
 
 function findRoute(pathname: string) {
@@ -117,6 +119,7 @@ function App() {
     <Route path="/mrp/inventory" element={<InventoryPage view="balances" />} /><Route path="/mrp/inventory/items/:id" element={<InventoryPage view="item" />} />
     <Route path="/mrp/inventory/warehouses" element={<InventoryPage view="warehouses" />} /><Route path="/mrp/inventory/warehouses/new" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id" element={<InventoryPage view="warehouse" />} /><Route path="/mrp/inventory/warehouses/:id/edit" element={<InventoryPage view="warehouse" />} />
     <Route path="/mrp/inventory/transactions" element={<InventoryPage view="transactions" />} /><Route path="/mrp/inventory/transactions/:id" element={<InventoryPage view="transaction" />} /><Route path="/mrp/inventory/post/:type" element={<InventoryPage view="post" />} />
+    <Route path="/mrp/analytics" element={<Navigate to="/mrp/analytics/lead-time" replace />} /><Route path="/mrp/analytics/lead-time" element={<AnalyticsPage view="lead-time" />} /><Route path="/mrp/analytics/forecast-accuracy" element={<AnalyticsPage view="forecast" />} /><Route path="/mrp/analytics/commercial" element={<AnalyticsPage view="commercial" />} /><Route path="/mrp/analytics/inventory" element={<AnalyticsPage view="inventory" />} /><Route path="/mrp/analytics/reports" element={<AnalyticsPage view="reports" />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></AppShell></BrowserRouter>
 }

@@ -29,6 +29,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<SupplierContact> SupplierContacts => Set<SupplierContact>();
     public DbSet<SourcingOption> SourcingOptions => Set<SourcingOption>();
     public DbSet<SourcingPrice> SourcingPrices => Set<SourcingPrice>();
+    public DbSet<LeadTimeRecommendationApplication> LeadTimeRecommendationApplications => Set<LeadTimeRecommendationApplication>();
     public DbSet<BomRevision> BomRevisions => Set<BomRevision>();
     public DbSet<BomLine> BomLines => Set<BomLine>();
     public DbSet<BusinessPeriod> BusinessPeriods => Set<BusinessPeriod>();

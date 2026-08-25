@@ -24,6 +24,7 @@ const en = {
       engineering: 'Engineering',
       planning: 'Planning',
       inventory: 'Inventory',
+      analytics: 'Analytics & Reports',
     },
     items: {
       products: 'Products',
@@ -39,6 +40,7 @@ const en = {
       mrpRuns: 'MRP Runs',
       materialPlanning: 'Material Planning',
       inventory: 'Inventory',
+      analytics: 'Analytics & Reports',
     },
   },
   breadcrumbs: {
@@ -138,7 +140,7 @@ const en = {
     addLine: 'Add line', lineRequired: 'Add at least one sourcing line', quantity: 'Ordered quantity', requestedDate: 'Requested receipt target',
     snapshotHint: 'Commercial values are captured as a transaction snapshot and do not follow later master-data changes.', payment: 'Payment split',
     refresh: 'Refresh draft snapshot', approve: 'Approve', approveConfirm: 'Approve and lock the current commercial snapshot?', returnDraft: 'Return to draft',
-    markOrdered: 'Mark ordered', orderedDate: 'Ordered date', reason: 'Reason', leadSnapshot: 'Lead-time snapshot', openQty: 'Open quantity',
+    markOrdered: 'Mark ordered', orderedDate: 'Ordered date', reason: 'Reason', leadSnapshot: 'Lead-time snapshot', orderedQty: 'Ordered quantity', openQty: 'Open quantity',
     schedule: 'Schedule', firmEta: 'Firm ETA', timeline: 'Milestone timeline', revisePlan: 'Revise planned milestones', history: 'Lifecycle history',
     receivedQty: 'Received quantity', cancelledQty: 'Cancelled quantity', completion: 'Completion outcome', firstReceipt: 'First receipt date', finalReceipt: 'Final receipt date',
     lineage: 'Expert-decision lineage', actual: 'Actual milestone', actualDate: 'Actual date', correctMilestone: 'Correct prior milestone', operations: 'Operational actions', createReceipt: 'Create receipt draft',
@@ -181,6 +183,14 @@ const en = {
     sort: 'Global sort', sortDirection: 'Sort direction', calculationTrace: 'Immutable calculation trace',
     leadStages: 'Lead stages', shipping: 'Shipping mode', incoterm: 'Incoterm',
     convertToPo: 'Convert to draft PO', conversionFailed: 'Purchase-order conversion failed',
+  },
+  analytics: {
+    title: 'Analytics, Reporting & Integration', subtitle: 'Read-only operational analytics from canonical ERP facts',
+    leadTime: 'Supplier lead time', forecast: 'Forecast accuracy', commercial: 'Commercial commitments', inventory: 'Inventory analytics', reports: 'Reports & exports',
+    evaluationDate: 'Evaluation / as-of date', sourcingStatistics: 'Sourcing-option statistics', sample: 'Clean sample', onTime: 'On-time',
+    baseline: 'Baseline forecast', final: 'Final forecast', actual: 'Actual', anchor: 'Credit anchor', anchorDate: 'Anchor date', expectedCredit: 'Expected credit date', unresolved: 'Unresolved', warning: 'Warning', warehouseOnHand: 'Warehouse on-hand',
+    provenance: 'Data provenance', exportHint: 'Exports use the same bounded backend read contracts as the UI.', excel: 'Excel export', pdf: 'PDF export', applyP80: 'Apply selected P80 stages', insufficientSample: 'Insufficient sample', p80Reason: 'Explicit P80 lead-time recommendation application',
+    report: { 'mrp-run-summary': 'MRP run summary', 'material-risk': 'Material risk report', 'order-planning': 'Order planning report', 'purchase-order-receipt': 'Purchase order / receipt report', 'lead-time': 'Lead-time report', 'forecast-accuracy': 'Forecast accuracy report', 'commercial-commitments': 'Commercial commitments report', 'inventory-position': 'Inventory position report', 'inventory-movement': 'Inventory movement report' },
   },
 } as const
 

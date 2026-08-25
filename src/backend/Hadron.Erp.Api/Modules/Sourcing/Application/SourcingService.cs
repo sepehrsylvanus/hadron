@@ -212,6 +212,70 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
         return response;
     }
 
+    public async Task<IReadOnlyList<LeadTimeRecommendationApplicationResponse>> ApplyLeadTimeRecommendation(
+        Guid optionId, ApplyLeadTimeRecommendationCommand command, DateOnly evaluationDate, CancellationToken ct)
+    {
+        if (command.ExpectedVersion < 1) throw Validation("expectedVersion", "نسخه معتبر الزامی است.");
+        if (command.Stages.Count == 0) throw Validation("stages", "حداقل یک مرحله باید صریحاً انتخاب شود.");
+        if (command.Stages.Select(x => x.StageCode).Distinct(StringComparer.Ordinal).Count() != command.Stages.Count)
+            throw Validation("stages", "هر مرحله فقط یک بار قابل انتخاب است.");
+        if (command.Stages.Any(x => !LeadTimeStageCodes.All.Contains(x.StageCode) || x.RecommendedDays < 0 ||
+            x.SampleCount < 5 || x.WindowEndInclusive <= x.WindowStartExclusive))
+            throw Validation("stages", "پیشنهاد Lead Time معتبر نیست.");
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var option = await db.SourcingOptions.FromSqlInterpolated(
+            $"SELECT * FROM procurement.sourcing_options WHERE \"Id\" = {optionId} FOR UPDATE")
+            .SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException();
+        EnsureVersion(option.Version, command.ExpectedVersion);
+
+        var actor = AuditEventContext.ActorId(accessor.HttpContext);
+        var applications = new List<LeadTimeRecommendationApplication>();
+        foreach (var stage in command.Stages)
+        {
+            var previous = stage.StageCode switch
+            {
+                LeadTimeStageCodes.Supplier => option.SupplierLeadTimeDays,
+                LeadTimeStageCodes.ForwarderPreShipment => option.ForwarderToShipmentDays,
+                LeadTimeStageCodes.Shipping => option.ShippingPeriodDays,
+                LeadTimeStageCodes.DestinationCustoms => option.DestinationCustomsDays,
+                _ => null
+            };
+            applications.Add(new(option.Id, stage.StageCode, previous, stage.RecommendedDays,
+                stage.SampleCount, stage.WindowStartExclusive, stage.WindowEndInclusive, command.Reason, actor));
+        }
+
+        var values = command.Stages.ToDictionary(x => x.StageCode, StringComparer.Ordinal);
+        option.Edit(option.MinimumOrderQuantity, option.ShippingModeId, option.IncotermId,
+            values.TryGetValue(LeadTimeStageCodes.Supplier, out var supplier) ? supplier.RecommendedDays : option.SupplierLeadTimeDays,
+            values.TryGetValue(LeadTimeStageCodes.ForwarderPreShipment, out var forwarder) ? forwarder.RecommendedDays : option.ForwarderToShipmentDays,
+            values.TryGetValue(LeadTimeStageCodes.Shipping, out var shipping) ? shipping.RecommendedDays : option.ShippingPeriodDays,
+            values.TryGetValue(LeadTimeStageCodes.DestinationCustoms, out var destination) ? destination.RecommendedDays : option.DestinationCustomsDays);
+        db.LeadTimeRecommendationApplications.AddRange(applications);
+        await Save(db, ct);
+        await transaction.CommitAsync(ct);
+        var response = applications.Select(ToApplicationResponse).ToList();
+        await Emit(optionId, "APPLY_LEAD_TIME_RECOMMENDATION", response, command.Reason, ct);
+        return response;
+    }
+
+    public async Task<IReadOnlyList<LeadTimeRecommendationApplicationResponse>> ListLeadTimeApplications(
+        Guid optionId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.LeadTimeRecommendationApplications.AsNoTracking().Where(x => x.SourcingOptionId == optionId)
+            .OrderByDescending(x => x.AppliedAtUtc).Select(x => new LeadTimeRecommendationApplicationResponse(
+                x.Id, x.SourcingOptionId, x.StageCode, x.PreviousDays, x.RecommendedDays, x.AppliedDays,
+                x.SampleCount, x.WindowStartExclusive, x.WindowEndInclusive, x.Method, x.Reason,
+                x.ActorIdentifier, x.AppliedAtUtc)).ToListAsync(ct);
+    }
+
+    private static LeadTimeRecommendationApplicationResponse ToApplicationResponse(LeadTimeRecommendationApplication x) =>
+        new(x.Id, x.SourcingOptionId, x.StageCode, x.PreviousDays, x.RecommendedDays, x.AppliedDays,
+            x.SampleCount, x.WindowStartExclusive, x.WindowEndInclusive, x.Method, x.Reason,
+            x.ActorIdentifier, x.AppliedAtUtc);
+
     private static IQueryable<SourcingOption> LoadQuery(IQueryable<SourcingOption> query) => query
         .Include(x => x.Item).ThenInclude(x => x.BaseUnit).Include(x => x.Supplier).Include(x => x.ItemBaseUnit)
         .Include(x => x.ShippingMode).Include(x => x.Incoterm);

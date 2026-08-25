@@ -24,6 +24,7 @@ const fa = {
       engineering: 'مهندسی',
       planning: 'برنامه‌ریزی',
       inventory: 'انبار و موجودی',
+      analytics: 'تحلیل و گزارش‌ها',
     },
     items: {
       products: 'محصولات',
@@ -39,6 +40,7 @@ const fa = {
       mrpRuns: 'اجرای MRP',
       materialPlanning: 'برنامه‌ریزی مواد',
       inventory: 'موجودی',
+      analytics: 'تحلیل و گزارش‌ها',
     },
   },
   breadcrumbs: {
@@ -138,7 +140,7 @@ const fa = {
     addLine: 'افزودن خط', lineRequired: 'حداقل یک خط منبع تأمین اضافه کنید', quantity: 'مقدار سفارش', requestedDate: 'تاریخ هدف دریافت',
     snapshotHint: 'مقادیر تجاری به‌صورت Snapshot تراکنشی ثبت می‌شوند و با تغییرات بعدی Master Data عوض نمی‌شوند.', payment: 'ترکیب پرداخت',
     refresh: 'به‌روزرسانی Snapshot پیش‌نویس', approve: 'تأیید', approveConfirm: 'Snapshot تجاری فعلی تأیید و قفل شود؟', returnDraft: 'بازگشت به پیش‌نویس',
-    markOrdered: 'ثبت سفارش‌شده', orderedDate: 'تاریخ سفارش', reason: 'دلیل', leadSnapshot: 'Snapshot زمان‌های تأمین', openQty: 'مقدار باز',
+    markOrdered: 'ثبت سفارش‌شده', orderedDate: 'تاریخ سفارش', reason: 'دلیل', leadSnapshot: 'Snapshot زمان‌های تأمین', orderedQty: 'مقدار سفارش', openQty: 'مقدار باز',
     schedule: 'برنامه تحویل', firmEta: 'ETA قطعی', timeline: 'خط زمانی Milestone', revisePlan: 'اصلاح برنامه Milestone', history: 'تاریخچه چرخه عمر',
     receivedQty: 'مقدار دریافت‌شده', cancelledQty: 'مقدار لغوشده', completion: 'نتیجه تکمیل', firstReceipt: 'تاریخ اولین رسید', finalReceipt: 'تاریخ رسید نهایی',
     lineage: 'تبار تصمیم کارشناس', actual: 'Milestone واقعی', actualDate: 'تاریخ واقعی', correctMilestone: 'اصلاح Milestone قبلی', operations: 'عملیات سفارش', createReceipt: 'ایجاد پیش‌نویس رسید',
@@ -181,6 +183,14 @@ const fa = {
     sort: 'مرتب‌سازی سراسری', sortDirection: 'جهت مرتب‌سازی', calculationTrace: 'ردیابی تغییرناپذیر محاسبه',
     leadStages: 'مراحل Lead Time', shipping: 'روش حمل', incoterm: 'اینکوترم',
     convertToPo: 'تبدیل به پیش‌نویس PO', conversionFailed: 'تبدیل به سفارش خرید ناموفق بود',
+  },
+  analytics: {
+    title: 'تحلیل، گزارش و یکپارچه‌سازی', subtitle: 'تحلیل عملیاتی فقط‌خواندنی بر پایه حقایق مرجع ERP',
+    leadTime: 'Lead Time تأمین‌کننده', forecast: 'دقت پیش‌بینی', commercial: 'تعهدات تجاری', inventory: 'تحلیل موجودی', reports: 'گزارش و خروجی',
+    evaluationDate: 'تاریخ ارزیابی / As-Of', sourcingStatistics: 'آمار گزینه تأمین', sample: 'نمونه پاک', onTime: 'تحویل به‌موقع',
+    baseline: 'پیش‌بینی مبنا', final: 'پیش‌بینی نهایی', actual: 'واقعی', anchor: 'مبنای اعتبار', anchorDate: 'تاریخ مبنا', expectedCredit: 'تاریخ مورد انتظار اعتبار', unresolved: 'حل‌نشده', warning: 'هشدار', warehouseOnHand: 'موجودی انبار',
+    provenance: 'تبار داده', exportHint: 'خروجی‌ها دقیقاً از قرارداد خواندن محدودشده backend مشترک با UI استفاده می‌کنند.', excel: 'خروجی Excel', pdf: 'خروجی PDF', applyP80: 'اعمال صریح مراحل منتخب P80', insufficientSample: 'نمونه ناکافی', p80Reason: 'اعمال صریح پیشنهاد P80 Lead Time',
+    report: { 'mrp-run-summary': 'خلاصه اجرای MRP', 'material-risk': 'گزارش ریسک مواد', 'order-planning': 'گزارش برنامه سفارش', 'purchase-order-receipt': 'گزارش سفارش خرید / رسید', 'lead-time': 'گزارش Lead Time', 'forecast-accuracy': 'گزارش دقت پیش‌بینی', 'commercial-commitments': 'گزارش تعهدات تجاری', 'inventory-position': 'گزارش موقعیت موجودی', 'inventory-movement': 'گزارش گردش موجودی' },
   },
 } as const
 

@@ -1,6 +1,6 @@
 # Hadron Tavan ERP
 
-Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP baseline currently covers MRP-01 through MRP-13, which are closed; MRP-14 has not started.
+Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP v1 baseline covers MRP-01 through MRP-14, which are closed.
 
 ## Prerequisites
 
@@ -69,4 +69,4 @@ Readiness is exposed at `GET /health/ready`; liveness is exposed at `GET /health
 
 ## Current scope
 
-The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-13 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, MRP Calculation Engine, Material Planning UI, Order Planning, and Purchase Order Operations. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. MRP-14 has not started. Identity and Workflow remain outside the current implementation scope.
+The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-14 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, MRP Calculation Engine, Material Planning UI, Order Planning, Purchase Order Operations, and Analytics/Reporting Integration. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. Identity and Workflow remain outside the current implementation scope.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-13 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, the MRP Calculation Engine, the Material Planning UI, Order Planning, and Purchase Order Operations. MRP-14 has not started.
+The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-14 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, the MRP Calculation Engine, the Material Planning UI, Order Planning, Purchase Order Operations, and Analytics/Reporting Integration.
 
 ```text
 React + TypeScript + Vite
@@ -36,7 +36,7 @@ SAP Fiori is an interaction-pattern reference only and does not supply visual br
 
 ## Database and local infrastructure
 
-PostgreSQL 18 is the only containerized service. It uses a named development volume, environment-provided credentials, and a health check. Implemented persistence spans the owned schemas needed by MRP-01 through MRP-13, including Reference Data, Catalog, Organization, Procurement/Sourcing/Purchase Supply/Purchase Order Operations, Engineering/BOM, Planning Forecast/Actual/MRP Runs, Material Planning snapshots, Order Planning, and Inventory. No production deployment or backup design has been implemented.
+PostgreSQL 18 is the only containerized service. It uses a named development volume, environment-provided credentials, and a health check. Implemented persistence spans the owned schemas needed by MRP-01 through MRP-14, including Reference Data, Catalog, Organization, Procurement/Sourcing/Purchase Supply/Purchase Order Operations, Engineering/BOM, Planning Forecast/Actual/MRP Runs, Material Planning snapshots, Order Planning, Inventory, and Analytics application history. No production deployment or backup design has been implemented.
 
 Integration tests create isolated temporary databases named `hadron_erp_test_<32-hex>`. A database-name guard runs before destructive cleanup or drop and rejects Development or any unrecognized database name.
 

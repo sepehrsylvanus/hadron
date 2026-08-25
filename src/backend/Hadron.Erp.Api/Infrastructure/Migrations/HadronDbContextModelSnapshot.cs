@@ -3118,6 +3118,70 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.LeadTimeRecommendationApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("AppliedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("AppliedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("PreviousDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RecommendedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SampleCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StageCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateOnly>("WindowEndInclusive")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("WindowStartExclusive")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourcingOptionId", "AppliedAtUtc");
+
+                    b.ToTable("lead_time_recommendation_applications", "procurement", t =>
+                        {
+                            t.HasCheckConstraint("ck_lead_time_application_stage", "\"StageCode\" IN ('SUPPLIER','FORWARDER_PRE_SHIPMENT','SHIPPING','DESTINATION_CUSTOMS')");
+
+                            t.HasCheckConstraint("ck_lead_time_application_values", "\"RecommendedDays\" >= 0 AND \"AppliedDays\" >= 0 AND \"SampleCount\" >= 5");
+
+                            t.HasCheckConstraint("ck_lead_time_application_window", "\"WindowEndInclusive\" > \"WindowStartExclusive\"");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4161,6 +4225,17 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ReferenceType");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.LeadTimeRecommendationApplication", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", "SourcingOption")
+                        .WithMany()
+                        .HasForeignKey("SourcingOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourcingOption");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingOption", b =>

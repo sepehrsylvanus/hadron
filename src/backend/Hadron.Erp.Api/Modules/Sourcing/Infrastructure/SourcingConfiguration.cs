@@ -54,3 +54,31 @@ internal sealed class SourcingPriceConfiguration : IEntityTypeConfiguration<Sour
         builder.HasOne(x => x.Currency).WithMany().HasForeignKey(x => x.CurrencyId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+internal sealed class LeadTimeRecommendationApplicationConfiguration
+    : IEntityTypeConfiguration<LeadTimeRecommendationApplication>
+{
+    public void Configure(EntityTypeBuilder<LeadTimeRecommendationApplication> builder)
+    {
+        builder.ToTable("lead_time_recommendation_applications", "procurement", table =>
+        {
+            table.HasCheckConstraint("ck_lead_time_application_stage",
+                "\"StageCode\" IN ('SUPPLIER','FORWARDER_PRE_SHIPMENT','SHIPPING','DESTINATION_CUSTOMS')");
+            table.HasCheckConstraint("ck_lead_time_application_values",
+                "\"RecommendedDays\" >= 0 AND \"AppliedDays\" >= 0 AND \"SampleCount\" >= 5");
+            table.HasCheckConstraint("ck_lead_time_application_window",
+                "\"WindowEndInclusive\" > \"WindowStartExclusive\"");
+        });
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.StageCode).HasMaxLength(32).IsRequired();
+        builder.Property(x => x.Method).HasMaxLength(64).IsRequired();
+        builder.Property(x => x.Reason).HasMaxLength(1000);
+        builder.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        builder.Property(x => x.WindowStartExclusive).HasColumnType("date");
+        builder.Property(x => x.WindowEndInclusive).HasColumnType("date");
+        builder.Property(x => x.AppliedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        builder.HasIndex(x => new { x.SourcingOptionId, x.AppliedAtUtc });
+        builder.HasOne(x => x.SourcingOption).WithMany().HasForeignKey(x => x.SourcingOptionId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
