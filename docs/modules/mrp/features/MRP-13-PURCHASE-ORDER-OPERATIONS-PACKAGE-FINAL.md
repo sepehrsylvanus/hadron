@@ -2143,6 +2143,19 @@ One Receipt = one Purchase Order + one Destination Warehouse.
 All Receipt Lines belong to that PO.
 ```
 
+The MRP-14 PO-level financial anchor aggregation is also CLOSED:
+
+```text
+Resolve every commercially required Schedule independently:
+Actual → Latest Revised → Original → Unresolved.
+
+Exclude a fully cancelled Schedule with no remaining obligation.
+PO-level event date = MAX(resolved required Schedule dates).
+Any unresolved required Schedule = unresolved PO-level anchor.
+```
+
+For actual `WAREHOUSE_RECEIPT`, the existing operational Final Receipt Date remains authoritative when completion exists. MRP-14 consumes these operational facts and does not create or edit a parallel financial milestone.
+
 The previous open question:
 
 `Mixed Partial Receipt + Cancellation final status`

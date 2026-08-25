@@ -1578,6 +1578,20 @@ The following are locked for MRP-09:
 37. Multi-Line grouping requires identical Supplier/Currency/Payment Snapshot/Shipping Mode/Incoterm.
 38. Received/Cancelled/Open quantities remain derived operational facts, never editable counters.
 
+## 77A. MRP-14 Multi-Schedule Financial Anchor Contract
+
+### LOCKED CROSS-PACKAGE DECISION
+
+PO payment percentages create PO-level commitment components. When an event anchor is represented by multiple Delivery Schedules:
+
+- each commercially required Schedule resolves its event date independently using `Actual → Latest Revised → Original → Unresolved`;
+- fully cancelled Schedules with no remaining commercial obligation are excluded from the required set;
+- the PO-level event date is the maximum resolved date across all required Schedules;
+- if any required Schedule is unresolved, the PO-level anchor is unresolved;
+- `ORDERED` continues to use the PO Ordered Date;
+- actual `WAREHOUSE_RECEIPT` continues to use MRP-13 operational Final Receipt Date when PO completion exists;
+- no current Sourcing date, RequestedReceiptDate or manually editable financial date is a fallback.
+
 ---
 
 ## 78. Open Question Resolution

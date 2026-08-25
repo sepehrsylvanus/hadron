@@ -182,6 +182,28 @@ Cancellation Rate
 
 Do not hide Supplier failure by deleting the operational record.
 
+Reliability metrics are locked as follows for the selected observation window:
+
+The reliability cohort uses Schedules whose PO `OrderedDate` falls inside the selected window. This cohort is distinct from the clean completed Lead-Time sample, whose inclusion date is Final Receipt Completion Date.
+
+```text
+Schedule Cancellation Rate
+=
+Count(committed Schedules with CancelledQty > 0)
+/
+Count(all committed Schedules)
+```
+
+```text
+Quantity Cancellation Rate
+=
+SUM(CancelledQty)
+/
+SUM(AllocatedQty)
+```
+
+Quantity Fulfillment is reported separately as valid Posted, non-reversed Received Qty divided by Allocated Qty. Open overdue Schedules are an operational reliability state; they do not enter the completed-sample late-delivery denominator. Completed late/on-time performance uses only clean completed Schedules with no cancelled committed quantity.
+
 ---
 
 # 9. Sample Window
@@ -224,15 +246,23 @@ and no statistical Lead-Time recommendation is issued.
 
 # 10. Sample Date Basis
 
-MRP-14A must define the observation inclusion date consistently.
-
-Baseline recommendation:
+### LOCKED OWNER DECISION
 
 ```text
-Final/actual warehouse receipt completion date
+Observation Inclusion Date
+=
+Delivery Schedule Final Receipt Completion Date
 ```
 
-or another single approved actual completion anchor.
+A clean completed Schedule requires Ordered Date, zero CancelledQty and valid Posted/non-reversed Receipt history that completes its AllocatedQty. Partial Receipt is diagnostic until completion. Reversal removes completion until a later valid Receipt re-establishes it.
+
+The primary trailing window is:
+
+```text
+(evaluationDate.AddMonths(-12), evaluationDate]
+```
+
+using canonical Gregorian business dates. If expansion is required, use the same boundary rule for 24 months. The upper bound is inclusive and the lower bound is exclusive. `evaluationDate` is explicit and returned in the response.
 
 Do not mix Order Date for some observations and Receipt Date for others.
 
@@ -313,6 +343,16 @@ The action must preserve:
 - Reason / note where required
 
 No silent auto-update.
+
+### LOCKED OWNER DECISION — PER-STAGE APPLY
+
+- Total Lead-Time P80 remains an analytical recommendation and is not stored as a separate Sourcing field.
+- Calculate P80 independently for each canonical configured stage.
+- Convert each stage P80 to whole Calendar Days using `Ceiling`.
+- Apply only explicitly selected stage values through one Sourcing-owned, versioned command.
+- A stage with insufficient valid samples is not populated or applied automatically.
+- Preserve previous, recommended and applied values per stage in durable apply history.
+- P90 remains display-only conservative/risk context and is never applied automatically.
 
 ---
 
@@ -541,6 +581,8 @@ BASELINE_NOT_AVAILABLE
 
 Do not treat a mid-period forecast as the original baseline.
 
+The cutoff instant is the start of the Period's canonical `GregorianStartDate` in `Asia/Tehran`, converted to UTC. A Forecast Revision created exactly at that instant is included.
+
 ---
 
 # 25. Final Forecast Definition
@@ -555,6 +597,8 @@ last Official Forecast Revision before Period Close
 
 This measures the quality of the final planning view.
 
+The Close cutoff is the lifecycle timestamp of the latest effective `OPEN → CLOSED` event that leaves the Period currently Closed. If a Period is Reopened and then Closed again, the later Close event controls Final Forecast selection. Close/Reopen history must be consumed directly; current timestamps or live mutable context are not valid substitutes.
+
 ---
 
 # 26. Actual Definition
@@ -568,6 +612,16 @@ Actual Production for the Closed Period
 from MRP-07 / future Production authoritative source.
 
 No manual replacement in Analytics.
+
+### LOCKED OWNER DECISION — CLOSED PERIOD COMPLETENESS
+
+A canonical `CLOSED` Period certifies that Actual Production is complete. For an in-scope Product with no Daily Actual rows in that Closed Period:
+
+```text
+Actual Production = 0
+```
+
+Absence of rows must not be reported as `ACTUAL_NOT_AVAILABLE`. That state is reserved for explicitly identified legacy/import incompleteness.
 
 ---
 
@@ -690,6 +744,8 @@ ACTUAL_NOT_AVAILABLE
 ```
 
 where applicable.
+
+`ACTUAL_NOT_AVAILABLE` applies only to explicitly marked legacy/import incompleteness. It does not apply to an in-scope Product in a canonical Closed Period merely because no Daily Actual row exists; that case is actual zero.
 
 Do not silently convert missing forecast to zero.
 
@@ -846,6 +902,17 @@ PAYMENT_DATE_UNRESOLVED
 
 Do not invent a date.
 
+### LOCKED OWNER DECISION — MULTI-SCHEDULE PO
+
+For `SHIPPED` and planned `WAREHOUSE_RECEIPT` event resolution on a PO with multiple Delivery Schedules:
+
+1. Determine the commercially required Schedule set; a fully cancelled Schedule with no remaining obligation is excluded.
+2. Resolve each required Schedule independently using `Actual → Latest Revised → Original → Unresolved`.
+3. If any required Schedule is unresolved, the PO-level event date is unresolved.
+4. Otherwise the PO-level event date is the maximum resolved date across required Schedules.
+
+Do not mix Schedule quantities into separate payment components; payment percentages remain PO-level.
+
 ---
 
 # 38. ORDERED Anchor Date
@@ -885,6 +952,8 @@ else unresolved
 For `WAREHOUSE_RECEIPT`, the financial Credit Anchor uses operational `Final Receipt Date` from MRP-13, never First Receipt Date. MRP-14 consumes this fact and must not create a parallel or manually editable Financial Receipt Date.
 
 Final Receipt Date is resolved only from valid Posted, non-reversed Receipt history when commercially required receipt completion exists. Partial Receipt leaves the actual anchor unresolved. For `RECEIVED_WITH_CANCELLATION`, the last valid Posted Receipt required before completion is used; Cancellation Date is not an anchor. `FULLY_CANCELLED` with no received quantity has no WAREHOUSE_RECEIPT anchor. If reversal removes completion, the actual anchor becomes unresolved until a later valid Receipt re-establishes completion; that later completing Receipt becomes the new Final Receipt Date.
+
+For a multi-Schedule PO, operational Final Receipt Date remains the actual PO-level `WAREHOUSE_RECEIPT` anchor when completion exists. Before actual completion, planned fallback follows the required-Schedule maximum/unresolved rule in §37.
 
 ---
 
@@ -960,6 +1029,7 @@ MRP
 └── Analytics
     ├── Lead-Time Performance
     ├── Forecast Accuracy
+    ├── Inventory Position & Movement
     └── Reports
 ```
 
@@ -1055,6 +1125,7 @@ Provide baseline reports:
 4. Purchase Order / Receipt Report
 5. Lead-Time Performance Report
 6. Forecast Accuracy Report
+7. Inventory Position / Movement Report
 
 ---
 
@@ -1152,6 +1223,28 @@ or
 Final Forecast
 ```
 
+## 55A. Inventory Analytics v1
+
+### LOCKED OWNER DECISION
+
+Inventory Analytics v1 is limited to facts supported by the MRP-08 ledger and persisted MRP Run results:
+
+- Actual OnHand by Item + Warehouse and company-wide as-of position
+- inbound/outbound movement by canonical transaction type and business date
+- inactive-Warehouse stock warning
+- Receipt/Reversal inventory effects
+- MRP Run material Risk/Coverage from persisted MRP-10/11 results
+
+The following are excluded until separate thresholds, consumption policy or valuation authority is approved:
+
+- Slow-moving Inventory
+- Inventory Turnover
+- Inventory Valuation
+- generic Excess Inventory KPI
+- invented Days-on-Hand based on noncanonical consumption
+
+Do not recalculate MRP Risk/Coverage from the ledger inside MRP-14.
+
 ---
 
 # 56. Export
@@ -1163,6 +1256,8 @@ Use server-side Excel export where appropriate.
 CSV may be offered where already supported.
 
 Export implementation should preserve semantic values and not rely solely on browser-rendered text.
+
+UI and every export format must consume the same authoritative backend read contracts. React must not recalculate percentile, Forecast Accuracy, financial anchors, MRP Risk/Coverage or Inventory business metrics.
 
 ---
 
@@ -1250,7 +1345,7 @@ No AI is required to calculate:
 - Bias
 - On-Time %
 
-Future AI may explain reports only.
+Future AI may read and explain reports only. AI must not mutate Forecast, MRP, Recommendation, Sourcing, PO, Receipt or Inventory truth and must not execute Apply Lead-Time Recommendation.
 
 ---
 
@@ -1613,6 +1708,8 @@ WAPE/Bias have one authoritative backend/read-model calculation.
 
 Frontend displays results.
 
+The same backend read contracts serve UI, Excel/PDF export and future integration consumers. Frontend KPI/business recomputation is forbidden.
+
 ---
 
 # 82. Read Model Rebuildability
@@ -1625,13 +1722,11 @@ They are not independent sources of truth.
 
 # 83. Refresh Strategy
 
-MRP-14A should decide whether analytics are:
+### LOCKED OWNER DECISION
 
-- calculated on query
-- cached/materialized
-- explicitly refreshed
+MRP-14 v1 uses query-time backend analytics/read models with server-side aggregation, bounded filters and paging.
 
-based on actual data scale.
+Do not add materialized analytics tables, scheduled background refresh or a broad BI warehouse unless measured query plans/data scale later prove the need and a separate decision approves it.
 
 Do not introduce scheduled background jobs without need.
 
@@ -1667,6 +1762,8 @@ from:
 ```text
 Current Historical Analytics
 ```
+
+Current Historical Analytics must carry explicit `evaluationDate`, `GeneratedAtUtc`/data cutoff and algorithm version. Append-only facts, corrections and supersessions are resolved only when their creation timestamp is at or before that cutoff, so the same historical cutoff remains reproducible. Historical MRP Run reports continue to use immutable Run snapshots only and never fall back to live data.
 
 ---
 
@@ -1734,6 +1831,17 @@ MRP-14 is acceptable when:
 34. End-to-End regression covers Forecast→MRP→Recommendation→PO→Receipt→Inventory→new MRP.
 35. Snapshot and double-count regressions exist.
 36. Final Cross-Package Audit is mandatory before Codex execution.
+37. Lead-Time sample inclusion uses clean Schedule Final Receipt Completion Date and the approved trailing Gregorian boundary.
+38. Cancellation count, cancellation quantity and fulfillment are separate metrics; cancelled Schedules do not enter clean completed On-Time/percentile samples.
+39. Per-stage P80 uses Ceiling and is applied only through an explicit Sourcing-owned command; Total P80 is not stored as a fifth stage.
+40. Closed Period absence of Daily Actual rows means Actual zero for an in-scope Product.
+41. Reopen/reclose uses the latest effective Close event for Final Forecast cutoff.
+42. Multi-Schedule PO anchors use the maximum resolved required-Schedule date and remain unresolved when any required Schedule is unresolved.
+43. Inventory Analytics v1 excludes slow-moving, turnover, valuation and generic excess KPIs.
+44. v1 analytics are query-time, server-aggregated and server-paged; no materialized/background refresh exists without measured approval.
+45. UI/export/integration consume the same backend read contracts and do not recompute business KPIs.
+46. Historical analytics preserve explicit cutoff/provenance and are reproducible without live fallback.
+47. AI is read/explain only and cannot mutate operational truth or apply recommendations.
 
 ---
 
@@ -1781,6 +1889,19 @@ The following are locked for MRP-14:
 34. Golden deterministic Regression Suite required.
 35. End-to-End regression required.
 36. Final Cross-Package Audit required before Codex.
+37. Observation Inclusion Date = clean Delivery Schedule Final Receipt Completion Date.
+38. Trailing windows use canonical Gregorian dates with `(evaluationDate.AddMonths(-N), evaluationDate]` boundaries.
+39. Cancellation count rate, quantity cancellation rate and quantity fulfillment are distinct; clean completed performance excludes cancelled Schedules.
+40. Stage recommendations use per-stage continuous P80, `Ceiling` to whole Calendar Days and explicit Sourcing-owned apply.
+41. Total Lead-Time P80 is analytical only; it is not a fifth stored Sourcing duration.
+42. Closed Period certifies Actual completeness; missing Daily Actual rows for an in-scope Product mean zero.
+43. Final Forecast cutoff after Reopen/Reclose is the latest effective Close event that leaves the Period Closed.
+44. Multi-Schedule PO anchor = maximum resolved required-Schedule date; any unresolved required Schedule makes the PO anchor unresolved.
+45. Inventory Analytics v1 is physical position/movement plus persisted MRP Risk only; slow-moving/turnover/valuation/generic excess are excluded.
+46. v1 uses query-time backend read models; no materialization or background refresh without measured approval.
+47. UI and exports share backend read contracts; frontend KPI/business recomputation is forbidden.
+48. Historical analytics use explicit evaluation/cutoff/version provenance; Run reports remain snapshot-only.
+49. AI may read/explain only; Apply Lead-Time Recommendation remains an explicit Sourcing-owned human action.
 
 ---
 
@@ -1837,6 +1958,27 @@ WAREHOUSE_RECEIPT
 ```
 
 The lead-time stage semantic ambiguity is now CLOSED through approved cross-package Stage Mapping.
+
+The MRP-14A Owner decisions are also CLOSED:
+
+```text
+Lead-Time inclusion = clean Schedule Final Receipt Completion Date.
+Window boundary = (evaluationDate.AddMonths(-N), evaluationDate].
+Cancellation/fulfillment metrics remain separate.
+
+P80 is calculated per stage, rounded upward with Ceiling to whole Calendar Days,
+and applied only through an explicit Sourcing-owned versioned command.
+
+CLOSED Period certifies Actual completeness.
+No Daily Actual rows for an in-scope Product = Actual zero.
+Latest effective Close after Reopen/Reclose controls Final Forecast cutoff.
+
+Multi-Schedule PO anchor = MAX(resolved required Schedule dates).
+Any unresolved required Schedule = unresolved PO anchor.
+
+Inventory Analytics v1 excludes slow-moving, turnover, valuation and generic excess.
+Query-time backend read models are the v1 strategy.
+```
 
 ---
 
@@ -2107,7 +2249,13 @@ Observation:
 
 Apply approved:
 - valid-observation criteria
+- inclusion date = clean Schedule Final Receipt Completion Date
+- trailing Gregorian boundary = `(evaluationDate.AddMonths(-N), evaluationDate]`
 - cancelled sample exclusion
+- Schedule cancellation rate and quantity cancellation rate separately
+- quantity fulfillment separately
+- reliability cohort based on PO OrderedDate within the selected window
+- open overdue excluded from completed late/on-time denominator
 - 12-month window
 - expand to 24 months when <5
 - minimum sample count 5
@@ -2131,6 +2279,12 @@ Do NOT auto-update Sourcing.
 
 APPLY LEAD TIME
 Implement explicit authorized action through Sourcing domain command.
+
+- calculate P80 independently per canonical stage
+- convert stage P80 to whole Calendar Days using Ceiling
+- do not store Total P80 as a fifth configured duration
+- do not populate/apply a stage with insufficient valid samples
+- apply only explicitly selected stage values with ExpectedVersion
 
 Audit:
 - previous value
@@ -2161,10 +2315,12 @@ Baseline:
 last Official Forecast available at/before Period Start.
 
 Final:
-last Official before Period Close.
+last Official before the latest effective Close event that leaves the Period Closed after any Reopen/Reclose.
 
 Actual:
 authoritative Production Actual.
+
+For an in-scope Product in a canonical Closed Period, absence of Daily Actual rows means Actual zero. `ACTUAL_NOT_AVAILABLE` requires explicit legacy/import incompleteness and must not be inferred from no rows.
 
 Metrics:
 - Error
@@ -2185,6 +2341,8 @@ Payment components:
 
 Date fallback:
 Actual → Revised → Original → Unresolved
+
+For a multi-Schedule PO, resolve each commercially required Schedule independently. Exclude fully cancelled no-obligation Schedules; PO anchor is the maximum resolved required-Schedule date, and any unresolved required Schedule makes the PO anchor unresolved.
 
 Keep original PO Currency.
 
@@ -2220,6 +2378,9 @@ Implement approved baseline reports/read models:
 - PO/Receipt
 - Lead-Time Performance
 - Forecast Accuracy
+- Inventory Position / Movement
+
+Inventory Analytics v1 is limited to ledger-backed physical position/movement, inactive-Warehouse warnings and persisted MRP Risk/Coverage. Do not implement slow-moving, turnover, valuation, invented Days-on-Hand or generic excess KPIs.
 
 EXPORT
 Implement server-side Excel where approved.
@@ -2233,11 +2394,15 @@ Every export includes provenance:
 - Engine/Algorithm version where relevant
 - Generated At
 - filters
+- explicit evaluation/data cutoff and locale/timezone where applicable
+
+UI, export and integration must consume the same authoritative backend read contracts. Frontend KPI/business recomputation is forbidden; do not reproduce those formulas in React.
 
 UI
 Implement Analytics navigation:
 - Lead-Time Performance
 - Forecast Accuracy
+- Inventory Position / Movement
 - Reports
 
 Follow UI-BRAND-RULES.md.
@@ -2246,8 +2411,18 @@ Support RTL/Jalali.
 ANALYTICS READ ONLY
 No operational source editing except controlled Apply Lead-Time Recommendation.
 
+Use query-time server aggregation/read models with bounded filtering/paging in v1. Do not add materialized analytics tables, scheduled background refresh or a BI warehouse. AI is read/explain only and cannot apply recommendations or mutate operational truth.
+
+Historical analytics must resolve append-only corrections/supersessions at the requested `GeneratedAtUtc`/data cutoff. Run reports remain immutable-snapshot-only and must never use live fallback.
+
 GOLDEN REGRESSION
 Implement automated tests from `docs/modules/mrp/golden/MRP-GOLDEN-DATASET-V1-FINAL.md`. Encode approved expected values independently; never calculate them using production services under test and never edit Golden values to pass.
+
+Release gates explicitly include:
+- GD-06 exact percentile/sample outputs
+- GD-07 exact Forecast Accuracy outputs, including Actual zero semantics
+- GD-09 historical snapshot/cutoff non-drift
+- GD-10 original-Currency isolation and no cross-currency total
 
 END-TO-END REGRESSION
 Implement mandatory GD-08 with all major quantities asserted:
@@ -2310,6 +2485,12 @@ Run applicable:
 - golden fixture
 - end-to-end regression
 - report/export checks
+- server-side export correctness, bounded processing, provenance and currency separation
+- server-side aggregation/paging and no-N+1 checks
+- records beyond page 1 / 100 are reachable
+- Forecast Reopen/Reclose cutoff checks
+- multi-Schedule financial anchor checks
+- historical cutoff reproducibility checks
 
 Do not claim unrun checks.
 
@@ -2322,6 +2503,9 @@ Do NOT implement:
 - FX conversion
 - landed cost
 - inventory valuation
+- slow-moving Inventory
+- Inventory Turnover
+- generic Excess Inventory KPI
 - AI auto-optimization
 - auto-update of Sourcing recommendations
 - supplier quality analytics
@@ -2418,8 +2602,13 @@ Audit:
    - no PO-wide distortion
 
 4. Sample Policy
+   - inclusion date is clean Schedule Final Receipt Completion Date
+   - trailing window uses `(evaluationDate.AddMonths(-N), evaluationDate]`
    - cancelled schedule excluded from recommendation sample
    - cancellations still reported
+   - Schedule cancellation rate, quantity cancellation rate and quantity fulfillment are separate
+   - reliability cohort uses PO OrderedDate within the selected window
+   - open overdue does not contaminate completed late/on-time denominator
    - 12m
    - 24m expansion
    - min 5
@@ -2442,6 +2631,11 @@ Audit:
    - no silent Sourcing update from either percentile
    - insufficient sample correctly blocked
    - Apply action audited through Sourcing domain
+   - P80 calculated independently per configured stage
+   - Ceiling to whole Calendar Days
+   - explicitly selected stage values only
+   - Total P80 not stored as a fifth Sourcing duration
+   - insufficient stage sample never auto-populated
 
 7. Stage Mapping
    Verify:
@@ -2467,6 +2661,9 @@ Audit:
    - WAPE
    - Bias
    - missing states
+   - Closed Period absence of Daily Actual rows for an in-scope Product equals Actual zero
+   - `ACTUAL_NOT_AVAILABLE` requires explicit legacy/import incompleteness
+   - Reopen/Reclose uses the latest effective Close event that leaves the Period Closed
 
 10. Credit Anchor Amendment
     - Supplier Payment Profile
@@ -2486,6 +2683,11 @@ Audit:
     - unresolved date not guessed
     - original Currency
     - no execution semantics
+    - every required Schedule resolves independently
+    - fully cancelled no-obligation Schedule excluded
+    - PO anchor is maximum resolved required-Schedule date
+    - any unresolved required Schedule makes PO anchor unresolved
+    - multi-Schedule anchors follow the same maximum/unresolved contract
 
 12. Currency
     - no cross-currency total
@@ -2495,19 +2697,37 @@ Audit:
     - approved report set
     - correct source
     - historical Run snapshot isolation where applicable
+    - Inventory Position/Movement is ledger-backed
+    - no slow-moving/turnover/valuation/generic-excess invention
 
 14. Export
     - provenance metadata
     - no unknown-context spreadsheet/PDF
+    - same backend contract as UI
+    - historical cutoff reproducibility
+    - server-side export correctness, bounded processing and currency separation
 
 15. Analytics Write Boundary
     - read-only except Apply Lead-Time Recommendation
     - no direct DB bypass
+    - Apply Lead-Time Recommendation remains Sourcing-owned
+    - AI read/explain only
+
+15A. Read-Model / Performance Boundary
+    - query-time server aggregation in v1
+    - bounded server paging/filtering
+    - records beyond page 1 / 100 reachable
+    - no frontend KPI recomputation
+    - no-N+1 and no frontend full-dataset analytics
+    - no materialized/background refresh without measured approval
 
 16. Golden Regression
     - canonical v1.0 inputs and expected values match exactly, including GD-06 P80=17 and P90=19
     - expected values are independent; no production calculator generates them and tests are not tautological
     - no production data dependency
+    - GD-07 exact WAPE/Bias/Actual-zero expectations
+    - GD-09 historical snapshot and cutoff non-drift
+    - GD-10 original-Currency separation with no cross-currency total
 
 17. End-to-End Regression
     Verify mandatory GD-08 complete path and assert all major quantities:

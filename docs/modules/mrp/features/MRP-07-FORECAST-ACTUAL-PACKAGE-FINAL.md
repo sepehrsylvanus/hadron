@@ -1237,6 +1237,18 @@ The following are locked for MRP-07:
 
 ## 61. Open Question Resolution
 
+### MRP-14 Forecast Accuracy Amendment
+
+For Forecast Accuracy, a `CLOSED` Business Period certifies that Product Actual Production for that Period is complete. For an in-scope Product with no Daily Actual rows in that Closed Period, Actual Production is exactly zero, not `ACTUAL_NOT_AVAILABLE`.
+
+Forecast Accuracy cutoffs are locked as follows:
+
+- Baseline cutoff is the start of `GregorianStartDate` in `Asia/Tehran`, converted to UTC; the last Official Forecast available at or before that instant is the Baseline.
+- Final cutoff is the lifecycle timestamp of the latest effective `OPEN → CLOSED` event that leaves the Period currently Closed.
+- If a Period is Reopened and Closed again, the later effective Close controls Final Forecast selection.
+- Reopen/Close history remains durable; Analytics must not infer the cutoff from current timestamps or live mutable context.
+- `ACTUAL_NOT_AVAILABLE` is reserved for explicitly identified legacy/import incompleteness and must never be inferred merely from absence of Daily Actual rows in a canonical Closed Period.
+
 The previous open question:
 
 `Temporary source of Daily Production Actual until Production Module exists`

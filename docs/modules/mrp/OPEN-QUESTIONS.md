@@ -125,6 +125,26 @@
 **Status:** CLOSED — MRP-13 Owner decision
 **Approved:** Actual milestoneها canonical chronology و منع future date دارند؛ original immutable است و correction فقط append-only supersession با Reason/audit انجام می‌شود.
 
+### Q-029 — MRP-14 Lead-Time Population and Apply Policy
+**Status:** CLOSED — MRP-14 Owner decision
+**Approved:** inclusion با clean Schedule Final Receipt Completion Date و Gregorian trailing-window boundary انجام می‌شود؛ reliability metrics جدا هستند. P80 برای هر stage جدا، با Ceiling و فقط از طریق command صریح versioned/audited متعلق به Sourcing apply می‌شود؛ Total P80 ذخیره نمی‌شود.
+
+### Q-030 — MRP-14 Closed-Period Actual Completeness
+**Status:** CLOSED — MRP-14 Owner decision
+**Approved:** CLOSED یعنی Actual complete؛ نبود Daily Actual برای Product in-scope برابر صفر است. Reopen/Reclose از آخرین Close مؤثر استفاده می‌کند و `ACTUAL_NOT_AVAILABLE` نیازمند legacy/import incompleteness صریح است.
+
+### Q-031 — MRP-14 Multi-Schedule Financial Anchor
+**Status:** CLOSED — MRP-14 Owner decision
+**Approved:** هر required Schedule مستقل resolve می‌شود؛ PO date برابر maximum resolved dates است و unresolved required Schedule، کل PO anchor را unresolved می‌کند. Schedule کاملاً cancelled بدون obligation کنار گذاشته می‌شود.
+
+### Q-032 — MRP-14 Inventory Analytics v1 Scope
+**Status:** CLOSED — MRP-14 Owner decision
+**Approved:** physical position/movement، inactive-Warehouse warning و persisted MRP Risk/Coverage داخل scope هستند؛ slow-moving، turnover، valuation، invented Days-on-Hand و generic excess خارج scope‌اند.
+
+### Q-033 — MRP-14 Analytics Read Architecture
+**Status:** CLOSED — MRP-14 Owner decision
+**Approved:** v1 query-time backend read models با server aggregation/paging دارد؛ materialization/background refresh بدون نیاز اثبات‌شده ممنوع است. UI/export قرارداد backend مشترک دارند، frontend recomputation ممنوع است، Currency جدا می‌ماند، AI read/explain only است و ApplyLeadTimeRecommendation Sourcing-owned است.
+
 ## Deferred Future Scope — Non-Blocking
 
 - Production Calendar و working-day planning

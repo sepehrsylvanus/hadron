@@ -1343,6 +1343,20 @@ The following are locked for MRP-05:
 36. Inclusive Price periods use PostgreSQL `btree_gist` exclusion integrity; implementation stops if that integrity cannot be installed.
 37. Price and MOQ use `numeric(18,6)` and accept zero.
 
+## 60A. MRP-14 Lead-Time Recommendation Apply Contract
+
+### LOCKED CROSS-PACKAGE DECISION
+
+MRP-14 owns Lead-Time analytics and recommendations, but applying a recommendation remains a Sourcing-owned mutation.
+
+- Total Lead-Time P80 is analytical only and is not stored as a fifth configurable duration.
+- P80 is calculated separately for each of the four canonical configured stages.
+- Each stage recommendation is converted to whole Calendar Days with `Ceiling`.
+- An authorized user explicitly selects the stage values to apply through one versioned Sourcing command.
+- A stage with insufficient valid samples is not populated or applied automatically.
+- The command preserves previous, recommended and applied values per stage, method `P80`, sample count/window, actor, timestamp and Reason/note.
+- No analytics query, UI action or background process may bypass Sourcing validation/concurrency or silently overwrite configured lead times.
+
 ---
 
 ## 61. Open Questions

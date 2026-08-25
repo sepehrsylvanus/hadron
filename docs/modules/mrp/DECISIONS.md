@@ -445,3 +445,35 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Decision:** هر Receipt دقیقاً متعلق به یک Purchase Order و یک Destination Warehouse است و همه Lines آن باید به Line/Schedule همان PO متصل باشند. `EffectiveDate` با Tehran business date server-owned در بازه inclusive `OrderedDate <= EffectiveDate <= TehranToday` است. برای PO قبلاً `ORDERED`، Receipt/Cancellation/Receipt Reversal روی Item غیرفعال با warning صریح برای settlement تعهد موجود مجاز است، ولی commitment جدید یا افزایش OrderedQty ممنوع است. Actual milestoneها از sequence canonical MRP-09 پیروی می‌کنند، future نیستند، chronology را رعایت می‌کنند و اصلاح آنها فقط append-only supersession با Reason/audit است؛ original هرگز edit/delete نمی‌شود.
 **Status:** LOCKED
 **Source Package:** MRP-09, MRP-13
+
+---
+
+## DEC-057 — Lead-Time Population, Reliability and Sourcing Apply
+
+**Decision:** Lead-Time observation inclusion date برابر clean Delivery Schedule Final Receipt Completion Date است؛ clean sample به Ordered Date، صفر CancelledQty و Posted/non-reversed completion نیاز دارد. Window با Gregorian business date و boundary برابر `(evaluationDate.AddMonths(-N), evaluationDate]` است. Reliability cohort جداگانه از Scheduleهایی تشکیل می‌شود که PO OrderedDate آنها داخل window است. Schedule cancellation rate، quantity cancellation rate و fulfillment جدا هستند و open overdue وارد completed late/on-time denominator نمی‌شود. P80 برای هر چهار stage جداگانه محاسبه و با `Ceiling` به whole Calendar Days تبدیل می‌شود؛ فقط stageهای صریحاً انتخاب‌شده با sample کافی از طریق command versioned و audited متعلق به Sourcing apply می‌شوند. Total P80 analytical است و فیلد پنجم Sourcing نیست.
+**Status:** LOCKED
+**Source Package:** MRP-05, MRP-14
+
+---
+
+## DEC-058 — Forecast Accuracy Completeness and Lifecycle Cutoff
+
+**Decision:** `CLOSED` Period کامل‌بودن Actual Production را گواهی می‌کند؛ برای Product in-scope نبود Daily Actual row یعنی Actual صفر. `ACTUAL_NOT_AVAILABLE` فقط برای legacy/import incompleteness صریح است. Baseline cutoff ابتدای Gregorian Period در Asia/Tehran است؛ Final cutoff آخرین lifecycle event مؤثر `OPEN→CLOSED` است که پس از هر Reopen/Reclose، Period را در وضعیت Closed جاری قرار می‌دهد.
+**Status:** LOCKED
+**Source Package:** MRP-07, MRP-14
+
+---
+
+## DEC-059 — Multi-Schedule PO Financial Anchor
+
+**Decision:** برای event anchor یک PO چند-Schedule، هر Schedule دارای obligation تجاری مستقل با `Actual→Latest Revised→Original→Unresolved` resolve می‌شود؛ Schedule کاملاً cancelled بدون obligation حذف می‌شود. تاریخ PO برابر maximum تاریخ‌های resolved required Schedule است و unresolved بودن هر required Schedule، PO anchor را unresolved می‌کند. `ORDERED` از OrderedDate و actual `WAREHOUSE_RECEIPT` از MRP-13 Final Receipt Date استفاده می‌کنند؛ RequestedReceiptDate، current Sourcing و Financial Receipt Date دستی fallback نیستند.
+**Status:** LOCKED
+**Source Package:** MRP-09, MRP-13, MRP-14
+
+---
+
+## DEC-060 — Analytics v1 Architecture and Scope
+
+**Decision:** MRP-14 v1 از query-time backend read models با server aggregation/paging استفاده می‌کند؛ materialized analytics، scheduled background refresh و BI warehouse تا اثبات نیاز مجاز نیست. UI/export/integration یک backend contract مشترک دارند و frontend KPI/business recomputation ممنوع است. Inventory Analytics فقط physical position/movement، inactive-Warehouse warning و persisted MRP Risk/Coverage را پوشش می‌دهد؛ slow-moving، turnover، valuation، invented Days-on-Hand و generic excess خارج scope هستند. Currency اصلی حفظ و cross-currency grand total ممنوع است. Historical analytics cutoff/provenance صریح دارند؛ Run reports snapshot-only هستند. AI فقط read/explain است و `ApplyLeadTimeRecommendation` mutation صریح و Sourcing-owned باقی می‌ماند.
+**Status:** LOCKED
+**Source Package:** MRP-14
