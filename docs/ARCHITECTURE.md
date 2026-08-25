@@ -2,7 +2,7 @@
 
 ## Scope
 
-The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-12 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, the MRP Calculation Engine, the Material Planning UI, and Order Planning. MRP-13 has not started.
+The implemented foundation is a modular-monolith host with a React frontend, one ASP.NET Core API, and one PostgreSQL 18 development database. MRP-01 through MRP-12 are `CLOSED`; they provide Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, the MRP Calculation Engine, the Material Planning UI, and Order Planning. MRP-13A analysis is Owner-approved; MRP-13B implementation has not started.
 
 ```text
 React + TypeScript + Vite

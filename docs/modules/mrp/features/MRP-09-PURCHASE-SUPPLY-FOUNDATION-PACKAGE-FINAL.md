@@ -133,6 +133,8 @@ Therefore PO must also preserve snapshots of important data.
 
 PO data captures its commercial assumptions in `DRAFT`. An explicit snapshot refresh is allowed only while the PO remains `DRAFT`.
 
+For a Draft later created by MRP-13 from an immutable Expert Decision, Package 13 applies the stricter conversion contract: Decision-derived Item, Supplier/Source, Currency, Unit Price, Ordered Qty, Payment Snapshot, Shipping Mode and Incoterm are not editable or refreshable. A different commercial basis requires a new MRP-12 Expert Decision; only Schedule planning may deviate under the locked Reason/audit rules.
+
 At `APPROVED`, the commercial snapshot is locked. `APPROVED` remains internal only and is not Firm Supply. Returning an approved PO to `DRAFT` requires an explicit command and Reason.
 
 At `ORDERED`, the order becomes an external commitment; core commercial, quantity and source data are permanently locked, Firm Supply begins and the Original Plan is finalized.
@@ -627,6 +629,8 @@ MRP-09 establishes the model.
 Package 13 will implement operational lifecycle updates.
 
 Actual milestone structure may exist in MRP-09, but Actual `WAREHOUSE_RECEIPT` must not be a free manual MRP-09 operation. It is derived from valid operational Receipt facts owned by MRP-13.
+
+MRP-13 operational Actuals follow this Package's canonical milestone sequence, reject future dates, enforce chronology and preserve immutable originals. Corrections are append-only supersessions with mandatory Reason/audit context; MRP-09 does not authorize direct edit/delete of an Actual milestone.
 
 ---
 

@@ -68,6 +68,25 @@ and Recommendation must be:
 - valid commercial snapshot
 - valid current conversion eligibility
 
+Conversion uses the immutable Expert Decision snapshot as the approved commercial basis, but it must revalidate current operational validity immediately before creating the PO group. Material drift in Source operational state/readiness, selected Price, MOQ, configured Lead Time or Base Unit blocks conversion with:
+
+```text
+DECISION_RECONFIRMATION_REQUIRED
+```
+
+and one stable detail reason:
+
+```text
+SOURCE_NOT_OPERATIONAL
+READINESS_CHANGED
+PRICE_CHANGED
+MOQ_CHANGED
+LEAD_TIME_CHANGED
+BASE_UNIT_CHANGED
+```
+
+The conversion command must not silently refresh, reprice or recalculate the Decision. The Planner returns to MRP-12 and creates a new valid Expert Decision.
+
 `REJECT` and `DEFER` cannot convert.
 
 ---
@@ -166,7 +185,7 @@ If any differ:
 Create separate PO
 ```
 
-MRP-13A must define exact grouping-key equality using stable codes/IDs, not display text.
+Grouping equality uses persisted identity/snapshot values, never display text: exact Supplier ID, Currency ID, Payment Snapshot fields, Shipping Mode ID/null and Incoterm ID/null. Each resulting group is an independent atomic unit of work.
 
 ---
 
@@ -251,11 +270,20 @@ This prevents unscheduled Firm Supply ambiguity later.
 
 `DRAFT` is editable.
 
-Authorized users may modify allowed pre-commitment fields according to approved rules.
+For a Draft created from an Expert Decision, the following Decision-derived core fields are read-only:
 
-However, changes that deviate from the Expert Decision must remain traceable.
+- Item
+- Supplier / selected Source
+- Currency
+- Unit Price
+- Ordered Qty
+- Payment Snapshot
+- Shipping Mode
+- Incoterm
 
-MRP-13A must define whether such changes require Reason before Approval.
+Changing any of these values requires a new MRP-12 Expert Decision; MRP-13 never silently detaches a Draft from its approved commercial basis.
+
+Schedule split/reallocation and planned-date revision may be performed while total Line Ordered Qty remains unchanged. Every such deviation from the Decision target requires Reason, durable audit lineage and preservation of the original Expert Target Receipt.
 
 The original Expert Decision lineage must never be lost.
 
@@ -468,14 +496,17 @@ PO Line committed quantity
 
 subject to approved cancellation/receipt rules.
 
-The schedule model must never double-count or lose line quantity.
+The schedule model must never double-count or lose line quantity. `AllocatedQty` is the immutable commercial quantity basis of a Schedule after commitment; Received and Cancelled are facts, not rewrites of that basis.
 
-MRP-13A must define exact reconciliation constraints for:
+At all times:
 
-- schedule split
-- schedule cancellation
-- partial receipt
-- final closure
+```text
+SUM(active Schedule AllocatedQty) = PO Line OrderedQty
+Schedule OpenQty = AllocatedQty - Valid Posted ReceivedQty - CancelledQty
+Schedule OpenQty >= 0
+```
+
+Split/reallocation replaces only unreceived and uncancelled allocation and preserves the Line total atomically. Partial Receipt reduces OpenQty only by its valid Posted quantity. Cancellation reduces OpenQty only by the cancelled fact. Final closure requires every Schedule OpenQty to equal zero; no quantity may be inferred, dropped or counted at both Line and Schedule grain.
 
 ---
 
@@ -514,7 +545,18 @@ derive from:
 - cancellation facts
 - open quantity
 
-MRP-13A must define deterministic aggregation.
+After `ORDERED`, deterministic Header summary precedence is:
+
+```text
+OpenQty = 0 and ReceivedQty > 0 → RECEIVED
+OpenQty = 0 and ReceivedQty = 0 → CANCELLED
+ReceivedQty > 0 and OpenQty > 0 → PARTIALLY_RECEIVED
+otherwise any open Schedule at/after customs facts → CUSTOMS
+otherwise any open Schedule with SHIPPED Actual → SHIPPED
+otherwise → ORDERED
+```
+
+`DRAFT` and `APPROVED` remain their command-controlled states before commitment. Completion Outcome is derived separately and never changes this quantity precedence.
 
 ---
 
@@ -645,17 +687,23 @@ Receipt should have:
 - Reversal info where applicable
 - actor/audit metadata
 
-Exact numbering pattern is proposed in MRP-13A.
+Receipt Number is server-generated, immutable and unique:
 
-Receipt Number must be stable and unique if implemented.
+```text
+RCV-{sequence:D6}
+```
+
+Use a PostgreSQL sequence; gaps are allowed and `MAX()+1` is forbidden.
 
 ---
 
-## 30. One Warehouse per Receipt
+## 30. One PO and One Warehouse per Receipt
 
 ### LOCKED DECISION
 
-Each Receipt Document has exactly one Destination Warehouse.
+Each Receipt Document belongs to exactly one Purchase Order and exactly one Destination Warehouse.
+
+All Receipt Lines must reference Lines/Schedules of that same PO. Mixing more than one PO in a Receipt is prohibited.
 
 If physical goods are split across two Warehouses:
 
@@ -996,9 +1044,16 @@ When a Receipt is reversed, quantity may become open supply again only if:
 - quantity has not been cancelled
 - status/lifecycle still allows remaining supplier commitment
 
-MRP-13A must define the exact restoration rule.
+Restoration is derived, never manually assigned:
 
-Do not blindly restore Firm Supply to a cancelled/closed schedule.
+```text
+Restored OpenQty
+= AllocatedQty
+ - remaining valid Posted, non-reversed ReceivedQty
+ - existing CancelledQty
+```
+
+Only the non-cancelled commercial obligation may reopen. Fully cancelled allocation stays cancelled; a positive derived OpenQty becomes Firm Supply only when the PO/Schedule remains in an eligible committed lifecycle state. Do not blindly restore Firm Supply to a cancelled/closed schedule.
 
 ---
 
@@ -1038,9 +1093,7 @@ SUPPLIER_READY
 <= WAREHOUSE_RECEIPT
 ```
 
-MRP-13A must decide which inequalities are mandatory and where exceptions are realistic.
-
-Do not allow obviously impossible chronology silently.
+For every pair of recorded applicable Actual milestones, the canonical sequence is mandatory and nondecreasing. Missing intermediate diagnostic milestones are allowed, but every recorded later milestone must still be on or after the latest recorded earlier milestone. Actual dates later than the server-owned current `Asia/Tehran` business date are prohibited.
 
 ---
 
@@ -1110,11 +1163,7 @@ Header `CUSTOMS` is derived summary.
 
 ## 57. Milestone Editability
 
-Actual milestones, once recorded, should not be casually overwritten.
-
-Correction must be auditable.
-
-MRP-13A should reuse existing audit/correction patterns and avoid building a heavyweight event-sourcing system.
+Actual milestone records are immutable historical facts. Correction is append-only supersession with mandatory Reason, actor/context and timestamp; the original record is never edited or deleted. Reuse the existing audit boundary and preserve durable domain history without a parallel audit platform or heavyweight event-sourcing system.
 
 ---
 
@@ -1174,11 +1223,13 @@ Expert Target Receipt is the planning input at PO creation.
 
 At ORDERED, Original Planned Warehouse Receipt may be recalculated from actual Ordered Date + snapshotted lead-time chain.
 
-Both planning lineage values should remain explainable.
+Both planning lineage values remain visible with distinct labels:
+
+- `Expert Target Receipt`
+- `Original Planned Warehouse Receipt`
+- `Current/Revised Planned Warehouse Receipt`
 
 Do not overwrite the Expert Decision target.
-
-MRP-13A should define clear labels to avoid confusion.
 
 ---
 
@@ -1270,27 +1321,13 @@ must be auditable.
 
 ## 67. PO Edit History
 
-Committed historical values must remain explainable.
-
-Do not rely solely on mutable current header values if commercial facts changed before ORDERED.
-
-MRP-13A should preserve enough event/audit data without overbuilding.
+Committed historical values must remain explainable. Durable conversion, lifecycle, schedule revision, cancellation, Receipt and milestone-supersession records preserve Reason, actor/context, timestamp and lineage. Do not rely solely on mutable current header values and do not build a parallel generic Audit platform.
 
 ---
 
 ## 68. Recommendation Link after Draft Edit
 
-If Draft PO values differ from Expert Decision before approval, the UI must clearly show:
-
-```text
-Decision Value
-vs
-PO Draft Value
-```
-
-or preserve equivalent audit trace.
-
-Do not lose the original Expert-approved baseline.
+Decision-derived core values cannot differ in the MRP-13 Draft. The UI shows them read-only from the immutable Decision snapshot. Schedule target/split deviations show the original Expert Target beside the revised Schedule plan and require Reason/audit lineage.
 
 ---
 
@@ -1343,6 +1380,16 @@ Before POST:
 - no reversed/closed invalid source
 - posting will not violate inventory/data integrity
 
+Receipt scope and date validation also require:
+
+```text
+one Purchase Order
+one Destination Warehouse
+OrderedDate <= EffectiveDate <= TehranToday
+```
+
+`TehranToday` is server-owned. A future Receipt is rejected; the client cannot override the business date.
+
 ---
 
 ## 72. Receipt Posting Date
@@ -1377,9 +1424,9 @@ Historical posted Receipts remain resolvable if Warehouse later becomes inactive
 
 Historical receipt remains resolvable.
 
-New receipt against an inactive Item should normally be blocked unless it is a controlled completion/correction of an existing committed PO and policy explicitly allows it.
+For an already `ORDERED` PO, Receipt, remaining-quantity Cancellation and Receipt Reversal remain allowed when the Item is inactive, with an explicit `INACTIVE_ITEM_EXISTING_COMMITMENT` warning. This permits settlement/correction of an existing commitment.
 
-MRP-13A must propose the smallest safe rule.
+An inactive Item cannot enter a new procurement commitment and its committed Ordered Qty cannot be expanded. No new Decision conversion or Mark-Ordered operation may bypass that rule.
 
 ---
 
@@ -1513,25 +1560,13 @@ Conversion of one or multiple Expert Decisions into Draft PO(s) must be transact
 - Decision marked converted but PO not created
 - duplicate conversion under concurrency
 
-MRP-13A must propose robust transaction strategy.
+For each PO group, lock selected Expert Decisions in deterministic ID order, revalidate them, insert the PO/Lines/Schedules and persist the immutable conversion lineage in one database transaction. A database unique constraint on Expert Decision conversion is the final duplicate-conversion guard.
 
 ---
 
 ## 85. Batch Conversion Failure
 
-If grouped batch conversion contains one invalid Decision, MRP-13A should define whether:
-
-- entire group fails atomically
-or
-- valid subgroups proceed separately
-
-Baseline preference:
-
-```text
-Each generated PO group is atomic.
-```
-
-Do not silently drop invalid Lines.
+Each generated PO group is atomic. A failed Decision invalidates its whole group, but does not roll back an independent valid group. The batch result returns explicit success/failure for every group and every selected Decision. Retrying the request must return/reuse already-successful conversion results and must never duplicate them. Do not silently drop invalid Lines.
 
 ---
 
@@ -1795,11 +1830,15 @@ Expected protections where practical:
 - schedule quantity reconciliation
 - exact Receipt Line → PO Line + Schedule FK
 - one Warehouse per Receipt
+- one PO per Receipt
+- Receipt Effective Date inside inclusive OrderedDate..server TehranToday
 - posted receipt immutability
 - reversal relationship integrity
+- append-only Actual milestone correction/supersession
+- immutable Decision-derived Draft core values
 - no destructive cascade of historical PO/Receipt records
 
-Exact DB design is proposed in MRP-13A.
+MRP-13B must implement these protections with forward migrations and prove direct-SQL bypass attempts fail without rewriting earlier migrations.
 
 ---
 
@@ -1817,7 +1856,7 @@ Concurrency-sensitive operations include:
 - ETA edits
 - milestone updates
 
-MRP-13A must propose the smallest robust PostgreSQL/EF Core concurrency strategy.
+Use the existing `PurchaseOrder.Version` as the single PO aggregate optimistic token. Conversion additionally uses deterministic Expert Decision row locks plus conversion uniqueness. Receipt posting/cancellation/split/reversal lock affected PO/Schedule rows in deterministic ID order and participate in the MRP-08 Item/Warehouse advisory-lock protocol for inventory effects. Receipt Draft/Post/Reverse uses an explicit Receipt concurrency token. Direct-DB constraints/triggers remain the final protection for immutable history, quantity reconciliation, over-receipt, one-PO/one-Warehouse scope and milestone supersession integrity.
 
 ---
 
@@ -1955,7 +1994,7 @@ MRP-13 is acceptable when:
 4. Multiple decisions group only when Supplier/Currency/Payment/Incoterm/Shipping Mode match.
 5. Each Expert Decision maps to one PO Line.
 6. Default Schedule is created for full Line Qty.
-7. Draft is editable.
+7. Draft schedule planning is editable, but Decision-derived core fields remain read-only.
 8. Approved is internal and non-Firm.
 9. Return-to-Draft requires Reason/Audit.
 10. ORDERED creates commercial commitment and Firm Supply.
@@ -1965,7 +2004,7 @@ MRP-13 is acceptable when:
 14. Post-ORDERED schedule changes require Reason/Audit.
 15. Header Status is deterministic summary.
 16. Receipt Document has Draft/Posted/Reversed lifecycle.
-17. One Destination Warehouse per Receipt.
+17. One Purchase Order and one Destination Warehouse per Receipt.
 18. Every Receipt Line targets exact PO Line + Schedule.
 19. Posting Receipt atomically updates PO receipt facts and Inventory Ledger.
 20. Partial Receipt works.
@@ -1986,6 +2025,11 @@ MRP-13 is acceptable when:
 35. Recommendation lineage remains traceable.
 36. No payment/FX/accounting logic leaks into MRP-13.
 37. Concurrency tests cover Receipt/Cancel/Schedule races.
+38. Conversion revalidates operational drift and never silently refreshes the Expert Decision snapshot.
+39. Each PO group commits/fails atomically and batch results report every group explicitly.
+40. Receipt Effective Date is inside the inclusive OrderedDate..server TehranToday range.
+41. Existing ORDERED commitments remain settleable for an inactive Item with an explicit warning, but cannot expand.
+42. Actual milestone corrections are append-only supersessions with Reason and canonical chronology.
 
 ---
 
@@ -1999,7 +2043,7 @@ The following are locked for MRP-13:
 4. Cancelled PO does not make old Decision reusable.
 5. Batch grouping requires identical Supplier/Currency/Payment/Incoterm/Shipping Mode.
 6. One Expert Decision → one PO Line.
-7. DRAFT editable.
+7. Decision-derived DRAFT core fields are immutable; only approved schedule planning changes are allowed with Reason/Audit.
 8. APPROVED commercial/core locked; Return to Draft + Reason before ORDERED.
 9. ORDERED locks committed commercial/core values.
 10. Firm Supply starts at ORDERED.
@@ -2011,7 +2055,7 @@ The following are locked for MRP-13:
 16. DRAFT/APPROVED/ORDERED command-controlled.
 17. SHIPPED/CUSTOMS/PARTIALLY_RECEIVED/RECEIVED/CANCELLED derived where practical from facts.
 18. Receipt is independent Draft/Posted/Reversed document.
-19. One Warehouse per Receipt.
+19. One Purchase Order and one Warehouse per Receipt.
 20. Receipt Line maps exact PO Line + Schedule.
 21. Receipt posting atomically updates PO + Inventory.
 22. Partial Receipt supported.
@@ -2029,6 +2073,12 @@ The following are locked for MRP-13:
 34. Actual WAREHOUSE_RECEIPT derives from Posted Receipt.
 35. Header Status is summary; Schedule detail is operational truth.
 36. Package 13 does not execute payments, FX, accounting or cash flow.
+37. Conversion revalidation blocks Source/Readiness/Price/MOQ/LeadTime/BaseUnit drift with `DECISION_RECONFIRMATION_REQUIRED`; it never refreshes the Decision silently.
+38. Each batch PO group is an independent atomic transaction with explicit per-group result and idempotent retry.
+39. Receipt Effective Date obeys `OrderedDate <= EffectiveDate <= TehranToday` using server-owned Tehran date.
+40. Inactive Item settlement/correction is allowed only for an existing ORDERED commitment with warning; no new commitment or quantity expansion is allowed.
+41. Actual milestones follow the canonical MRP-09 sequence, reject future dates and use immutable append-only supersession for correction.
+42. Receipt Number is immutable server-generated `RCV-{sequence:D6}`.
 
 ---
 
@@ -2084,6 +2134,13 @@ Approved:
 ```text
 One Destination Warehouse per Receipt Document.
 Multiple Warehouses require multiple Receipts.
+```
+
+Receipt scope is also CLOSED:
+
+```text
+One Receipt = one Purchase Order + one Destination Warehouse.
+All Receipt Lines belong to that PO.
 ```
 
 The previous open question:
@@ -2398,6 +2455,8 @@ Block:
 - BLOCKED
 - already converted
 
+Use the immutable Expert Decision snapshot as the commercial basis. Immediately before conversion, revalidate Source operational state/readiness, selected Price, MOQ, configured Lead Time and Base Unit. Any material drift must block the group with `DECISION_RECONFIRMATION_REQUIRED` plus its stable detail reason. Never refresh, reprice or recalculate silently; require a new MRP-12 Expert Decision.
+
 Preserve:
 MRP Run → Recommendation → Expert Decision → PO Line trace.
 
@@ -2411,6 +2470,8 @@ Combine Decisions only when approved grouping keys match:
 
 One Expert Decision = one PO Line.
 
+Treat each resulting PO group as an independent atomic transaction. A failed group must not roll back an unrelated valid group. Return explicit per-group/per-Decision success or failure, and make retry idempotent for groups already committed.
+
 Payment Snapshot must preserve Credit Anchor Event. Enforce Credit%>0 → CreditDays>0 + Anchor required and Credit%=0 → Anchor may be null. Implement WAREHOUSE_RECEIPT using operational Final Receipt Date only.
 
 DRAFT PO
@@ -2421,6 +2482,8 @@ Create:
 - default Schedule Qty = Line Qty
 - initial Target Receipt = Expert Final Target Receipt
 
+Decision-derived Item, Supplier/Source, Currency, Unit Price, Ordered Qty, Payment Snapshot, Shipping Mode and Incoterm are read-only even in Draft. Changing any of them requires a new MRP-12 Expert Decision. Schedule split/date revision may change only planning distribution while total Ordered Qty remains fixed and requires Reason + durable audit lineage.
+
 PO LIFECYCLE
 Implement explicit commands:
 - Approve
@@ -2428,7 +2491,7 @@ Implement explicit commands:
 - Mark Ordered
 
 DRAFT:
-editable under approved rules.
+schedule planning editable only under the approved constrained rules; Decision-derived core fields immutable.
 
 APPROVED:
 not Firm Supply.
@@ -2478,13 +2541,20 @@ Implement:
 
 RECEIPT
 Implement Receipt entity:
-- ID/number according to approved analysis
+- ID and immutable server-generated `RCV-{sequence:D6}` number
 - DRAFT
 - POSTED
 - REVERSED
+- exactly one Purchase Order
 - one Destination Warehouse
 - Effective Date
 - Lines
+
+All Lines must belong to that same PO. Validate the inclusive server-owned date rule:
+
+`OrderedDate <= EffectiveDate <= TehranToday`
+
+Future receipt posting is forbidden.
 
 RECEIPT LINE
 Must reference:
@@ -2545,9 +2615,7 @@ Implement controlled reversal:
 - block if Inventory would become negative
 
 MILESTONES
-Implement Actual milestone management per approved analysis.
-
-Validate chronology.
+Implement immutable Actual milestone history using the canonical MRP-09 sequence. Dates cannot be future and must be chronologically nondecreasing. Correction is append-only supersession with mandatory Reason/audit context; never edit or delete the original Actual record.
 
 WAREHOUSE_RECEIPT actual is derived from Posted Receipt.
 Do not allow competing manual warehouse-receipt actual date.
@@ -2565,7 +2633,7 @@ Final Receipt derivation must:
 Add future tests (do not substitute First Receipt): one full Receipt, multiple partial Receipts, Final Receipt + Credit Days, received-with-cancellation, fully cancelled, final-Receipt reversal, and new completion after reversal.
 
 INACTIVE ENTITIES
-Follow approved MRP-13A policy for inactive Item/Warehouse/Supplier without breaking historical operations.
+For an already ORDERED PO, allow Receipt, Cancellation and Receipt Reversal for an inactive Item with explicit `INACTIVE_ITEM_EXISTING_COMMITMENT` warning. Block new procurement commitment and Ordered Qty expansion for inactive Item. Preserve existing inactive Warehouse/Supplier policies without breaking historical resolution.
 
 BACKEND
 Implement only approved:
@@ -2607,8 +2675,10 @@ Do not build parallel infrastructure.
 TESTS
 Implement approved numerical/transactional scenarios, especially:
 - canonical GD-05, GD-08 PO/Receipt, GD-09 PO snapshot and GD-10 currency-isolation regressions with independently encoded expected values
+- conversion revalidation for Source/readiness/Price/MOQ/LeadTime/BaseUnit drift, stable reasons and no silent refresh
 - duplicate conversion concurrency
-- batch grouping
+- batch grouping, independent group atomicity, partial batch success and idempotent retry
+- Decision-derived Draft core-field immutability and schedule-only Reasoned deviation
 - Firm starts at Ordered
 - committed immutability
 - schedule split/reconcile
@@ -2617,11 +2687,15 @@ Implement approved numerical/transactional scenarios, especially:
 - over-receipt block
 - partial Receipt
 - Receipt Inventory atomicity
+- one-PO/one-Warehouse Receipt scope at API and direct DB levels
+- inclusive OrderedDate/TehranToday Receipt boundaries and future-date rejection
 - cancellation
 - mixed completion outcome
 - reversal
 - reversal negative-stock block
 - derived Warehouse Receipt milestone
+- inactive Item existing-commitment settlement warning and new-commitment/qty-expansion block
+- Actual milestone chronology, future-date block, immutable original and append-only correction
 - old MRP Run immutability
 - lineage integrity
 
@@ -2744,6 +2818,9 @@ Audit:
    - idempotent
    - duplicate conversion prevented
    - cancelled PO does not automatically reuse old decision
+   - immutable Expert Decision snapshot remains the commercial basis
+   - Source/readiness/Price/MOQ/LeadTime/BaseUnit drift blocks with stable reconfirmation reason
+   - no silent refresh/reprice/recalculation
 
 3. Batch Grouping
    - exact approved keys
@@ -2752,13 +2829,17 @@ Audit:
    - Payment Snapshot includes historical Credit Anchor Event
    - Credit Anchor conditional validation is enforced
    - WAREHOUSE_RECEIPT uses operational Final Receipt Date; First Receipt and Cancellation Date are never anchors
+   - every resulting PO group is independently atomic
+   - valid independent groups may commit when another group fails
+   - explicit per-group results and idempotent retry prevent duplication
 
 4. Lineage
    - PO Line → Decision → Recommendation → MRP Run
    - historical trace preserved
 
 5. PO Lifecycle
-   - Draft editable
+   - Decision-derived Draft core fields read-only
+   - schedule split/date revision only with unchanged OrderedQty, Reason and lineage
    - Approved internal only
    - Approved not Firm
    - Return to Draft requires Reason
@@ -2797,7 +2878,10 @@ Audit:
 
 10. Receipt Entity
     - Draft/Posted/Reversed
-    - one Warehouse
+    - immutable `RCV-{sequence:D6}` identity
+    - one Purchase Order and one Warehouse
+    - all Lines belong to the Receipt PO
+    - OrderedDate <= EffectiveDate <= server TehranToday
     - exact Line+Schedule allocation
 
 11. Receipt Posting
@@ -2833,37 +2917,47 @@ Audit:
     - partial Receipt leaves anchor unresolved; reversal removes a stale final anchor; later re-completion establishes a new anchor
     - received-with-cancellation uses the last required valid Receipt date, fully cancelled has no anchor, and no manual Financial Receipt Date exists
 
-15. Milestones
+16. Milestones
     - Original/Revised/Actual distinct
-    - chronology validation
+    - canonical chronology and future-date validation
+    - immutable originals and append-only correction/supersession with Reason
     - Warehouse Receipt derived from Posted Receipt
     - First/Final Receipt derivable
 
-16. Historical Integrity
+17. Historical Integrity
     - old MRP Runs unchanged
     - old Recommendation/Decision unchanged
     - current Master changes do not rewrite PO commitment
 
-17. Database Integrity
+18. Database Integrity
     - conversion uniqueness
     - quantity constraints
     - schedule reconciliation
     - receipt allocation FKs
+    - one-PO/one-Warehouse Receipt scope
+    - Receipt date boundary protection
+    - Decision-derived Draft immutability
+    - Actual milestone append-only supersession
     - reversal links
     - no destructive cascades
 
-18. Concurrency
+19. Concurrency
     - two Receipts cannot overconsume open qty
     - Receipt vs Cancel safe
     - split vs Receipt safe
     - conversion race safe
+    - independent batch-group atomicity and retry idempotency
 
-19. API
+20. Inactive Item Existing Commitment
+    - Receipt/Cancellation/Reversal allowed after ORDERED with explicit warning
+    - no new commitment or Ordered Qty expansion
+
+21. API
     - command boundaries
     - no unrestricted status/qty mutation
     - server-side validation
 
-20. UI
+22. UI
     - correct actions by lifecycle
     - read-only committed values
     - Decision lineage
@@ -2872,25 +2966,36 @@ Audit:
     - Reversal/Cancellation Reasons
     - RTL/Jalali/brand rules
 
-21. Permissions / Auditability
+23. Permissions / Auditability
 
-22. Performance
+24. Performance
     - no N+1 Schedule/Receipt loading
     - correct transactional locking without unnecessary distributed infra
 
-23. Tests
+25. Tests
     Verify meaningful transactional assertions especially:
     - Golden inputs/outputs exactly match GD-05, GD-08 PO/Receipt, GD-09 PO snapshot and GD-10
     - expected results are independent and not generated by production logic
     - conversion idempotency
+    - all conversion drift/reconfirmation reasons and no silent refresh
+    - batch partial success, per-group rollback and retry idempotency
+    - Decision-derived Draft immutability
     - Firm at Ordered
     - receipt/inventory atomicity
+    - one-PO/one-Warehouse and Receipt date direct-DB guards
     - over-receipt
     - cancellation
     - reversal
+    - inactive Item settlement vs new commitment/expansion
+    - milestone chronology/future-date/supersession immutability
     - concurrency
 
-24. Specification Drift
+26. Golden and End-to-End Integrity
+    - GD-05 fixed PO/split/partial/cancel/final/reversal/re-completion/Credit Anchor outputs
+    - GD-08 newer ORDERED Schedule and Receipts feed later MRP Runs without duplicate procurement
+    - expected values are encoded independently and never changed to fit implementation
+
+27. Specification Drift
     Compare:
     - Master Spec
     - Decisions
@@ -2938,13 +3043,13 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۲۶ تصمیم تأییدشده Package 13 پوشش داده شده‌اند:
+تمام ۳۳ تصمیم تأییدشده Package 13 پوشش داده شده‌اند:
 
 1. Valid ACCEPT/MODIFY conversion only.
 2. Controlled batch conversion.
 3. One Decision → one PO Line lineage.
 4. Idempotent conversion.
-5. Draft editable / Approved controlled return-to-draft.
+5. Decision-derived Draft core fields immutable; schedule planning changes controlled / Approved return-to-draft controlled.
 6. Ordered commercial lock.
 7. Firm Supply starts at Ordered.
 8. Default Schedule creation.
@@ -2952,7 +3057,7 @@ STOP.
 10. Split Schedule before/after Ordered.
 11. Command-controlled early lifecycle + fact-derived operational summary.
 12. Receipt Document lifecycle.
-13. One Destination Warehouse per Receipt.
+13. One Purchase Order and one Destination Warehouse per Receipt.
 14. Exact Receipt Line→PO Line+Schedule allocation.
 15. Atomic PO+Inventory Receipt posting.
 16. Partial Receipt.
@@ -2966,6 +3071,13 @@ STOP.
 24. Actual milestones + derived Warehouse Receipt.
 25. Header Status is Summary; Schedule detail is operational truth.
 26. No payment/FX/accounting/cash-flow execution.
+27. Conversion revalidation blocks material operational drift without silent refresh.
+28. Independent atomic PO groups with explicit partial-batch results and idempotent retry.
+29. Receipt Effective Date obeys inclusive OrderedDate..server TehranToday.
+30. Existing ORDERED commitments remain settleable for inactive Items with warning; no expansion/new commitment.
+31. Actual milestone chronology/future-date rules are mandatory.
+32. Actual milestone correction is append-only supersession with Reason/audit.
+33. GD-05 and GD-08 are fixed implementation/audit gates.
 
 ## Open Question Resolution
 
@@ -3001,7 +3113,7 @@ Receipt Line
 CLOSED:
 
 ```text
-one Warehouse per Receipt Document
+one Purchase Order + one Destination Warehouse per Receipt Document
 ```
 
 ### Mixed Partial Receipt + Cancellation
@@ -3059,7 +3171,7 @@ Deferred beyond Package 13:
 - landed cost/accounting
 - payment execution
 - cash-flow scheduling
-- lead-time statistical policy
+- future lead-time analytics application/integration beyond the locked MRP-14 policy
 - Production-return integration
 
 No unresolved MRP-13 baseline issue remains.
@@ -3069,20 +3181,20 @@ No unresolved MRP-13 baseline issue remains.
 ### MRP-13A
 PASS
 
-Analysis-only, Repository-aware, and specifically requires concurrency, transaction atomicity, schedule reconciliation, backdated receipt integrity and lineage analysis before implementation.
+Analysis-only, Repository-aware, and completed with Owner-approved decisions for conversion revalidation, Draft immutability, batch atomicity, Receipt scope/date, inactive-Item settlement and immutable Actual milestone correction.
 
 ### MRP-13B
 PASS
 
-Implementation is strictly bounded to PO Operations + Receipt + Inventory integration and explicitly blocks financial/accounting scope.
+Implementation is strictly bounded to PO Operations + Receipt + Inventory integration, explicitly tests GD-05/GD-08 and the Owner decisions, and blocks financial/accounting scope.
 
 ### MRP-13C
 PASS
 
-Independent read-only audit checks conversion idempotency, lifecycle semantics, Firm Supply, split schedules, Receipt/Inventory atomicity, cancellation, reversal, concurrency and historical trace.
+Independent read-only audit checks conversion revalidation/idempotency, independent batch-group atomicity, Decision-derived Draft immutability, lifecycle semantics, Firm Supply, Receipt scope/date, split schedules, Receipt/Inventory atomicity, inactive-Item settlement, append-only milestones, cancellation, reversal, concurrency, direct-DB integrity, GD-05/GD-08 and historical trace.
 
 ## Final Decision
 
 `MRP-13 Purchase Order Operations & Receipt` is approved for the project Prompt Baseline.
 
-It should not yet be sent to Codex until MRP-14 is designed and the complete MRP-01..14 prompt set receives the final cross-package audit.
+MRP-13A is Owner-approved and synchronized. `MRP-13B Readiness = READY`; MRP-13 implementation and MRP-14 implementation have not started.

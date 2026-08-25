@@ -105,6 +105,26 @@
 **Source:** `docs/modules/mrp/golden/MRP-GOLDEN-DATASET-V1-FINAL.md`; MRP-10 Golden Tests / MRP-14 §63–65  
 **Change Policy:** Future expected-value changes require an approved business-rule change and a versioned Golden Dataset update; values must not be silently changed to make tests pass.
 
+### Q-024 — MRP-13 Conversion Revalidation and Draft Deviation
+**Status:** CLOSED — MRP-13 Owner decision
+**Approved:** Expert Decision snapshot immutable basis می‌ماند؛ material operational drift conversion را با reconfirmation reason پایدار می‌بندد و silent refresh ممنوع است. Decision-derived core PO fields در Draft immutable هستند؛ Schedule planning فقط با OrderedQty ثابت، Reason و lineage قابل تغییر است.
+
+### Q-025 — MRP-13 Batch Conversion Atomicity
+**Status:** CLOSED — MRP-13 Owner decision
+**Approved:** هر PO group یک atomic transaction مستقل است؛ گروه معتبر می‌تواند با وجود failure گروه مستقل دیگر commit شود، نتیجه هر گروه صریح است و retry نباید گروه موفق قبلی را duplicate کند.
+
+### Q-026 — MRP-13 Receipt Scope and Effective Date
+**Status:** CLOSED — MRP-13 Owner decision
+**Approved:** هر Receipt دقیقاً یک PO و یک Destination Warehouse دارد؛ همه Lines از همان PO هستند و `OrderedDate <= EffectiveDate <= TehranToday` با Tehran date server-owned برقرار است.
+
+### Q-027 — Inactive Item Existing Commitment Settlement
+**Status:** CLOSED — MRP-13 Owner decision
+**Approved:** برای PO قبلاً ORDERED، Receipt/Cancellation/Reversal با warning صریح مجاز است؛ commitment جدید و افزایش OrderedQty برای Item غیرفعال ممنوع است.
+
+### Q-028 — Actual Milestone Correction
+**Status:** CLOSED — MRP-13 Owner decision
+**Approved:** Actual milestoneها canonical chronology و منع future date دارند؛ original immutable است و correction فقط append-only supersession با Reason/audit انجام می‌شود.
+
 ## Deferred Future Scope — Non-Blocking
 
 - Production Calendar و working-day planning

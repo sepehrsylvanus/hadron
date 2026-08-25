@@ -429,3 +429,19 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Decision:** `PurchaseOrder.Version` تنها concurrency token کل PO aggregate است و Line/Schedule Version مستقل ندارند. `DRAFT` قابل ویرایش و refresh صریح snapshot است؛ `APPROVED` snapshot تجاری را قفل می‌کند، Firm نیست و Return-to-Draft به Reason نیاز دارد؛ `ORDERED` commitment خارجی، lock دائمی core commercial/qty/source، شروع Firm و زمان نهایی‌شدن Original Plan است. Lifecycle قابل command در MRP-09 فقط Draft/Approve/Return-to-Draft/Mark-Ordered است. هر Line از ابتدا یک default Schedule برای کل OrderedQty دارد و Planning فقط Schedule grain را مصرف می‌کند. Firm ETA برابر Latest Revised Planned `WAREHOUSE_RECEIPT`، سپس Original Planned `WAREHOUSE_RECEIPT` و سپس Missing است؛ Actual و `RequestedReceiptDate` fallback نیستند و Sourcing Master جاری هرگز fallback نیست. Received/Cancelled/Open از facts عملیاتی مشتق می‌شوند و counter قابل ویرایش ندارند.
 **Status:** LOCKED
 **Source Package:** MRP-09
+
+---
+
+## DEC-055 — Expert Decision Conversion and Decision-Derived PO Draft
+
+**Decision:** Expert Decision snapshot مبنای immutable تجاری conversion است، ولی درست پیش از conversion اعتبار عملیاتی Source/Readiness/Price/MOQ/LeadTime/BaseUnit دوباره بررسی می‌شود. drift مادی با `DECISION_RECONFIRMATION_REQUIRED` و reason پایدار conversion را مسدود می‌کند؛ refresh/reprice/recalculate خاموش ممنوع است و Planner باید در MRP-12 Expert Decision جدید بسازد. در Draft حاصل از Decision، Item، Supplier/Source، Currency، UnitPrice، OrderedQty، Payment Snapshot، ShippingMode و Incoterm قابل ویرایش نیستند؛ فقط split/revision برنامه Schedule با OrderedQty ثابت، Reason و audit lineage مجاز است. هر PO group تراکنش atomic مستقل با نتیجه صریح و retry idempotent است؛ failure یک group، group مستقل معتبر را rollback نمی‌کند.
+**Status:** LOCKED
+**Source Package:** MRP-12, MRP-13
+
+---
+
+## DEC-056 — Receipt Scope, Business Date, Inactive Item and Actual Milestones
+
+**Decision:** هر Receipt دقیقاً متعلق به یک Purchase Order و یک Destination Warehouse است و همه Lines آن باید به Line/Schedule همان PO متصل باشند. `EffectiveDate` با Tehran business date server-owned در بازه inclusive `OrderedDate <= EffectiveDate <= TehranToday` است. برای PO قبلاً `ORDERED`، Receipt/Cancellation/Receipt Reversal روی Item غیرفعال با warning صریح برای settlement تعهد موجود مجاز است، ولی commitment جدید یا افزایش OrderedQty ممنوع است. Actual milestoneها از sequence canonical MRP-09 پیروی می‌کنند، future نیستند، chronology را رعایت می‌کنند و اصلاح آنها فقط append-only supersession با Reason/audit است؛ original هرگز edit/delete نمی‌شود.
+**Status:** LOCKED
+**Source Package:** MRP-09, MRP-13
