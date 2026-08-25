@@ -886,6 +886,21 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Property<Guid>("RunId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SupplierNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SupplierNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RunId", "DeliveryScheduleId")
@@ -1056,9 +1071,30 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Property<Guid>("BaseUnitId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CategoryCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CategoryNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CategoryNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("CriticalDays")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("DefaultScrapPercent")
                         .HasPrecision(28, 12)
                         .HasColumnType("numeric(28,12)");
+
+                    b.Property<int?>("ExcessStartDays")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1087,6 +1123,9 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.Property<Guid>("RunId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SafeStartDays")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("SafetyStockQty")
                         .HasPrecision(28, 12)

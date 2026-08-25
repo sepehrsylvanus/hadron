@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Catalog.Domain;
+using Hadron.Erp.Api.Modules.Mrp.Application;
+using Hadron.Erp.Api.Modules.Mrp.Domain;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
@@ -534,6 +536,106 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         Assert.Equal(before, await afterDb.InventoryTransactions.CountAsync());
         Assert.Equal(HttpStatusCode.NotFound, (await _client.PostAsJsonAsync(
             $"/api/purchase-orders/{draft.GetProperty("id").GetGuid()}/receipts", new { quantity = 1 })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Material_planning_supply_trace_keeps_PO_line_schedule_supplier_and_ETA_snapshot_after_live_revision()
+    {
+        var draft = await Create();
+        var purchaseOrderId = draft.GetProperty("id").GetGuid();
+        var approved = await Post($"/api/purchase-orders/{purchaseOrderId}/approve", new
+        { expectedVersion = draft.GetProperty("version").GetInt64() });
+        var ordered = await Post($"/api/purchase-orders/{purchaseOrderId}/mark-ordered", new
+        { expectedVersion = approved.GetProperty("version").GetInt64(), orderedDate = "2026-08-24" });
+        var line = ordered.GetProperty("lines")[0];
+        var schedule = line.GetProperty("schedules")[0];
+        var lineId = line.GetProperty("id").GetGuid();
+        var scheduleId = schedule.GetProperty("id").GetGuid();
+        var runId = Guid.Empty;
+        var supplierNumber = string.Empty;
+        try
+        {
+            await using (var db = await Db())
+            {
+                var item = await db.Items.Include(x => x.BaseUnit).SingleAsync(x => x.Id == _item);
+                var supplier = await db.Suppliers.SingleAsync(x => x.Id == _supplier);
+                supplierNumber = supplier.SupplierNumber;
+                var run = new MrpRun($"MRP-RUN-{Random.Shared.Next(100000, 999999)}",
+                    new DateOnly(2026, 8, 24), new DateOnly(2026, 9, 25), "MRP-10-v1", null, DateTime.UtcNow);
+                runId = run.Id;
+                db.MrpRuns.Add(run);
+                db.MrpRunItemInputs.Add(new MrpRunItemInput(run.Id, item.Id, item.BusinessNumber,
+                    item.ItemType, item.NameFa, item.NameEn, item.IsActive, item.BaseUnitId,
+                    item.BaseUnit.Code, item.BaseUnit.NameFa, item.BaseUnit.NameEn, SupplyMethods.Buy,
+                    0, 0, Guid.NewGuid(), "CAT", "گروه Snapshot", "Snapshot category", 3, 5, 10));
+                db.MrpRunDailyResults.Add(new MrpRunDailyResult(run.Id, item.Id,
+                    new DateOnly(2026, 8, 28), 1, 12.5m, 11.5m, -1, 0, 11.5m, false,
+                    MrpCompleteness.Complete));
+                db.MrpRunDailyResults.Add(new MrpRunDailyResult(run.Id, item.Id,
+                    new DateOnly(2026, 8, 27), 1, 0, -1, 0, 1, 0, false,
+                    MrpCompleteness.Complete));
+                db.MrpRunFirmSupplyInputs.Add(new MrpRunFirmSupplyInput(run.Id, item.Id,
+                    purchaseOrderId, ordered.GetProperty("purchaseOrderNumber").GetString()!, lineId,
+                    scheduleId, 12.5m, new DateOnly(2026, 8, 28),
+                    "ORIGINAL_PLANNED_WAREHOUSE_RECEIPT", FirmEtaStatuses.OnTime,
+                    PurchaseOrderStatuses.Ordered, supplier.Id, supplier.SupplierNumber,
+                    supplier.Name, null));
+                await db.SaveChangesAsync();
+                run.MarkSnapshotCaptured(DateTime.UtcNow);
+                run.Complete(MrpCompleteness.Complete, false, DateTime.UtcNow);
+                await db.SaveChangesAsync();
+            }
+
+            var beforeTrace = (await _client.GetFromJsonAsync<MrpRequirementTraceResponse>(
+                $"/api/material-planning/runs/{runId}/items/{_item}/trace?demandDate=2026-08-28"))!;
+            var beforeSnapshot = Assert.Single(beforeTrace.FirmSupply);
+
+            await using (var db = await Db())
+            {
+                var supplier = await db.Suppliers.SingleAsync(x => x.Id == _supplier);
+                supplier.Edit("تأمین‌کننده زنده تغییرکرده", "LIVE SUPPLIER CHANGED", supplier.CountryId,
+                    supplier.OwnerId, supplier.Notes, supplier.ExpertLeadTimeScore, supplier.ExpertQualityScore);
+                await db.SaveChangesAsync();
+            }
+
+            await Post($"/api/purchase-orders/{purchaseOrderId}/schedules/{scheduleId}/revise-plan", new
+            {
+                expectedVersion = ordered.GetProperty("version").GetInt64(),
+                reason = "live ETA changed after MRP snapshot",
+                warehouseReceiptDate = "2026-09-02"
+            });
+
+            var trace = (await _client.GetFromJsonAsync<MrpRequirementTraceResponse>(
+                $"/api/material-planning/runs/{runId}/items/{_item}/trace?demandDate=2026-08-28"))!;
+            var snapshot = Assert.Single(trace.FirmSupply);
+            Assert.Equal(beforeSnapshot, snapshot);
+            Assert.Equal(purchaseOrderId, snapshot.PurchaseOrderId);
+            Assert.Equal(lineId, snapshot.PurchaseOrderLineId);
+            Assert.Equal(scheduleId, snapshot.DeliveryScheduleId);
+            Assert.Equal(new DateOnly(2026, 8, 28), snapshot.Eta);
+            Assert.Equal(supplierNumber, snapshot.SupplierNumber);
+            Assert.Equal(12.5m, snapshot.OpenQty);
+            Assert.True(snapshot.AppliedByDemandDate);
+            var beforeEta = (await _client.GetFromJsonAsync<MrpRequirementTraceResponse>(
+                $"/api/material-planning/runs/{runId}/items/{_item}/trace?demandDate=2026-08-27"))!;
+            Assert.False(Assert.Single(beforeEta.FirmSupply).AppliedByDemandDate);
+        }
+        finally
+        {
+            if (runId != Guid.Empty)
+            {
+                await using var cleanup = await Db();
+                await cleanup.Database.ExecuteSqlRawAsync("""
+                    TRUNCATE planning.mrp_run_demand_traces, planning.mrp_run_daily_results,
+                      planning.mrp_run_item_summaries, planning.mrp_run_exceptions,
+                      planning.mrp_run_external_source_inputs, planning.mrp_run_forecast_period_inputs,
+                      planning.mrp_run_route_decisions, planning.mrp_run_route_availability_inputs,
+                      planning.mrp_run_firm_supply_inputs, planning.mrp_run_inventory_inputs,
+                      planning.mrp_run_bom_inputs, planning.mrp_run_forecast_inputs,
+                      planning.mrp_run_item_inputs, planning.mrp_runs RESTART IDENTITY CASCADE
+                    """);
+            }
+        }
     }
 
     private async Task<HttpResponseMessage> CreateResponse(DateOnly? requestedReceipt = null, Guid? optionId = null,

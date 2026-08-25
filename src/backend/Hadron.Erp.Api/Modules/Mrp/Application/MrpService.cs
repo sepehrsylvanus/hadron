@@ -216,8 +216,10 @@ public sealed class MrpService(
             x.WarehouseCode, x.WarehouseIsActive, x.UnitId, x.OnHandQty)).ToList();
         var firmRows = await db.MrpRunFirmSupplyInputs.AsNoTracking()
             .Where(x => x.RunId == runId && x.ItemId == itemId).ToListAsync(ct);
-        var firm = firmRows.Select(x => new MrpTraceFirmSupplyResponse(x.DeliveryScheduleId,
-            x.PurchaseOrderNumber, x.OpenQty, x.Eta, x.EtaSource, x.EtaStatus,
+        var firm = firmRows.Select(x => new MrpTraceFirmSupplyResponse(x.PurchaseOrderId,
+            x.PurchaseOrderNumber, x.PurchaseOrderLineId, x.DeliveryScheduleId, x.SupplierId,
+            x.SupplierNumber, x.SupplierNameFa, x.SupplierNameEn, x.OpenQty, x.Eta, x.EtaSource, x.EtaStatus,
+            x.PurchaseOrderStatus,
             x.EtaStatus != "OVERDUE" && x.Eta.HasValue && x.Eta >= run.AsOfDate && x.Eta <= demandDate)).ToList();
         var decision = await db.MrpRunRouteDecisions.AsNoTracking()
             .SingleOrDefaultAsync(x => x.RunId == runId && x.ItemId == itemId, ct);
@@ -288,14 +290,21 @@ public sealed class MrpService(
         var itemRows = await db.Items.AsNoTracking().Where(x => relevantItemIds.Contains(x.Id))
             .Include(x => x.BaseUnit).ToListAsync(ct);
         var profiles = await db.MaterialItemProfiles.AsNoTracking().Where(x => relevantItemIds.Contains(x.ItemId))
+            .Include(x => x.Category)
             .ToDictionaryAsync(x => x.ItemId, ct);
+        var products = await db.Products.AsNoTracking().Where(x => relevantItemIds.Contains(x.ItemId))
+            .Include(x => x.ProductCategory).ToDictionaryAsync(x => x.ItemId, ct);
         var itemInputs = itemRows.Select(item =>
         {
             profiles.TryGetValue(item.Id, out var profile);
+            products.TryGetValue(item.Id, out var product);
+            var category = profile?.Category ?? product?.ProductCategory;
             return new MrpRunItemInput(run.Id, item.Id, item.BusinessNumber, item.ItemType, item.NameFa,
                 item.NameEn, item.IsActive, item.BaseUnitId, item.BaseUnit.Code, item.BaseUnit.NameFa,
                 item.BaseUnit.NameEn, profile?.SupplyMethod, profile?.SafetyStockQty ?? 0,
-                profile?.DefaultPlanningScrapPercent ?? 0);
+                profile?.DefaultPlanningScrapPercent ?? 0, category?.Id, category?.Code,
+                category?.NameFa, category?.NameEn, profile?.CriticalDays ?? product?.CriticalDays,
+                profile?.SafeStartDays ?? product?.SafeStartDays, profile?.ExcessStartDays ?? product?.ExcessStartDays);
         }).ToList();
         db.MrpRunItemInputs.AddRange(itemInputs);
         db.MrpRunForecastPeriodInputs.AddRange(forecastCapture.Periods);
@@ -317,7 +326,8 @@ public sealed class MrpService(
         var firmInputs = await CaptureFirmSupply(db, run, relevantItemIds, ct);
         db.MrpRunFirmSupplyInputs.AddRange(firmInputs.Select(x => new MrpRunFirmSupplyInput(run.Id,
             x.ItemId, x.PurchaseOrderId, x.PurchaseOrderNumber, x.PurchaseOrderLineId,
-            x.DeliveryScheduleId, x.OpenQty, x.Eta, x.EtaSource, x.EtaStatus, x.PurchaseOrderStatus)));
+            x.DeliveryScheduleId, x.OpenQty, x.Eta, x.EtaSource, x.EtaStatus, x.PurchaseOrderStatus,
+            x.SupplierId, x.SupplierNumber, x.SupplierNameFa, x.SupplierNameEn)));
 
         db.MrpRunExternalSourceInputs.AddRange(await CaptureExternalSourceInputs(db, run.Id, relevantItemIds, ct));
         foreach (var decision in requestedDecisions)
@@ -420,6 +430,7 @@ public sealed class MrpService(
                 (x.Status == PurchaseOrderStatuses.Ordered || x.Status == PurchaseOrderStatuses.Shipped ||
                  x.Status == PurchaseOrderStatuses.Customs || x.Status == PurchaseOrderStatuses.PartiallyReceived) &&
                 x.Lines.Any(line => relevantItemIds.Contains(line.ItemId)))
+            .Include(x => x.Supplier)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.PlanRevisions)
             .AsSplitQuery().ToListAsync(ct);
         var result = new List<MrpFirmSupply>();
@@ -436,7 +447,8 @@ public sealed class MrpService(
                         original.HasValue ? "ORIGINAL_PLANNED_WAREHOUSE_RECEIPT" : "MISSING";
                     var etaStatus = !eta.HasValue ? "MISSING" : eta.Value < run.AsOfDate ? "OVERDUE" : "ON_TIME";
                     result.Add(new(line.ItemId, order.Id, order.PurchaseOrderNumber, line.Id, schedule.Id,
-                        schedule.AllocatedQuantity, eta, source, etaStatus, order.Status));
+                        schedule.AllocatedQuantity, eta, source, etaStatus, order.Status, order.SupplierId,
+                        order.Supplier.SupplierNumber, order.Supplier.Name, null));
                 }
         return result;
     }
@@ -523,7 +535,8 @@ public sealed class MrpService(
                 x.WarehouseIsActive, x.UnitId, x.OnHandQty)).ToList(),
             firm.Select(x => new MrpFirmSupply(x.ItemId, x.PurchaseOrderId, x.PurchaseOrderNumber,
                 x.PurchaseOrderLineId, x.DeliveryScheduleId, x.OpenQty, x.Eta, x.EtaSource,
-                x.EtaStatus, x.PurchaseOrderStatus)).ToList(),
+                x.EtaStatus, x.PurchaseOrderStatus, x.SupplierId, x.SupplierNumber,
+                x.SupplierNameFa, x.SupplierNameEn)).ToList(),
             externalSources.Count > 0
                 ? BuildRouteAvailability(itemRows, bom, externalSources, forecast.Select(x => x.DemandDate).Distinct())
                 : availability.Select(x => new MrpRouteAvailability(x.ItemId, x.DemandDate, x.BomReady, x.ExternalReady)).ToList(),

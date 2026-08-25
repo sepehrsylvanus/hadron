@@ -44,6 +44,8 @@ internal sealed class MrpRunItemInputConfiguration : IEntityTypeConfiguration<Mr
         b.Property(x => x.NameFa).HasMaxLength(200).IsRequired(); b.Property(x => x.NameEn).HasMaxLength(200);
         b.Property(x => x.UnitCode).HasMaxLength(50).IsRequired(); b.Property(x => x.UnitNameFa).HasMaxLength(200).IsRequired();
         b.Property(x => x.UnitNameEn).HasMaxLength(200); b.Property(x => x.SupplyMethod).HasMaxLength(20);
+        b.Property(x => x.CategoryCode).HasMaxLength(50); b.Property(x => x.CategoryNameFa).HasMaxLength(200);
+        b.Property(x => x.CategoryNameEn).HasMaxLength(200);
         b.Quantity(x => x.SafetyStockQty); b.Quantity(x => x.DefaultScrapPercent);
         b.HasIndex(x => new { x.RunId, x.ItemId }).IsUnique();
         b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);
@@ -110,6 +112,8 @@ internal sealed class MrpRunFirmSupplyInputConfiguration : IEntityTypeConfigurat
         b.Property(x => x.PurchaseOrderNumber).HasMaxLength(32).IsRequired(); b.Quantity(x => x.OpenQty);
         b.Property(x => x.EtaSource).HasMaxLength(64).IsRequired(); b.Property(x => x.EtaStatus).HasMaxLength(20).IsRequired();
         b.Property(x => x.PurchaseOrderStatus).HasMaxLength(32).IsRequired();
+        b.Property(x => x.SupplierNumber).HasMaxLength(32); b.Property(x => x.SupplierNameFa).HasMaxLength(200);
+        b.Property(x => x.SupplierNameEn).HasMaxLength(200);
         b.HasIndex(x => new { x.RunId, x.DeliveryScheduleId }).IsUnique();
         b.HasIndex(x => new { x.RunId, x.ItemId, x.Eta });
         b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);

@@ -41,8 +41,10 @@ public sealed record MrpTraceBomResponse(Guid RevisionId, string RevisionCode, G
     decimal GrossContribution);
 public sealed record MrpTraceInventoryResponse(Guid WarehouseId, string WarehouseCode,
     bool WarehouseIsActive, Guid UnitId, decimal OnHandQty);
-public sealed record MrpTraceFirmSupplyResponse(Guid DeliveryScheduleId, string PurchaseOrderNumber,
-    decimal OpenQty, DateOnly? Eta, string EtaSource, string EtaStatus, bool AppliedByDemandDate);
+public sealed record MrpTraceFirmSupplyResponse(Guid PurchaseOrderId, string PurchaseOrderNumber,
+    Guid PurchaseOrderLineId, Guid DeliveryScheduleId, Guid? SupplierId, string? SupplierNumber,
+    string? SupplierNameFa, string? SupplierNameEn, decimal OpenQty, DateOnly? Eta, string EtaSource,
+    string EtaStatus, string PurchaseOrderStatus, bool AppliedByDemandDate);
 public sealed record MrpTraceNettingResponse(decimal GrossRequirement, decimal FirmIncoming,
     decimal FirmProjectedBefore, decimal FirmProjectedAfter, decimal SafetyStock,
     decimal PlanningBeforeNeed, decimal NetRequirement, decimal PlanningBalance);

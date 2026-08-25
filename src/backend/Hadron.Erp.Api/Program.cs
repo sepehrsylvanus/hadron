@@ -41,6 +41,7 @@ builder.Services.AddScoped<PlanningService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<PurchaseSupplyService>();
 builder.Services.AddScoped<MrpService>();
+builder.Services.AddScoped<MaterialPlanningService>();
 builder.Services.AddSingleton<MrpCalculator>();
 builder.Services.AddScoped<IItemBaseUnitChangeGuard, InventoryHistoryItemGuard>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -95,6 +96,7 @@ app.MapPlanningEndpoints();
 app.MapInventoryEndpoints();
 app.MapPurchaseSupplyEndpoints();
 app.MapMrpEndpoints();
+app.MapMaterialPlanningEndpoints();
 
 app.Run();
 

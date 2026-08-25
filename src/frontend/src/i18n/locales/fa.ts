@@ -36,6 +36,7 @@ const fa = {
       bom: 'BOM',
       forecastActual: 'پیش‌بینی و تولید واقعی',
       mrpRuns: 'اجرای MRP',
+      materialPlanning: 'برنامه‌ریزی مواد',
       inventory: 'موجودی',
     },
   },
@@ -152,6 +153,14 @@ const fa = {
     firmLineage: 'Snapshot تأمین قطعی', applied: 'اعمال‌شده', excluded: 'حذف‌شده', nettingLineage: 'محاسبه خالص‌سازی', routeLineage: 'تصمیم مسیر',
     exceptionSeverity: 'شدت استثنا', allSeverities: 'همه شدت‌ها',
     status: { RUNNING: 'در حال اجرا', COMPLETED: 'تکمیل‌شده', COMPLETED_WITH_EXCEPTIONS: 'تکمیل با استثنا', FAILED: 'ناموفق', COMPLETE: 'کامل', COMPLETE_WITH_WARNINGS: 'کامل با هشدار', INCOMPLETE: 'ناقص' },
+  },
+  materialPlanning: {
+    title: 'برنامه‌ریزی مواد', subtitle: 'پوشش، ریسک، ردیابی و استثناهای محاسباتی بر مبنای اجرای MRP', snapshotOnly: 'Snapshot تغییرناپذیر اجرای MRP', run: 'اجرای MRP', runPage: 'صفحه اجرای {{page}} از {{pages}}', noEligibleRun: 'اجرای تکمیل‌شده‌ای وجود ندارد', noEligibleRunHint: 'برای بررسی برنامه‌ریزی مواد ابتدا یک اجرای MRP را تکمیل کنید.', unavailableRun: 'اجرای انتخاب‌شده در دسترس نیست', runContextUnavailable: 'اجرای تاریخی به‌یادسپرده‌شده دیگر در دسترس نیست. یک اجرای تکمیل‌شده دیگر را صریحاً انتخاب کنید.', searchPlaceholder: 'کد رسمی یا نام قلم', itemType: 'نوع ماده', risk: 'سطح ریسک', exceptionsOnly: 'دارای استثنا', stockoutFrom: 'کسری از تاریخ', stockoutTo: 'کسری تا تاریخ', runContext: 'بافت تاریخی اجرا', completedAt: 'زمان تکمیل', materialCount: 'ردیف مواد', history: 'بافت', latest: 'آخرین اجرای تکمیل‌شده', historical: 'اجرای تاریخی', summary: 'خلاصه مواد', materials: 'قطعات و اجزا', riskHint: 'ریسک فقط از پوشش تأمین قطعی تعیین می‌شود؛ پوشش موجودی و هشدار ایمنی مستقل‌اند.', material: 'ماده', operationalDetail: 'جزئیات عملیاتی ماده', stockCoverage: 'پوشش موجودی', firmCoverage: 'پوشش تأمین قطعی', warnings: 'هشدارهای مستقل', safetyBreach: 'نقض موجودی ایمنی', overdue: 'تأمین قطعی معوق', missingEta: 'تأمین بدون ETA', inspect: 'بررسی خط زمانی', timeline: 'نمای زمان‌مند ماده', grain: 'دانه‌بندی زمانی', bucket: 'تاریخ / بازه', safetyStock: 'موجودی ایمنی', events: 'رویدادها', stockoutEvent: 'رویداد کسری', safetyBreachEvent: 'رویداد نقض ایمنی', noTimeline: 'نتیجه روزانه ثبت‌شده‌ای برای این ماده وجود ندارد.', trace: 'ردیابی Snapshot', demandTrace: 'ردیابی نیاز', supplyTrace: 'ردیابی تأمین', forecastRevision: 'نسخه پیش‌بینی', poLineId: 'شناسه خط PO', scheduleId: 'شناسه برنامه تحویل', exceptionCenter: 'مرکز استثناها', exceptionFilters: 'فیلترهای استثنا', readOnlyExceptions: 'این موارد فقط‌خواندنی‌اند؛ داده مبدأ را اصلاح و اجرای جدید MRP ایجاد کنید.', source: 'ماژول مبدأ', openSource: 'بازکردن مبدأ', affectsDemand: 'اثر بر نیاز', message: 'پیام', days: 'روز', sortBy: 'مرتب‌سازی بر اساس', sortDirection: 'جهت', ascending: 'صعودی', descending: 'نزولی',
+    sorts: { risk: 'ریسک عملیاتی', code: 'کد رسمی قلم', name: 'نام قلم', stockout: 'تاریخ کسری', firmcoverage: 'پوشش قطعی', netrequirement: 'نیاز خالص' },
+    grains: { DAILY: 'روزانه', WEEKLY: 'هفتگی (شنبه تا جمعه)', MONTHLY: 'ماهانه (دوره جلالی)' },
+    risks: { INCOMPLETE: 'ناقص', STOCKOUT: 'کسری', NO_FUTURE_DEMAND: 'بدون نیاز آتی', BEYOND_HORIZON: 'فراتر از افق', CRITICAL: 'بحرانی', LOW: 'پوشش کم', SAFE: 'امن', EXCESS: 'مازاد' },
+    reasons: { LEGACY_RUN_CONTEXT_INCOMPLETE: 'بافت اجرای قدیمی ناقص است', CALCULATION_INCOMPLETE: 'محاسبه ناقص است', PROJECTED_STOCKOUT: 'کسری پیش‌بینی‌شده', NO_FUTURE_DEMAND: 'نیاز آتی وجود ندارد', BEYOND_HORIZON: 'پوشش فراتر از افق', FIRM_COVERAGE_CONTEXT_INCOMPLETE: 'بافت پوشش قطعی ناقص است', BELOW_CRITICAL_DAYS: 'کمتر از آستانه بحرانی', BELOW_SAFE_START_DAYS: 'کمتر از آستانه امن', WITHIN_SAFE_RANGE: 'در محدوده امن', AT_OR_ABOVE_EXCESS_START_DAYS: 'برابر یا بیشتر از آستانه مازاد' },
+    coverage: { DATE: 'پوشش تا تاریخ', BEYOND_HORIZON: 'فراتر از افق', NO_FUTURE_DEMAND: 'بدون نیاز آتی', INCOMPLETE_DATA: 'داده ناقص' },
   },
 } as const
 

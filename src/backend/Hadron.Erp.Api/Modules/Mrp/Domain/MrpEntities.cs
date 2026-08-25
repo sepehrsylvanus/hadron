@@ -94,12 +94,17 @@ public sealed class MrpRunItemInput
     private MrpRunItemInput() { }
     public MrpRunItemInput(Guid runId, Guid itemId, string itemCode, string itemType, string nameFa,
         string? nameEn, bool isActive, Guid baseUnitId, string unitCode, string unitNameFa,
-        string? unitNameEn, string? supplyMethod, decimal safetyStockQty, decimal defaultScrapPercent)
+        string? unitNameEn, string? supplyMethod, decimal safetyStockQty, decimal defaultScrapPercent,
+        Guid? categoryId, string? categoryCode, string? categoryNameFa, string? categoryNameEn,
+        int? criticalDays, int? safeStartDays, int? excessStartDays)
     {
         Id = Guid.NewGuid(); RunId = runId; ItemId = itemId; ItemCode = itemCode; ItemType = itemType;
         NameFa = nameFa; NameEn = nameEn; IsActive = isActive; BaseUnitId = baseUnitId;
         UnitCode = unitCode; UnitNameFa = unitNameFa; UnitNameEn = unitNameEn;
         SupplyMethod = supplyMethod; SafetyStockQty = safetyStockQty; DefaultScrapPercent = defaultScrapPercent;
+        CategoryId = categoryId; CategoryCode = categoryCode; CategoryNameFa = categoryNameFa;
+        CategoryNameEn = categoryNameEn; CriticalDays = criticalDays; SafeStartDays = safeStartDays;
+        ExcessStartDays = excessStartDays;
     }
     public Guid Id { get; private set; }
     public Guid RunId { get; private set; }
@@ -116,6 +121,13 @@ public sealed class MrpRunItemInput
     public string? SupplyMethod { get; private set; }
     public decimal SafetyStockQty { get; private set; }
     public decimal DefaultScrapPercent { get; private set; }
+    public Guid? CategoryId { get; private set; }
+    public string? CategoryCode { get; private set; }
+    public string? CategoryNameFa { get; private set; }
+    public string? CategoryNameEn { get; private set; }
+    public int? CriticalDays { get; private set; }
+    public int? SafeStartDays { get; private set; }
+    public int? ExcessStartDays { get; private set; }
 }
 
 public sealed class MrpRunForecastInput
@@ -228,12 +240,15 @@ public sealed class MrpRunFirmSupplyInput
     private MrpRunFirmSupplyInput() { }
     public MrpRunFirmSupplyInput(Guid runId, Guid itemId, Guid purchaseOrderId, string purchaseOrderNumber,
         Guid purchaseOrderLineId, Guid deliveryScheduleId, decimal openQty, DateOnly? eta, string etaSource,
-        string etaStatus, string purchaseOrderStatus)
+        string etaStatus, string purchaseOrderStatus, Guid? supplierId, string? supplierNumber,
+        string? supplierNameFa, string? supplierNameEn)
     {
         Id = Guid.NewGuid(); RunId = runId; ItemId = itemId; PurchaseOrderId = purchaseOrderId;
         PurchaseOrderNumber = purchaseOrderNumber; PurchaseOrderLineId = purchaseOrderLineId;
         DeliveryScheduleId = deliveryScheduleId; OpenQty = openQty; Eta = eta; EtaSource = etaSource;
         EtaStatus = etaStatus; PurchaseOrderStatus = purchaseOrderStatus;
+        SupplierId = supplierId; SupplierNumber = supplierNumber; SupplierNameFa = supplierNameFa;
+        SupplierNameEn = supplierNameEn;
     }
     public Guid Id { get; private set; }
     public Guid RunId { get; private set; }
@@ -247,6 +262,10 @@ public sealed class MrpRunFirmSupplyInput
     public string EtaSource { get; private set; } = string.Empty;
     public string EtaStatus { get; private set; } = string.Empty;
     public string PurchaseOrderStatus { get; private set; } = string.Empty;
+    public Guid? SupplierId { get; private set; }
+    public string? SupplierNumber { get; private set; }
+    public string? SupplierNameFa { get; private set; }
+    public string? SupplierNameEn { get; private set; }
 }
 
 public sealed class MrpRunRouteAvailabilityInput

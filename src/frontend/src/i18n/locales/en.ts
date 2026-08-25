@@ -36,6 +36,7 @@ const en = {
       bom: 'BOM',
       forecastActual: 'Forecast & Actual',
       mrpRuns: 'MRP Runs',
+      materialPlanning: 'Material Planning',
       inventory: 'Inventory',
     },
   },
@@ -152,6 +153,14 @@ const en = {
     firmLineage: 'Firm-supply snapshot', applied: 'applied', excluded: 'excluded', nettingLineage: 'Netting calculation', routeLineage: 'Route decision',
     exceptionSeverity: 'Exception severity', allSeverities: 'All severities',
     status: { RUNNING: 'Running', COMPLETED: 'Completed', COMPLETED_WITH_EXCEPTIONS: 'Completed with exceptions', FAILED: 'Failed', COMPLETE: 'Complete', COMPLETE_WITH_WARNINGS: 'Complete with warnings', INCOMPLETE: 'Incomplete' },
+  },
+  materialPlanning: {
+    title: 'Material Planning', subtitle: 'Run-based material coverage, risk, trace, and calculation exceptions', snapshotOnly: 'Immutable MRP run snapshot', run: 'MRP run', runPage: 'Run page {{page}} of {{pages}}', noEligibleRun: 'No completed MRP run', noEligibleRunHint: 'Execute and complete an MRP run before reviewing material planning.', unavailableRun: 'Selected run is unavailable', runContextUnavailable: 'The remembered historical run is no longer available. Select another completed run explicitly.', searchPlaceholder: 'Official item code or name', itemType: 'Material type', risk: 'Risk band', exceptionsOnly: 'Has exceptions', stockoutFrom: 'Stockout from', stockoutTo: 'Stockout to', runContext: 'Historical run context', completedAt: 'Completed at', materialCount: 'Material rows', history: 'Context', latest: 'Latest completed run', historical: 'Historical run', summary: 'Material summary', materials: 'Parts and components', riskHint: 'Risk uses firm-supply coverage. Stock coverage and safety warnings remain separate.', material: 'Material', operationalDetail: 'Operational material detail', stockCoverage: 'Stock coverage', firmCoverage: 'Firm coverage', warnings: 'Independent warnings', safetyBreach: 'Safety breach', overdue: 'Overdue firm', missingEta: 'Missing ETA firm', inspect: 'Inspect timeline', timeline: 'Time-phased material view', grain: 'Timeline grain', bucket: 'Date / bucket', safetyStock: 'Safety stock', events: 'Events', stockoutEvent: 'Stockout event', safetyBreachEvent: 'Safety breach event', noTimeline: 'No persisted daily results for this material.', trace: 'Snapshot trace', demandTrace: 'Demand trace', supplyTrace: 'Supply trace', forecastRevision: 'Forecast revision', poLineId: 'PO line ID', scheduleId: 'Delivery schedule ID', exceptionCenter: 'Exception center', exceptionFilters: 'Exception filters', readOnlyExceptions: 'Read-only calculation facts. Correct source data and execute a new MRP run.', source: 'Source module', openSource: 'Open source', affectsDemand: 'Affects demand', message: 'Message', days: 'days', sortBy: 'Sort by', sortDirection: 'Direction', ascending: 'Ascending', descending: 'Descending',
+    sorts: { risk: 'Operational risk', code: 'Official item code', name: 'Item name', stockout: 'Stockout date', firmcoverage: 'Firm coverage', netrequirement: 'Net requirement' },
+    grains: { DAILY: 'Daily', WEEKLY: 'Weekly (Saturday–Friday)', MONTHLY: 'Monthly (Jalali period)' },
+    risks: { INCOMPLETE: 'Incomplete', STOCKOUT: 'Stockout', NO_FUTURE_DEMAND: 'No future demand', BEYOND_HORIZON: 'Beyond horizon', CRITICAL: 'Critical', LOW: 'Low coverage', SAFE: 'Safe', EXCESS: 'Excess' },
+    reasons: { LEGACY_RUN_CONTEXT_INCOMPLETE: 'Legacy run context is incomplete', CALCULATION_INCOMPLETE: 'Calculation is incomplete', PROJECTED_STOCKOUT: 'Projected stockout', NO_FUTURE_DEMAND: 'No future demand', BEYOND_HORIZON: 'Covered beyond horizon', FIRM_COVERAGE_CONTEXT_INCOMPLETE: 'Firm coverage context is incomplete', BELOW_CRITICAL_DAYS: 'Below critical threshold', BELOW_SAFE_START_DAYS: 'Below safe threshold', WITHIN_SAFE_RANGE: 'Within safe range', AT_OR_ABOVE_EXCESS_START_DAYS: 'At or above excess threshold' },
+    coverage: { DATE: 'Covered through date', BEYOND_HORIZON: 'Beyond horizon', NO_FUTURE_DEMAND: 'No future demand', INCOMPLETE_DATA: 'Incomplete data' },
   },
 } as const
 

@@ -277,6 +277,7 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             $"/api/mrp-runs/{run.Id}/items/{product.ProductId}/trace?demandDate={bounds.StartDate:yyyy-MM-dd}");
         List<(DateOnly Date, decimal Gross, decimal Net)> beforeResults;
         List<(Guid? Revision, decimal? Official, decimal? Remaining, string State)> beforePeriods;
+        List<(Guid? Category, string? Code, string? Fa, string? En, int? Critical, int? Safe, int? Excess)> beforeItemContext;
         await using (var beforeDb = await Db())
         {
             beforeResults = await beforeDb.MrpRunDailyResults.AsNoTracking().Where(x => x.RunId == run.Id)
@@ -284,6 +285,12 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             beforePeriods = await beforeDb.MrpRunForecastPeriodInputs.AsNoTracking().Where(x => x.RunId == run.Id)
                 .Select(x => new ValueTuple<Guid?, decimal?, decimal?, string>(x.ForecastRevisionId,
                     x.OfficialForecastQty, x.RemainingForecastQty, x.AllocationState)).ToListAsync();
+            beforeItemContext = await beforeDb.MrpRunItemInputs.AsNoTracking().Where(x => x.RunId == run.Id)
+                .Select(x => new ValueTuple<Guid?, string?, string?, string?, int?, int?, int?>(x.CategoryId,
+                    x.CategoryCode, x.CategoryNameFa, x.CategoryNameEn, x.CriticalDays,
+                    x.SafeStartDays, x.ExcessStartDays)).ToListAsync();
+            Assert.All(beforeItemContext, x => Assert.NotNull(x.Category));
+            Assert.All(beforeItemContext, x => Assert.False(string.IsNullOrWhiteSpace(x.Code)));
         }
 
         await using (var mutate = await Db())
@@ -321,8 +328,13 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             var afterPeriods = await afterDb.MrpRunForecastPeriodInputs.AsNoTracking().Where(x => x.RunId == run.Id)
                 .Select(x => new ValueTuple<Guid?, decimal?, decimal?, string>(x.ForecastRevisionId,
                     x.OfficialForecastQty, x.RemainingForecastQty, x.AllocationState)).ToListAsync();
+            var afterItemContext = await afterDb.MrpRunItemInputs.AsNoTracking().Where(x => x.RunId == run.Id)
+                .Select(x => new ValueTuple<Guid?, string?, string?, string?, int?, int?, int?>(x.CategoryId,
+                    x.CategoryCode, x.CategoryNameFa, x.CategoryNameEn, x.CriticalDays,
+                    x.SafeStartDays, x.ExcessStartDays)).ToListAsync();
             Assert.Equal(beforeResults, afterResults);
             Assert.Equal(beforePeriods, afterPeriods);
+            Assert.Equal(beforeItemContext, afterItemContext);
         }
         Assert.Equal(beforeTrace, await _client.GetStringAsync(
             $"/api/mrp-runs/{run.Id}/items/{product.ProductId}/trace?demandDate={bounds.StartDate:yyyy-MM-dd}"));

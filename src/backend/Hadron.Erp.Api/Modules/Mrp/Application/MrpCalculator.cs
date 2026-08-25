@@ -14,7 +14,8 @@ public sealed record MrpInventoryPosition(Guid ItemId, Guid WarehouseId, string 
     bool WarehouseIsActive, Guid UnitId, decimal OnHandQty);
 public sealed record MrpFirmSupply(Guid ItemId, Guid PurchaseOrderId, string PurchaseOrderNumber,
     Guid PurchaseOrderLineId, Guid DeliveryScheduleId, decimal OpenQty, DateOnly? Eta,
-    string EtaSource, string EtaStatus, string PurchaseOrderStatus);
+    string EtaSource, string EtaStatus, string PurchaseOrderStatus, Guid? SupplierId = null,
+    string? SupplierNumber = null, string? SupplierNameFa = null, string? SupplierNameEn = null);
 public sealed record MrpRouteAvailability(Guid ItemId, DateOnly Date, bool BomReady, bool ExternalReady);
 public sealed record MrpRouteChoice(Guid ItemId, string Route, string Source);
 public sealed record MrpCalculationException(Guid? ItemId, DateOnly? Date, string Code, string Severity,
