@@ -39,7 +39,9 @@ public sealed record MrpCalculationInput(DateOnly AsOfDate, DateOnly HorizonEndD
 public sealed record MrpCalculationOutput(IReadOnlyList<MrpDailyCalculation> Daily,
     IReadOnlyList<MrpSummaryCalculation> Summaries, IReadOnlyList<MrpCalculationException> Exceptions,
     IReadOnlyList<MrpTraceCalculation> Traces, IReadOnlyList<MrpRouteChoice> EffectiveRouteDecisions,
-    string Completeness);
+    IReadOnlyList<MrpResolvedRouteCalculation> ResolvedRoutes, string Completeness);
+public sealed record MrpResolvedRouteCalculation(Guid ItemId, DateOnly DemandDate,
+    string ResolvedPlanningRoute, string? RouteOrigin, string? ReasonCode);
 
 public sealed class MrpCalculator
 {
@@ -73,6 +75,7 @@ public sealed class MrpCalculator
         var traces = new List<MrpTraceCalculation>();
         var daily = new List<MrpDailyCalculation>();
         var effectiveChoices = input.RouteDecisions.ToDictionary(x => x.ItemId);
+        var resolvedRoutes = new Dictionary<(Guid, DateOnly), MrpResolvedRouteCalculation>();
         var starting = input.Inventory.GroupBy(x => x.ItemId).ToDictionary(x => x.Key, x => x.Sum(y => y.OnHandQty));
         var usableAsOfFirm = input.FirmSupply.Where(x => x.OpenQty > 0 && x.Eta == input.AsOfDate && x.EtaStatus != "OVERDUE")
             .GroupBy(x => x.ItemId).ToDictionary(x => x.Key, x => x.Sum(y => y.OpenQty));
@@ -137,6 +140,16 @@ public sealed class MrpCalculator
                     input.BomEdges.Any(edge => edge.ParentItemId == itemId && edge.EffectiveFrom <= date &&
                         (!edge.EffectiveTo.HasValue || edge.EffectiveTo.Value >= date));
                 var route = ResolveRoute(item, date, hasBomRoute, availability, effectiveChoices, exceptions);
+                if (grossQty > 0 || net > 0)
+                {
+                    var routeIncomplete = HasDemandError(exceptions, itemId, date);
+                    var resolved = routeIncomplete ? MrpResolvedPlanningRoutes.Incomplete :
+                        route == MrpRoutes.External ? MrpResolvedPlanningRoutes.External : MrpResolvedPlanningRoutes.InternalBom;
+                    var origin = routeIncomplete ? null : RouteOrigin(item.SupplyMethod, route);
+                    var reason = routeIncomplete ? exceptions.FirstOrDefault(x => x.ItemId == itemId && x.Date == date &&
+                        (x.Severity == MrpExceptionSeverities.Error || x.AffectsDemand))?.Code : null;
+                    resolvedRoutes[(itemId, date)] = new(itemId, date, resolved, origin, reason);
+                }
                 if (route == MrpRoutes.External && net > 0 &&
                     (!availability.TryGetValue((itemId, date), out var ready) || !ready.ExternalReady))
                     AddException(exceptions, new(itemId, date, "NO_PLANNING_READY_EXTERNAL_SOURCE",
@@ -151,8 +164,20 @@ public sealed class MrpCalculator
         var completeness = exceptions.Any(x => x.Severity == MrpExceptionSeverities.Error || x.AffectsDemand)
             ? MrpCompleteness.Incomplete
             : exceptions.Count > 0 ? MrpCompleteness.CompleteWithWarnings : MrpCompleteness.Complete;
-        return new(daily, summaries, exceptions, traces, effectiveChoices.Values.OrderBy(x => x.ItemId).ToList(), completeness);
+        return new(daily, summaries, exceptions, traces, effectiveChoices.Values.OrderBy(x => x.ItemId).ToList(),
+            resolvedRoutes.Values.OrderBy(x => x.ItemId).ThenBy(x => x.DemandDate).ToList(), completeness);
     }
+
+    private static string? RouteOrigin(string? supplyMethod, string route) => supplyMethod switch
+    {
+        SupplyMethods.Buy => MrpRouteOrigins.Buy,
+        SupplyMethods.Make => MrpRouteOrigins.Make,
+        SupplyMethods.Outsource when route == MrpRoutes.External => MrpRouteOrigins.OutsourceExternal,
+        SupplyMethods.Outsource => MrpRouteOrigins.OutsourceBom,
+        SupplyMethods.Hybrid when route == MrpRoutes.External => MrpRouteOrigins.HybridExternal,
+        SupplyMethods.Hybrid => MrpRouteOrigins.HybridInternal,
+        _ => null
+    };
 
     private static Dictionary<Guid, IReadOnlyList<MrpBomEdge>> BuildGraph(DateOnly date, IEnumerable<Guid> roots,
         IReadOnlyDictionary<Guid, MrpItemSnapshot> items, IReadOnlyList<MrpBomEdge> allEdges,

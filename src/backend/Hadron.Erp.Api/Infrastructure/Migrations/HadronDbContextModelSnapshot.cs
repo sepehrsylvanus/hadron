@@ -1232,6 +1232,47 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.ToTable("mrp_run_item_summaries", "planning");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunResolvedRouteResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("DemandDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ResolvedPlanningRoute")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("RouteOrigin")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "DemandDate")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_resolved_route_results", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_resolved_route", "\"ResolvedPlanningRoute\" IN ('EXTERNAL','INTERNAL_BOM','INCOMPLETE')");
+
+                            t.HasCheckConstraint("ck_mrp_route_origin", "\"RouteOrigin\" IS NULL OR \"RouteOrigin\" IN ('BUY','MAKE','OUTSOURCE_EXTERNAL','OUTSOURCE_BOM','HYBRID_EXTERNAL','HYBRID_INTERNAL')");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteAvailabilityInput", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1291,6 +1332,510 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.ToTable("mrp_run_route_decisions", "planning", t =>
                         {
                             t.HasCheckConstraint("ck_mrp_run_route_decision", "\"Route\" IN ('BOM','EXTERNAL')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderPlanningGeneration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("EvaluationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("GeneratedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GenerationSequence")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasFilter("\"IsCurrent\"");
+
+                    b.HasIndex("RunId", "GenerationSequence")
+                        .IsUnique();
+
+                    b.ToTable("order_planning_generations", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_order_planning_generation_status", "\"Status\" IN ('RUNNING','COMPLETED','FAILED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("BaseRecommendedQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("CalculationTrace")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CriticalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("DecisionHorizonDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("DecisionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("EarliestFeasibleReceiptDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("EstimatedValue")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<int>("ExcessStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("GenerationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ItemNameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("LateDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("MinimumBaseline")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly>("NeedByDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("NetRequirementQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("NextAction")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly?>("OrderByDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Priority")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ReasonCodes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("RouteOrigin")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("SafeStartDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SafetyStockQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid?>("SelectedCandidateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceSelectionReason")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal?>("SystemRecommendedQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly?>("TargetReceiptDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("TimingState")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GenerationId", "ItemId")
+                        .IsUnique();
+
+                    b.HasIndex("SelectedCandidateId", "GenerationId", "ItemId");
+
+                    b.HasIndex("GenerationId", "State", "Priority", "NeedByDate");
+
+                    b.ToTable("order_recommendations", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_order_recommendation_qty", "\"NetRequirementQty\" > 0 AND (\"BaseRecommendedQty\" IS NULL OR \"BaseRecommendedQty\" >= 0) AND (\"SystemRecommendedQty\" IS NULL OR \"SystemRecommendedQty\" > 0)");
+
+                            t.HasCheckConstraint("ck_order_recommendation_state", "\"State\" IN ('READY','BLOCKED')");
+
+                            t.HasCheckConstraint("ck_order_recommendation_timing", "\"TimingState\" IN ('ON_TIME','LATE')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendationCandidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AdvancePercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal?>("BeforeShipmentPercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<bool>("CanMeetNeedBy")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CreditAnchor")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int?>("CreditDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("CreditPercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("CurrencyCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencyNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CurrencyNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("DestinationCustomsDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("EarliestFeasibleReceiptDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("ForwarderToShipmentDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("GenerationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IncotermCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("IncotermId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IncotermNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("IncotermNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsEligible")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPreferred")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("MinimumOrderQuantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("PaymentTermId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PaymentTermNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PaymentTermNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("PriceEffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PriceEffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("PriceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReasonCodes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ShippingModeCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("ShippingModeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ShippingModeNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ShippingModeNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("ShippingPeriodDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourcingNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("SourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SupplierLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupplierNameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SupplierNameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SupplierNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("TotalLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GenerationId", "ItemId", "SourcingOptionId")
+                        .IsUnique();
+
+                    b.ToTable("order_recommendation_candidates", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendationDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("DecisionDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DecisionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("DecisionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("FinalBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FinalCurrencyCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("FinalCurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("FinalMinimumOrderQuantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly?>("FinalOrderByDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("FinalPriceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("FinalQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("FinalSourceSnapshot")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("FinalSourcingNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("FinalSourcingOptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FinalSupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FinalSupplierNameFa")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FinalSupplierNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateOnly?>("FinalTargetReceiptDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("FinalTotalLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("FinalUnitPrice")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("RecommendationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ReviewDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("WarningCodes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecommendationId", "DecisionVersion")
+                        .IsUnique();
+
+                    b.ToTable("order_recommendation_decisions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_order_decision_reason", "\"DecisionType\" = 'ACCEPT' OR (\"Reason\" IS NOT NULL AND length(btrim(\"Reason\")) > 0)");
+
+                            t.HasCheckConstraint("ck_order_decision_review", "\"DecisionType\" <> 'DEFER' OR \"ReviewDate\" IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_order_decision_type", "\"DecisionType\" IN ('ACCEPT','MODIFY','REJECT','DEFER')");
+
+                            t.HasCheckConstraint("ck_order_decision_version_positive", "\"DecisionVersion\" > 0");
                         });
                 });
 
@@ -2890,6 +3435,15 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunResolvedRouteResult", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunRouteAvailabilityInput", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
@@ -2904,6 +3458,48 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderPlanningGeneration", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendation", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderPlanningGeneration", null)
+                        .WithMany()
+                        .HasForeignKey("GenerationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendationCandidate", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedCandidateId", "GenerationId", "ItemId")
+                        .HasPrincipalKey("Id", "GenerationId", "ItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendationCandidate", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderPlanningGeneration", null)
+                        .WithMany()
+                        .HasForeignKey("GenerationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendationDecision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.OrderPlanning.Domain.OrderRecommendation", null)
+                        .WithMany()
+                        .HasForeignKey("RecommendationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

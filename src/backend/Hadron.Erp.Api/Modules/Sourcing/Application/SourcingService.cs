@@ -235,54 +235,17 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
                 (!x.EffectiveTo.HasValue || x.EffectiveTo >= evaluationDate));
             methods.TryGetValue(option.ItemId, out var method);
             method ??= string.Empty;
-            var reasons = BlockReasons(option, method, current);
-            string state;
-            if (!option.IsActive) state = SourcingReadiness.Inactive;
-            else if (reasons.Count > 0) state = SourcingReadiness.Blocked;
-            else
-            {
-                reasons = IncompleteReasons(option, current);
-                state = reasons.Count > 0 ? SourcingReadiness.IncompleteData : SourcingReadiness.Ready;
-            }
-            int? total = new[] { option.SupplierLeadTimeDays, option.ForwarderToShipmentDays,
-                option.ShippingPeriodDays, option.DestinationCustomsDays }.All(x => x.HasValue)
-                ? option.SupplierLeadTimeDays + option.ForwarderToShipmentDays + option.ShippingPeriodDays + option.DestinationCustomsDays
-                : null;
+            var readiness = SourcingReadinessEvaluator.Evaluate(option, method,
+                current is null ? null : prices.First(x => x.Id == current.Id), option.Item.BaseUnitId);
             return new SourcingOptionResponse(option.Id, option.SourcingNumber,
                 new(option.Item.Id, option.Item.BusinessNumber, option.Item.NameFa, option.Item.NameEn,
                     option.Item.ItemType, method, option.Item.IsActive, Unit(option.Item.BaseUnit)),
                 new(option.Supplier.Id, option.Supplier.SupplierNumber, option.Supplier.Name, option.Supplier.IsActive),
                 Unit(option.ItemBaseUnit), option.MinimumOrderQuantity, Ref(option.ShippingMode), Ref(option.Incoterm),
                 option.SupplierLeadTimeDays, option.ForwarderToShipmentDays, option.ShippingPeriodDays,
-                option.DestinationCustomsDays, total, option.IsPreferred, option.IsActive, option.Version,
-                evaluationDate, new(state, reasons), current, option.CreatedAtUtc, option.UpdatedAtUtc, optionPrices);
+                option.DestinationCustomsDays, readiness.TotalLeadTimeDays, option.IsPreferred, option.IsActive, option.Version,
+                evaluationDate, new(readiness.State, readiness.ReasonCodes), current, option.CreatedAtUtc, option.UpdatedAtUtc, optionPrices);
         }).ToList();
-    }
-
-    private static List<string> BlockReasons(SourcingOption option, string method, SourcingPriceResponse? current)
-    {
-        var reasons = new List<string>();
-        if (!option.Item.IsActive) reasons.Add("ITEM_INACTIVE");
-        if (!option.Supplier.IsActive) reasons.Add("SUPPLIER_INACTIVE");
-        if (!ExternallySourcedMethods.Contains(method)) reasons.Add("SUPPLY_METHOD_INCOMPATIBLE");
-        if (option.ItemBaseUnitId != option.Item.BaseUnitId) reasons.Add("BASE_UNIT_CHANGED");
-        if (option.ShippingMode is { IsActive: false }) reasons.Add("SHIPPING_MODE_INACTIVE");
-        if (option.Incoterm is { IsActive: false }) reasons.Add("INCOTERM_INACTIVE");
-        if (current?.Currency.IsActive == false) reasons.Add("CURRENCY_INACTIVE");
-        return reasons;
-    }
-
-    private static List<string> IncompleteReasons(SourcingOption option, SourcingPriceResponse? current)
-    {
-        var reasons = new List<string>();
-        if (!option.MinimumOrderQuantity.HasValue) reasons.Add("MOQ_MISSING");
-        if (!option.ShippingModeId.HasValue) reasons.Add("SHIPPING_MODE_MISSING");
-        if (!option.SupplierLeadTimeDays.HasValue) reasons.Add("SUPPLIER_LEAD_TIME_MISSING");
-        if (!option.ForwarderToShipmentDays.HasValue) reasons.Add("FORWARDER_LEAD_TIME_MISSING");
-        if (!option.ShippingPeriodDays.HasValue) reasons.Add("SHIPPING_PERIOD_MISSING");
-        if (!option.DestinationCustomsDays.HasValue) reasons.Add("DESTINATION_CUSTOMS_MISSING");
-        if (current is null) reasons.Add("CURRENT_PRICE_MISSING");
-        return reasons;
     }
 
     private static SourcingPriceResponse ToPrice(SourcingPrice x) => new(x.Id, x.UnitPrice,

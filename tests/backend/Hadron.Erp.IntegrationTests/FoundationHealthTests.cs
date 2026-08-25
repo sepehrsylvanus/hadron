@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Hadron.Erp.Api.Infrastructure;
+using Hadron.Erp.Api.Modules.OrderPlanning.Application;
+using Hadron.Erp.Api.Modules.Planning.Application;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -46,6 +48,8 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
 {
     public string DatabaseName { get; } = $"hadron_erp_test_{Guid.NewGuid():N}";
     public RecordingAuditEventSink AuditSink { get; } = new();
+    public MutablePlanningCalendar PlanningCalendar { get; } = new();
+    public TestOrderPlanningFaultInjector OrderPlanningFaultInjector { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -63,6 +67,10 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
                 options.UseNpgsql(TestDatabaseConnectionString(DatabaseName)));
             services.RemoveAll<IAuditEventSink>();
             services.AddSingleton<IAuditEventSink>(AuditSink);
+            services.RemoveAll<IPlanningCalendar>();
+            services.AddSingleton<IPlanningCalendar>(PlanningCalendar);
+            services.RemoveAll<IOrderPlanningGenerationFaultInjector>();
+            services.AddSingleton<IOrderPlanningGenerationFaultInjector>(OrderPlanningFaultInjector);
         });
     }
 
@@ -96,6 +104,71 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
             ?? throw new InvalidOperationException("POSTGRES_PASSWORD is required for integration tests."),
         ApplicationName = "Hadron.Erp.IntegrationTests"
     }.ConnectionString;
+}
+
+public sealed class MutablePlanningCalendar : IPlanningCalendar
+{
+    private readonly PlanningCalendar _inner = new(TimeProvider.System);
+    public DateOnly? TodayOverride { get; set; }
+    public DateOnly TehranToday => TodayOverride ?? _inner.TehranToday;
+    public (DateOnly StartDate, DateOnly EndDate) GetPeriodBounds(int jalaliYear, int jalaliMonth) =>
+        _inner.GetPeriodBounds(jalaliYear, jalaliMonth);
+    public (int JalaliYear, int JalaliMonth) GetJalaliPeriod(DateOnly gregorianDate) =>
+        _inner.GetJalaliPeriod(gregorianDate);
+}
+
+public sealed class TestOrderPlanningFaultInjector : IOrderPlanningGenerationFaultInjector
+{
+    private readonly object _sync = new();
+    private TaskCompletionSource<Guid>? _pauseEntered;
+    private TaskCompletionSource? _pauseRelease;
+
+    public bool FailAfterCandidateCapture { get; set; }
+
+    public Task<Guid> PauseNext()
+    {
+        lock (_sync)
+        {
+            _pauseEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _pauseRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            return _pauseEntered.Task;
+        }
+    }
+
+    public void ReleasePaused()
+    {
+        lock (_sync)
+        {
+            var release = _pauseRelease;
+            _pauseRelease = null;
+            release?.TrySetResult();
+        }
+    }
+
+    public void Reset()
+    {
+        lock (_sync)
+        {
+            _pauseRelease?.TrySetResult();
+            _pauseEntered = null;
+            _pauseRelease = null;
+            FailAfterCandidateCapture = false;
+        }
+    }
+
+    public Task AfterCandidateCapture(Guid generationId, CancellationToken cancellationToken)
+    {
+        if (FailAfterCandidateCapture) throw new InvalidOperationException("Injected generation failure");
+        lock (_sync)
+        {
+            if (_pauseEntered is null || _pauseRelease is null) return Task.CompletedTask;
+            var entered = _pauseEntered;
+            var release = _pauseRelease;
+            _pauseEntered = null;
+            entered.TrySetResult(generationId);
+            return release.Task.WaitAsync(cancellationToken);
+        }
+    }
 }
 
 public static partial class TestDatabaseSafety

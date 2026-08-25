@@ -587,6 +587,9 @@ public sealed class MrpService(
         db.MrpRunDemandTraces.AddRange(output.Traces.Select(x => new MrpRunDemandTrace(runId, x.Date,
             x.ParentItemId, x.ChildItemId, x.BomRevisionId, x.BomLineId, x.ParentNetRequirement,
             x.BaseRequirement, x.ScrapPercent, x.ScrapSource, x.ChildGrossRequirement)));
+        db.MrpRunResolvedRouteResults.AddRange(output.ResolvedRoutes.Select(x =>
+            new MrpRunResolvedRouteResult(runId, x.ItemId, x.DemandDate,
+                x.ResolvedPlanningRoute, x.RouteOrigin, x.ReasonCode)));
         var existingIssues = await db.MrpRunExceptions.Where(x => x.RunId == runId).Select(x => new
         { x.ItemId, x.Date, x.Code, x.SourceReference }).ToListAsync(ct);
         db.MrpRunExceptions.AddRange(output.Exceptions.Where(x => !existingIssues.Any(y => y.ItemId == x.ItemId &&

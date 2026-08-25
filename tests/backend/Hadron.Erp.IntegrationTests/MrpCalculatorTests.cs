@@ -103,14 +103,17 @@ public sealed class MrpCalculatorTests
             [Firm(x, 50, asOf.AddDays(2), "ON_TIME")]);
         var r2 = new MrpCalculator().Calculate(r2Input);
         Assert.Equal(new[] { 40m, 20m, 0m }, r2.Daily.Select(x => x.FirmProjected));
+        Assert.All(r2.Daily, row => Assert.Equal(0m, row.NetRequirement));
         Assert.Null(r2.Summaries.Single().StockoutDate);
 
         var r3 = new MrpCalculator().Calculate(DirectMaterialInput(x, unit, asOf.AddDays(2), [20m, 20m], 10,
             [Firm(x, 30, asOf.AddDays(3), "ON_TIME")]));
         Assert.Equal(new[] { 20m, 0m }, r3.Daily.Select(row => row.FirmProjected));
+        Assert.All(r3.Daily, row => Assert.Equal(0m, row.NetRequirement));
 
         var r4 = new MrpCalculator().Calculate(DirectMaterialInput(x, unit, asOf.AddDays(3), [20m], 20, []));
         Assert.Equal(0m, r4.Daily.Single().FirmProjected);
+        Assert.Equal(0m, r4.Daily.Single().NetRequirement);
     }
 
     [Fact]
@@ -255,7 +258,28 @@ public sealed class MrpCalculatorTests
         var output = new MrpCalculator().Calculate(input);
         Assert.Contains(output.Exceptions, x => x.ItemId == invalidProduct && x.Code == "MISSING_EFFECTIVE_BOM");
         Assert.Contains(output.Exceptions, x => x.ItemId == hybrid && x.Code == "HYBRID_ROUTE_NOT_VALID_FOR_ALL_DATES");
+        var unresolved = output.ResolvedRoutes.Single(x => x.ItemId == hybrid && x.DemandDate == next);
+        Assert.Equal(MrpResolvedPlanningRoutes.Incomplete, unresolved.ResolvedPlanningRoute);
+        Assert.Null(unresolved.RouteOrigin);
+        Assert.Equal("HYBRID_ROUTE_NOT_VALID_FOR_ALL_DATES", unresolved.ReasonCode);
         Assert.Contains(output.Daily, x => x.ItemId == child && x.Date == Day && x.GrossDemand == 2);
+    }
+
+    [Fact]
+    public void Hybrid_with_both_routes_ready_but_no_explicit_decision_has_no_selected_origin()
+    {
+        var product = Guid.NewGuid(); var hybrid = Guid.NewGuid(); var child = Guid.NewGuid(); var unit = Guid.NewGuid();
+        var output = new MrpCalculator().Calculate(new(Day.AddDays(-1), Day,
+            [Item(product, "PRD-HYB", ItemTypes.Product, null, unit),
+             Item(hybrid, "PRT-HYB", ItemTypes.Part, SupplyMethods.Hybrid, unit),
+             Item(child, "CMP-HYB", ItemTypes.Component, SupplyMethods.Buy, unit)],
+            [Demand(product, 1)], [Edge(product, hybrid, unit, 1, 0), Edge(hybrid, child, unit, 1, 0)],
+            [], [], [new(hybrid, Day, true, true), new(child, Day, false, true)], [], []));
+
+        var unresolved = output.ResolvedRoutes.Single(x => x.ItemId == hybrid);
+        Assert.Equal(MrpResolvedPlanningRoutes.Incomplete, unresolved.ResolvedPlanningRoute);
+        Assert.Null(unresolved.RouteOrigin);
+        Assert.Equal("HYBRID_ROUTE_DECISION_REQUIRED", unresolved.ReasonCode);
     }
 
     [Fact]
@@ -302,6 +326,52 @@ public sealed class MrpCalculatorTests
         Assert.Equal(1m, output.Traces.Single(x => x.ParentItemId == product && x.Date == Day).ChildGrossRequirement);
         Assert.Equal(2m, output.Traces.Single(x => x.ParentItemId == product && x.Date == next).ChildGrossRequirement);
         Assert.Contains(output.Traces, x => x.ParentItemId == nodes[3] && x.ChildItemId == nodes[4]);
+    }
+
+    [Fact]
+    public void New_run_persists_every_canonical_resolved_route_origin_at_item_and_demand_date_grain()
+    {
+        var unit = Guid.NewGuid();
+        var buy = Guid.NewGuid(); var make = Guid.NewGuid(); var outsourceExternal = Guid.NewGuid();
+        var outsourceBom = Guid.NewGuid(); var hybridExternal = Guid.NewGuid(); var hybridInternal = Guid.NewGuid();
+        var child = Guid.NewGuid();
+        var items = new[]
+        {
+            Item(buy, "CMP-BUY", ItemTypes.Component, SupplyMethods.Buy, unit),
+            Item(make, "CMP-MAKE", ItemTypes.Component, SupplyMethods.Make, unit),
+            Item(outsourceExternal, "CMP-OE", ItemTypes.Component, SupplyMethods.Outsource, unit),
+            Item(outsourceBom, "CMP-OB", ItemTypes.Component, SupplyMethods.Outsource, unit),
+            Item(hybridExternal, "CMP-HE", ItemTypes.Component, SupplyMethods.Hybrid, unit),
+            Item(hybridInternal, "CMP-HI", ItemTypes.Component, SupplyMethods.Hybrid, unit),
+            Item(child, "CMP-CHILD", ItemTypes.Component, SupplyMethods.Buy, unit),
+        };
+        var demands = new[] { buy, make, outsourceExternal, outsourceBom, hybridExternal, hybridInternal }
+            .Select(id => new MrpProductDemand(id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Day, 1, 1, 0, unit)).ToList();
+        var edges = new[]
+        {
+            Edge(make, child, unit, 1, 0), Edge(outsourceBom, child, unit, 1, 0),
+            Edge(hybridExternal, child, unit, 1, 0), Edge(hybridInternal, child, unit, 1, 0),
+        };
+        var availability = items.Select(item => new MrpRouteAvailability(item.ItemId, Day,
+            edges.Any(edge => edge.ParentItemId == item.ItemId), true)).ToList();
+        var output = new MrpCalculator().Calculate(new(Day.AddDays(-1), Day, items, demands, edges, [], [],
+            availability, [new(hybridExternal, MrpRoutes.External, "USER"),
+                new(hybridInternal, MrpRoutes.Bom, "USER")], []));
+
+        var routes = output.ResolvedRoutes.Where(x => x.ItemId != child).ToDictionary(x => x.ItemId);
+        Assert.Equal((MrpResolvedPlanningRoutes.External, MrpRouteOrigins.Buy),
+            (routes[buy].ResolvedPlanningRoute, routes[buy].RouteOrigin));
+        Assert.Equal((MrpResolvedPlanningRoutes.InternalBom, MrpRouteOrigins.Make),
+            (routes[make].ResolvedPlanningRoute, routes[make].RouteOrigin));
+        Assert.Equal((MrpResolvedPlanningRoutes.External, MrpRouteOrigins.OutsourceExternal),
+            (routes[outsourceExternal].ResolvedPlanningRoute, routes[outsourceExternal].RouteOrigin));
+        Assert.Equal((MrpResolvedPlanningRoutes.InternalBom, MrpRouteOrigins.OutsourceBom),
+            (routes[outsourceBom].ResolvedPlanningRoute, routes[outsourceBom].RouteOrigin));
+        Assert.Equal((MrpResolvedPlanningRoutes.External, MrpRouteOrigins.HybridExternal),
+            (routes[hybridExternal].ResolvedPlanningRoute, routes[hybridExternal].RouteOrigin));
+        Assert.Equal((MrpResolvedPlanningRoutes.InternalBom, MrpRouteOrigins.HybridInternal),
+            (routes[hybridInternal].ResolvedPlanningRoute, routes[hybridInternal].RouteOrigin));
+        Assert.All(routes.Values, route => Assert.Equal(Day, route.DemandDate));
     }
 
     private static MrpCalculationInput DirectMaterialInput(Guid itemId, Guid unit, DateOnly asOf,

@@ -154,6 +154,24 @@ internal sealed class MrpRunRouteDecisionConfiguration : IEntityTypeConfiguratio
     }
 }
 
+internal sealed class MrpRunResolvedRouteResultConfiguration : IEntityTypeConfiguration<MrpRunResolvedRouteResult>
+{
+    public void Configure(EntityTypeBuilder<MrpRunResolvedRouteResult> b)
+    {
+        b.ToTable("mrp_run_resolved_route_results", "planning", t =>
+        {
+            t.HasCheckConstraint("ck_mrp_resolved_route", "\"ResolvedPlanningRoute\" IN ('EXTERNAL','INTERNAL_BOM','INCOMPLETE')");
+            t.HasCheckConstraint("ck_mrp_route_origin", "\"RouteOrigin\" IS NULL OR \"RouteOrigin\" IN ('BUY','MAKE','OUTSOURCE_EXTERNAL','OUTSOURCE_BOM','HYBRID_EXTERNAL','HYBRID_INTERNAL')");
+        });
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ResolvedPlanningRoute).HasMaxLength(24).IsRequired();
+        b.Property(x => x.RouteOrigin).HasMaxLength(32);
+        b.Property(x => x.ReasonCode).HasMaxLength(100);
+        b.HasIndex(x => new { x.RunId, x.ItemId, x.DemandDate }).IsUnique();
+        b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class MrpRunDailyResultConfiguration : IEntityTypeConfiguration<MrpRunDailyResult>
 {
     public void Configure(EntityTypeBuilder<MrpRunDailyResult> b)

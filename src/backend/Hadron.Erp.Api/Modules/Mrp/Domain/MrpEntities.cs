@@ -36,6 +36,23 @@ public static class MrpRoutes
     public const string External = "EXTERNAL";
 }
 
+public static class MrpResolvedPlanningRoutes
+{
+    public const string External = "EXTERNAL";
+    public const string InternalBom = "INTERNAL_BOM";
+    public const string Incomplete = "INCOMPLETE";
+}
+
+public static class MrpRouteOrigins
+{
+    public const string Buy = "BUY";
+    public const string Make = "MAKE";
+    public const string OutsourceExternal = "OUTSOURCE_EXTERNAL";
+    public const string OutsourceBom = "OUTSOURCE_BOM";
+    public const string HybridExternal = "HYBRID_EXTERNAL";
+    public const string HybridInternal = "HYBRID_INTERNAL";
+}
+
 public sealed class MrpRun
 {
     private MrpRun() { }
@@ -325,6 +342,24 @@ public sealed class MrpRunRouteDecision
     public Guid ItemId { get; private set; }
     public string Route { get; private set; } = string.Empty;
     public string Source { get; private set; } = string.Empty;
+}
+
+public sealed class MrpRunResolvedRouteResult
+{
+    private MrpRunResolvedRouteResult() { }
+    public MrpRunResolvedRouteResult(Guid runId, Guid itemId, DateOnly demandDate,
+        string resolvedPlanningRoute, string? routeOrigin, string? reasonCode)
+    {
+        Id = Guid.NewGuid(); RunId = runId; ItemId = itemId; DemandDate = demandDate;
+        ResolvedPlanningRoute = resolvedPlanningRoute; RouteOrigin = routeOrigin; ReasonCode = reasonCode;
+    }
+    public Guid Id { get; private set; }
+    public Guid RunId { get; private set; }
+    public Guid ItemId { get; private set; }
+    public DateOnly DemandDate { get; private set; }
+    public string ResolvedPlanningRoute { get; private set; } = string.Empty;
+    public string? RouteOrigin { get; private set; }
+    public string? ReasonCode { get; private set; }
 }
 
 public sealed class MrpRunDailyResult

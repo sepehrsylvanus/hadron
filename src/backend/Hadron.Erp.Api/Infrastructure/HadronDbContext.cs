@@ -9,6 +9,7 @@ using Hadron.Erp.Api.Modules.Planning.Domain;
 using Hadron.Erp.Api.Modules.Inventory.Domain;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 using Hadron.Erp.Api.Modules.Mrp.Domain;
+using Hadron.Erp.Api.Modules.OrderPlanning.Domain;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
@@ -55,10 +56,15 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<MrpRunRouteAvailabilityInput> MrpRunRouteAvailabilityInputs => Set<MrpRunRouteAvailabilityInput>();
     public DbSet<MrpRunExternalSourceInput> MrpRunExternalSourceInputs => Set<MrpRunExternalSourceInput>();
     public DbSet<MrpRunRouteDecision> MrpRunRouteDecisions => Set<MrpRunRouteDecision>();
+    public DbSet<MrpRunResolvedRouteResult> MrpRunResolvedRouteResults => Set<MrpRunResolvedRouteResult>();
     public DbSet<MrpRunDailyResult> MrpRunDailyResults => Set<MrpRunDailyResult>();
     public DbSet<MrpRunItemSummary> MrpRunItemSummaries => Set<MrpRunItemSummary>();
     public DbSet<MrpRunException> MrpRunExceptions => Set<MrpRunException>();
     public DbSet<MrpRunDemandTrace> MrpRunDemandTraces => Set<MrpRunDemandTrace>();
+    public DbSet<OrderPlanningGeneration> OrderPlanningGenerations => Set<OrderPlanningGeneration>();
+    public DbSet<OrderRecommendation> OrderRecommendations => Set<OrderRecommendation>();
+    public DbSet<OrderRecommendationCandidate> OrderRecommendationCandidates => Set<OrderRecommendationCandidate>();
+    public DbSet<OrderRecommendationDecision> OrderRecommendationDecisions => Set<OrderRecommendationDecision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
