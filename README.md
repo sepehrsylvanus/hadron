@@ -1,6 +1,6 @@
 # Hadron Tavan ERP
 
-Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP baseline currently covers Reference Data through Purchase Supply Foundation (MRP-01 through MRP-09).
+Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP baseline currently covers MRP-01 through MRP-11; MRP-12 analysis is approved and synchronized but not implemented.
 
 ## Prerequisites
 
@@ -69,4 +69,4 @@ Readiness is exposed at `GET /health/ready`; liveness is exposed at `GET /health
 
 ## Current scope
 
-The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-09 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, and Purchase Supply Foundation. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. MRP-10 Calculation Engine analysis is approved and synchronized but implementation has not started; Identity and Workflow remain outside the current implementation scope.
+The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-11 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, MRP Calculation Engine, and Material Planning UI. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. MRP-12 Order Planning analysis is approved and synchronized but implementation has not started; MRP-13 has not started. Identity and Workflow remain outside the current implementation scope.

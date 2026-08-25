@@ -1,7 +1,8 @@
 # Hadron ERP — MRP Package 12 Final
 
 **Package:** MRP-12 Order Planning Recommendation + Expert UI  
-**Status:** Final / Pre-Codex Approved  
+**Status:** Analysis Approved / Not Implemented
+
 **Audit Result:** PASS
 
 ---
@@ -39,16 +40,17 @@ MRP-12 هنوز Purchase Order ایجاد نمی‌کند.
 
 ### LOCKED DECISION
 
-For v1:
+For v1, each explicit generation creates an immutable Generation iteration under one MRP Run:
 
 ```text
-One Next Procurement Recommendation
-per Item + MRP Run
+MRP Run
+→ GenerationSequence
+→ at most one Machine Recommendation per Item
 ```
 
-The system does NOT generate a full multi-order procurement calendar for the same Item inside one Run.
+The canonical identities are unique `RunId + GenerationSequence` and `GenerationId + ItemId`. A same-Run commercial refresh is allowed only by creating a new Generation; it never overwrites a previous Machine Recommendation or candidate snapshot. The latest successful Generation is the `CurrentGeneration` for that Run. Failed attempts may be retried but must expose no partial official Recommendations.
 
-The goal is to identify the next actionable procurement decision.
+Each successful Generation still produces only the next actionable procurement decision for an Item, not a multi-order procurement calendar.
 
 ---
 
@@ -62,7 +64,7 @@ Operational Order Planning is based on:
 Latest completed official MRP Run
 ```
 
-Historical Runs may be reviewed, but a Recommendation from an older Run is not considered current for PO creation.
+Historical Runs may be reviewed, but a Recommendation from an older Run is not considered current for PO creation. Only the latest completed official MRP Run may supply current operational Recommendations. When a newer completed Run exists, every Generation of the older Run is operationally `OUTDATED_RUN` while remaining historically readable.
 
 ---
 
@@ -70,7 +72,28 @@ Historical Runs may be reviewed, but a Recommendation from an older Run is not c
 
 ### LOCKED DECISION
 
-Purchase Recommendation applies only to external-supply requirements.
+Purchase Recommendation applies only to positive actionable external-supply requirements recorded by the selected immutable MRP Run.
+
+For NEW Runs, MRP-12 consumes MRP-10's persisted `ResolvedPlanningRoute` at `Run + Item + DemandDate`:
+
+```text
+EXTERNAL
+INTERNAL_BOM
+INCOMPLETE
+```
+
+and its traceable route origin/reason:
+
+```text
+BUY
+MAKE
+OUTSOURCE_EXTERNAL
+OUTSOURCE_BOM
+HYBRID_EXTERNAL
+HYBRID_INTERNAL
+```
+
+MRP-12 must not infer historical route truth from current Supply Method, BOM, Sourcing or Catalog. A legacy Run without sufficient resolved-route context blocks Generation with `LEGACY_RUN_ROUTE_CONTEXT_INCOMPLETE` and receives no live fallback.
 
 Baseline:
 
@@ -93,6 +116,8 @@ The outsourced parent is not automatically converted into a material purchase re
 
 Service procurement remains outside current scope.
 
+If an Item has no positive actionable external Net Requirement, v1 does not materialize a Recommendation row. `NO_ACTION` remains a reserved stable Next Action code but is not represented by artificial zero-need rows in the baseline.
+
 ---
 
 ## 5. Recommendation Input
@@ -104,6 +129,8 @@ It must not silently recompute requirement from live Forecast/BOM/Inventory/PO d
 Inputs include at minimum:
 
 - MRP Run identity
+- MRP Run As-Of Date
+- immutable Generation Evaluation Date
 - Item
 - Net external requirement
 - Need By Date
@@ -116,6 +143,14 @@ Inputs include at minimum:
 - current effective source Price/Currency at recommendation-generation time
 
 Machine Recommendation becomes its own immutable snapshot.
+
+Generation records server-owned immutable:
+
+- `EvaluationDate` = Asia/Tehran business date captured at Generation start
+- `GeneratedAtUtc`
+- `GenerationSequence` within the Run
+
+MRP Run As-Of remains demand/planning truth. Recommendation operational timing, source readiness, effective Price, priority and `DaysUntilOrderBy` use `EvaluationDate`.
 
 ---
 
@@ -135,7 +170,7 @@ MRP-12 must not invent a different shortage date.
 
 ### LOCKED DECISION
 
-Only Sourcing Options that are:
+Only Sourcing Options that are, at the Generation `EvaluationDate`:
 
 ```text
 Active
@@ -147,7 +182,7 @@ are eligible as machine candidates.
 
 Planning Ready follows MRP-05 rules.
 
-Inactive/incomplete Sourcing Options may remain visible for historical context but are not selectable by the machine as valid candidates.
+All evaluated candidates are preserved as immutable Generation snapshots with their eligibility and reason codes. Inactive/incomplete candidates may remain visible for historical explanation but are not selectable by the machine as valid candidates.
 
 ---
 
@@ -185,6 +220,16 @@ Machine source selection baseline:
 2. Otherwise select the fastest Planning-Ready Source that can meet Need By Date.
 3. If no Source can meet Need By Date, select the fastest Planning-Ready Source as the emergency/late candidate.
 4. If no Planning-Ready Source exists, Recommendation is BLOCKED.
+
+Deterministic tie-break among otherwise equivalent candidates:
+
+```text
+TotalLeadTimeDays ASC
+SourcingNumber ASC
+SourcingOptionId ASC
+```
+
+Price is not a tie-breaker.
 
 ---
 
@@ -282,31 +327,17 @@ This is the latest baseline ordering date under the configured source assumption
 
 ### LOCKED DECISION
 
-If order is not yet late:
+Operational feasibility is evaluated from the immutable Generation `EvaluationDate`:
 
 ```text
+Can Meet Need By
+= EvaluationDate + Total Configured Lead Time <= Need By Date
+
 Earliest Feasible Receipt
-=
-Need By Date
+= EvaluationDate + Total Configured Lead Time
 ```
 
-for sizing purposes when source can meet that date.
-
-If:
-
-```text
-Order By Date < MRP Run As-Of Date
-```
-
-then:
-
-```text
-Earliest Feasible Receipt
-=
-As-Of Date + Total Configured Lead Time
-```
-
-This exposes the realistically achievable receipt timing.
+The on-time sizing Target Receipt remains Need By Date. If Earliest Feasible Receipt is later than Need By Date, the Recommendation is late and uses Earliest Feasible Receipt as its Target Receipt. This exposes the realistically achievable receipt timing without replacing MRP Run As-Of as planning truth.
 
 ---
 
@@ -426,22 +457,19 @@ but operational Recommendation remains BLOCKED until a Run with sufficient horiz
 
 For the selected Target Receipt Date and Decision Horizon:
 
-`Base Recommended Qty` is the minimum additional supply quantity arriving on the Target Receipt Date required to keep projected balance at or above Safety Stock throughout the Decision Horizon.
+`Base Recommended Qty` is the minimum additional supply quantity arriving on the Target Receipt Date required to keep the factual MRP projection at or above Safety Stock throughout the Decision Horizon.
 
 Conceptually:
 
 ```text
+MinimumBaseline
+= minimum factual FirmProjected over Target Receipt..Decision Horizon
+
 Base Recommended Qty
-=
-max(
-  Safety Stock - Minimum Projected Balance over Target Receipt..Decision Horizon,
-  0
-)
+= MAX(Safety Stock - MinimumBaseline, 0)
 ```
 
-using the selected MRP Run's demand/firm-supply timeline and adding the hypothetical new supply only for sizing simulation.
-
-Exact algorithm must be specified in MRP-12A and tested numerically.
+Sizing uses MRP-10 `FirmProjected`, never `PlanningBalance`. Existing Firm Supply is already represented in `FirmProjected`. For event-sparse timelines, carry forward the latest factual `FirmProjected` at or before Target Receipt, then evaluate persisted in-range events. Safety Stock is a floor and is never repeatedly added as demand.
 
 ---
 
@@ -522,7 +550,9 @@ Any future order-multiple capability must be explicit.
 
 ### LOCKED DECISION
 
-If applying MOQ causes post-receipt projected coverage to exceed:
+Evaluate MOQ excess only when `SystemRecommendedQty > BaseRecommendedQty`. Simulate the hypothetical receipt without mutating MRP and measure `PostReceiptCoverageDays` from `TargetReceiptDate` using the post-SystemQty factual projection.
+
+If the proven post-receipt coverage exceeds:
 
 ```text
 Excess Start Days
@@ -539,6 +569,8 @@ warning.
 The Recommendation may remain valid because MOQ is a real commercial constraint.
 
 Do not silently reduce below MOQ.
+
+Do not anchor MOQ excess to Run As-Of and do not guess excess beyond the available Run horizon.
 
 ---
 
@@ -562,18 +594,20 @@ This makes the recommendation explainable.
 
 ### LOCKED DECISION
 
-Machine Recommendation snapshots:
+For every evaluated candidate, the Generation snapshots enough Recommendation-time commercial truth to reproduce eligibility and selection. This includes:
 
-- selected Sourcing Option
-- Supplier
-- Supply Route
-- Shipping Mode
-- Incoterm
-- Unit Price
-- Currency
+- Sourcing Option identity/number
+- Supplier identity/number/display
+- Preferred state
+- readiness and reason codes
+- Item Base Unit
 - MOQ
-- configured lead-time stages
-- Total Configured Lead Time
+- Shipping Mode and Incoterm
+- configured lead-time stages and Total Configured Lead Time
+- Price row identity, Unit Price and effective dates
+- Currency identity/code/display
+
+The selected Source is identified from those candidate snapshots. Original Currency is preserved.
 
 Where Supplier payment/commercial context is carried for future PO conversion, preserve the Supplier Default Payment Profile including:
 
@@ -656,9 +690,11 @@ OUTDATED_RUN
 CONVERTED_TO_PO
 ```
 
-Additional technical states may be proposed in MRP-12A if necessary.
+Additional technical lifecycle states may be introduced in implementation only when they preserve these locked business semantics.
 
 `HORIZON_INSUFFICIENT` is a blocking reason/exception, not a fake Ready recommendation.
+
+Generation itself has an immutable attempt/finalization lifecycle sufficient to distinguish successful official output from failed attempts. A failed Generation exposes no partial official Recommendation set.
 
 ---
 
@@ -693,15 +729,13 @@ Recommendation is blocked/incomplete.
 Earliest feasible receipt is after Need By Date.
 
 ### ORDER_NOW
-Order By Date <= As-Of Date and source can still materially improve the position.
+Order By Date <= Evaluation Date and source can still materially improve the position.
 
 ### ORDER_BY_DATE
 Order By Date is in the future.
 
 ### NO_ACTION
-No external procurement requirement currently needs action.
-
-MRP-12A must align `NO_ACTION` behavior with whether rows with zero requirement are even materialized.
+Reserved stable code for future use. Baseline Generation does not materialize zero-external-need rows.
 
 ---
 
@@ -759,7 +793,7 @@ EMERGENCY_REVIEW
 When:
 
 ```text
-Order By Date <= As-Of Date
+Order By Date <= Evaluation Date
 ```
 
 and recommendation is otherwise valid and not P0:
@@ -801,6 +835,8 @@ then:
 ```text
 Priority = P3_PLANNED
 ```
+
+`Days Until Order By` is calculated from Generation `EvaluationDate`, not historical Run As-Of.
 
 ---
 
@@ -856,7 +892,16 @@ Effective expert values equal machine snapshot:
 - Qty
 - Target Receipt Date
 
-No separate Reason is required unless MRP-12A proposes an optional note.
+No separate Reason is required; an optional note may be preserved.
+
+Before ACCEPT, the server revalidates that:
+
+- Recommendation belongs to the latest completed official MRP Run
+- Generation is current
+- Recommendation is neither `BLOCKED` nor `OUTDATED_RUN`
+- selected machine Source is still operationally valid
+
+If the machine Source's current operational facts materially changed—including inactive Source, lost Planning Readiness, invalid/current Price loss, MOQ change, Lead-Time change or Base Unit incompatibility—do not mutate the Machine snapshot and block direct ACCEPT with `SOURCE_REVALIDATION_REQUIRED`. The user must explicitly Refresh Generation or MODIFY.
 
 ---
 
@@ -872,7 +917,7 @@ Expert may Modify:
 
 Reason is required.
 
-The modified Source must be a valid usable Sourcing Option unless a future exception workflow is explicitly approved.
+At Decision time, MODIFY validates the selected Source against current truth and snapshots the final Expert Source/commercial assumptions immediately. The Source must be active/usable, have a valid Price and compatible Base Unit. `FinalQty > 0`; `FinalQty < final Source MOQ` is blocked.
 
 ---
 
@@ -893,8 +938,6 @@ Do not allow Final Qty < MOQ
 ```
 
 without a future approved commercial exception rule.
-
-MRP-12A must verify this does not contradict project requirements.
 
 ---
 
@@ -925,10 +968,7 @@ Final Source Total Configured Lead Time
 
 This is Derived.
 
-If Expert target is already infeasible:
-
-- show warning/error
-- do not silently change date
+If Expert Target Receipt is earlier than the current feasible receipt, do not silently rewrite the date. Allow the explicit MODIFY only with required Reason and preserve `EXPERT_TARGET_INFEASIBLE` as a visible warning/audit fact.
 
 ---
 
@@ -941,6 +981,7 @@ When Expert selects another Source, final decision snapshot must preserve:
 - final Price/Currency
 - final MOQ
 - final Lead-Time assumptions
+- Decision Date
 
 This preserves what the expert actually approved.
 
@@ -1016,7 +1057,7 @@ Each decision conceptually preserves:
 - Review Date for DEFER
 - derived Expert Order By Date where applicable
 
-Exact model is proposed in MRP-12A.
+Decision metadata uses nullable `ActorIdentifier`/context without inventing a User/Employee FK before central Identity exists. `DecisionDate` is server-captured for current-truth validation and timestamps remain UTC where appropriate.
 
 ---
 
@@ -1047,6 +1088,8 @@ Recommendation State = OUTDATED_RUN
 
 Historical Recommendation remains readable.
 
+`OUTDATED_RUN` blocks both ACCEPT and MODIFY. Refresh against the latest completed official Run is required before procurement commitment.
+
 ---
 
 ## 57. Outdated Recommendation and PO Conversion
@@ -1061,7 +1104,7 @@ MRP-12 establishes the block.
 
 ## 58. Refresh Behavior
 
-Refresh means generating a new Recommendation from the newer MRP Run.
+Refresh means creating a new immutable Generation. It may be a same-Run commercial refresh or a Generation from a newer completed Run.
 
 It does not overwrite the old Recommendation.
 
@@ -1071,6 +1114,8 @@ Historical sequence remains:
 Recommendation from Run 127
 Recommendation from Run 128
 ```
+
+Within one Run, earlier Generations remain historical and only the latest successful one is CurrentGeneration.
 
 ---
 
@@ -1209,9 +1254,10 @@ MISSING_MOQ
 INVALID_PLANNING_POLICY
 MOQ_CAUSES_EXCESS
 OUTDATED_RUN
+LEGACY_RUN_ROUTE_CONTEXT_INCOMPLETE
+SOURCE_REVALIDATION_REQUIRED
+EXPERT_TARGET_INFEASIBLE
 ```
-
-Exact codes are proposed/normalized in MRP-12A.
 
 Blocking vs warning severity must be explicit.
 
@@ -1234,7 +1280,7 @@ Critical unknowns must become explicit exceptions.
 
 ## 68. Source Price Date
 
-The machine Recommendation uses the valid current Sourcing Price at recommendation generation date according to MRP-05 effective dating.
+The machine Recommendation uses the valid current Sourcing Price at immutable Generation `EvaluationDate` according to MRP-05 effective dating.
 
 That price is then snapshotted.
 
@@ -1253,14 +1299,11 @@ under MRP-05 Planning Readiness rules.
 Recommendation generation time must preserve:
 
 - underlying MRP Run As-Of Date
-- Recommendation Created At
-- Source data snapshot effective at Recommendation generation
+- immutable Generation Evaluation Date
+- Generated At UTC
+- Source data snapshot effective at Evaluation Date
 
-This distinction is important because Sourcing Master may change after the MRP Run but before Recommendation is generated.
-
-MRP-12A must decide whether operational Recommendation generation must occur immediately with the MRP Run or explicitly capture this time difference.
-
-No silent ambiguity.
+This distinction is important because Sourcing Master may change after the MRP Run but before Recommendation is generated. `EvaluationDate` is server-owned and equals the Asia/Tehran business date at Generation start. Golden fixtures GD-04/GD-08 explicitly use `EvaluationDate = Run.AsOf`, so their approved values remain unchanged.
 
 ---
 
@@ -1284,6 +1327,7 @@ Therefore both MRP Run reference and Recommendation commercial snapshot are requ
 Given:
 
 - same MRP Run
+- same Evaluation Date
 - same eligible Sourcing snapshots
 - same Algorithm Version
 
@@ -1321,7 +1365,7 @@ This separation must remain auditable.
 
 Bulk Accept/Defer may be considered later.
 
-It is not required for v1 unless MRP-12A finds a strong usability need.
+It is not required for v1.
 
 Do not add bulk financial/procurement commitment actions casually.
 
@@ -1387,19 +1431,13 @@ No PO creation endpoint in MRP-12.
 
 ## 78. Recommendation Generation Scope
 
-MRP-12A should propose whether recommendation generation is:
-
-- automatically triggered after a completed MRP Run
-or
-- explicitly invoked by authorized user
-
-Baseline preference:
+Recommendation generation/refresh is explicitly invoked by an authorized user in v1:
 
 ```text
 Explicit generation/refresh action
 ```
 
-for v1, to keep system behavior controlled and auditable.
+to keep system behavior controlled and auditable. Every invocation captures EvaluationDate and creates a new immutable Generation attempt.
 
 Do not add background automation without need.
 
@@ -1622,8 +1660,9 @@ MRP-12 estimated order value is not a cash-flow schedule.
 
 Expected protections where practical:
 
-- Recommendation linked to MRP Run + Item
-- one machine Recommendation identity per generated iteration
+- Generation linked to MRP Run with unique `RunId + GenerationSequence`
+- Recommendation unique by `GenerationId + ItemId`
+- immutable Generation EvaluationDate/GeneratedAtUtc and candidate snapshots
 - immutable machine snapshot
 - stable Algorithm Version
 - positive quantities
@@ -1634,27 +1673,25 @@ Expected protections where practical:
 - historical decisions preserved
 - no destructive cascade
 
-Exact model is proposed in MRP-12A.
+Machine/candidate snapshots and completed Generation output are immutable at API and database levels.
 
 ---
 
 ## 92. Recommendation Uniqueness
 
-Because Refresh creates a new historical Recommendation, do not enforce a simplistic permanent unique constraint on:
+Because Refresh creates a new historical Generation, do not enforce a permanent unique constraint on:
 
 ```text
 Item + MRP Run
 ```
 
-if regeneration/versioning is needed.
-
-MRP-12A must choose a clean iteration/version model.
+The approved model is immutable Generation iteration/versioning.
 
 Business requirement:
 
 - machine snapshots are immutable
 - history is retained
-- one current recommendation can be identified
+- one latest successful CurrentGeneration per Run can be identified
 
 ---
 
@@ -1667,7 +1704,7 @@ Concurrency-sensitive operations include:
 - refreshing while a decision is being made
 - marking OUTDATED_RUN
 
-MRP-12A must propose smallest robust PostgreSQL/EF Core strategy.
+Generation sequence allocation/current-generation finalization must be transactionally safe and failed attempts must expose no partial official output. Expert Decision history uses explicit `DecisionVersion : bigint`; each mutation submits ExpectedVersion, locks the Recommendation/decision stream as needed, appends a new immutable decision, advances Version and returns structured `409 / STALE_VERSION` on stale state.
 
 ---
 
@@ -1701,7 +1738,7 @@ For a new Expert MODIFY decision, inactive Source should normally not be selecta
 
 Historical machine Estimated Value remains based on snapshot price.
 
-If Expert modifies Source later, final Expert decision uses the current valid snapshot for the newly selected Source at decision time unless MRP-12A defines a stricter rule.
+If Expert modifies Source later, final Expert decision uses and immediately preserves the current valid snapshot for the selected Source at DecisionDate.
 
 This distinction must be visible/auditable.
 
@@ -1777,20 +1814,20 @@ Avoid N+1 Sourcing queries.
 
 ## 102. Recommendation Calculation Architecture
 
-MRP-12A should propose a deterministic application/domain service pipeline:
+The deterministic application/domain service pipeline is:
 
-1. load selected MRP Run external requirement
-2. validate Item policy
-3. load eligible Sourcing Options in batch
-4. classify source timing feasibility
-5. select machine Source
-6. derive Need By / Target Receipt / Order By / lateness
+1. create immutable Generation attempt and capture EvaluationDate/GeneratedAtUtc
+2. load selected MRP Run positive EXTERNAL requirements from persisted resolved-route truth
+3. validate Item policy and legacy route completeness
+4. load/evaluate Sourcing Options in batch and build all candidate snapshots
+5. classify source timing feasibility and select deterministically
+6. derive Need By / Target Receipt / Order By / lateness from EvaluationDate
 7. validate MRP horizon
-8. simulate Base Qty through Decision Horizon
-9. apply MOQ
-10. derive excess warning
-11. derive Priority / Next Action
-12. snapshot result
+8. size Base Qty from factual FirmProjected through Decision Horizon
+9. apply MOQ and TargetReceipt-anchored excess evaluation
+10. derive Priority / Next Action from EvaluationDate
+11. atomically persist official immutable candidates/Recommendations and CurrentGeneration
+12. finalize Generation or fail without partial official output
 
 No source-of-truth mutation.
 
@@ -1800,7 +1837,15 @@ No source-of-truth mutation.
 
 Required meaningful test scenarios:
 
-Canonical numerical fixtures are defined read-only in `docs/modules/mrp/golden/MRP-GOLDEN-DATASET-V1-FINAL.md`. Recommendation regression uses GD-04, GD-04B, the GD-08 Recommendation section and GD-09 Recommendation snapshot without changing their expected values.
+Canonical numerical fixtures are defined read-only in `docs/modules/mrp/golden/MRP-GOLDEN-DATASET-V1-FINAL.md`. Recommendation regression uses GD-04, GD-04B, the GD-08 Recommendation section, GD-09 Recommendation snapshot and GD-10 without changing their expected values.
+
+### Generation / Route
+- delayed Generation EvaluationDate distinct from Run.AsOf
+- immutable same-Run Generation iteration history and CurrentGeneration identification
+- failed Generation exposes no partial official output
+- legacy route context blocked without live fallback
+- BUY/MAKE/OUTSOURCE/HYBRID resolved-route eligibility by Run+Item+DemandDate
+- zero external need creates no Recommendation row
 
 ### Source Selection
 - Preferred can meet date
@@ -1808,52 +1853,55 @@ Canonical numerical fixtures are defined read-only in `docs/modules/mrp/golden/M
 - multiple can meet, Preferred wins
 - none can meet, fastest chosen as late
 - no ready source → blocked
+- deterministic tie-break by Lead Time, Sourcing Number and Sourcing Option ID
+- all evaluated candidates preserved with eligibility/reason snapshots
 - no cross-currency cheapest ranking
 
 ### Timing
 - Order By date
-- on-time receipt
-- late receipt
+- on-time and late Earliest Feasible Receipt from EvaluationDate
 - Late Days
-- Decision Horizon normal
-- Decision Horizon late case
+- normal and late Decision Horizon
+- Priority/DaysUntilOrderBy and source/Price readiness evaluated from EvaluationDate
 
-### Horizon
-- sufficient horizon
-- insufficient horizon blocks valid qty
-
-### Quantity
-- Base Qty simulation
-- Safety Stock floor
-- existing Firm Supply included
-- MOQ raises Qty
-- MOQ=0
-- MOQ causes Excess warning
-- no pack rounding
+### Horizon / Quantity
+- sufficient horizon and insufficient horizon blocking
+- Base Qty from factual FirmProjected, never PlanningBalance
+- event-sparse FirmProjected carry-forward
+- Safety Stock floor and existing Firm Supply without double counting
+- MOQ raises Qty; MOQ=0; no pack rounding
+- MOQ excess anchored at TargetReceiptDate and no beyond-horizon guess
 
 ### Priority
-- P0
-- P1
-- P2 using Critical Days
-- P3
+- P0 / P1 / P2 using Critical Days / P3
 - blocked has no fake P priority
 
 ### Snapshot
-- Sourcing changes do not mutate machine Recommendation
+- Source/Price/MOQ/LeadTime changes do not mutate machine Recommendation
+- candidate eligibility and selected commercial snapshots remain historical
 - Algorithm Version preserved
 
 ### Expert
-- Accept
-- Modify Source/Qty/Date + Reason
-- Reject + Reason
-- Defer + Reason + Review Date
-- history preserved
-- stale expert write rejected
+- Accept with current-source revalidation
+- changed machine Source returns SOURCE_REVALIDATION_REQUIRED
+- Modify current Source/Qty/Date + Reason and final commercial snapshot
+- infeasible Expert target remains explicit with EXPERT_TARGET_INFEASIBLE
+- Reject + Reason; Defer + Reason + Review Date
+- append-only history and stale expert write rejection
+- OUTDATED_RUN blocks Accept and Modify
 
-### Outdated
+### Outdated / Iteration
 - newer MRP Run marks prior recommendation outdated
+- same-Run refresh creates a new Generation and keeps prior history
 - historical recommendation remains readable
 - outdated cannot proceed to PO contract
+
+### Golden Release Gate
+- GD-04 fixed Source S2, NeedBy 1405/05/14, OrderBy 1405/05/11, Decision Horizon 1405/05/16, BaseQty 55, SystemQty 80, Value 560 CNY, P2 and ORDER_BY_DATE
+- GD-04B fixed SafetyStock 10, BaseQty 65 and SystemQty 80
+- GD-08 R1 fixed NeedBy 1405/05/29, OrderBy 1405/05/28, Decision Horizon 1405/05/30, BaseQty 30, SystemQty 50 and P2
+- GD-09 fixed historical 7.00 CNY, Qty 80 and 560 CNY after current Price changes to 8.00 CNY
+- GD-10 currency isolation and no cross-currency grand total
 
 ---
 
@@ -1885,45 +1933,30 @@ MRP-12 must NOT implement:
 
 MRP-12 is acceptable when:
 
-1. Recommendation grain is one next external procurement decision per Item + Run iteration.
-2. Operational recommendation uses latest completed official Run.
-3. Historical recommendations remain reviewable.
-4. BUY/external-route requirements are included.
-5. MAKE parent is not turned into purchase recommendation.
-6. Need By comes from MRP-10.
-7. Candidate Sources are Active + Planning Ready.
-8. Preferred source wins only if it can meet date.
-9. Fastest on-time backup is selected when Preferred cannot.
-10. Fastest source is selected with Emergency state when none can meet date.
-11. No cross-currency cheapest-source guessing.
-12. Selected lead time is snapshotted.
-13. Order By = Need By - Lead Time.
-14. Earliest Feasible Receipt is derived for late orders.
-15. Decision Horizon = Target Receipt + Safe Start Days.
-16. Late case uses Earliest Feasible Receipt + Safe Start Days.
-17. Insufficient MRP horizon blocks normal valid quantity recommendation.
-18. Base Recommended Qty restores Safety Stock through Decision Horizon.
-19. MOQ is applied as minimum.
-20. No pack/carton rounding exists.
-21. MOQ-caused excess is warned.
-22. Commercial Source data is snapshotted.
-23. Next Action is derived.
-24. Priority = P0/P1/P2/P3 and is derived.
-25. Blocked recommendation has no fake P priority.
-26. Algorithm Version is preserved.
-27. Machine Recommendation is immutable.
-28. Expert decisions = Accept/Modify/Reject/Defer.
-29. Modify requires Reason.
-30. Reject requires Reason.
-31. Defer requires Reason + Review Date.
-32. Expert Decision history is preserved.
-33. New MRP Run makes old recommendation OUTDATED_RUN.
-34. Historical old recommendation is not deleted.
-35. OUTDATED_RUN is blocked from direct PO conversion.
-36. No PO is created in MRP-12.
-37. No FX conversion is performed.
-38. No AI/probabilistic decision is used.
-39. Tests verify source selection, sizing, MOQ, priority and expert history.
+1. Every explicit generation captures immutable EvaluationDate/GeneratedAtUtc and creates a transactionally complete GenerationSequence under one Run.
+2. Same-Run refresh creates a new Generation; prior Generation/Recommendation/candidate snapshots remain immutable.
+3. Operational recommendation uses the latest successful Generation of the latest completed official Run; older Run generations are OUTDATED_RUN.
+4. NEW Runs provide immutable Run+Item+DemandDate resolved-route truth; legacy insufficient route context blocks without live inference.
+5. Only positive actionable EXTERNAL Net Requirement creates a row; zero need creates no artificial row.
+6. Need By comes from MRP-10 and EvaluationDate governs feasibility, readiness, current Price and Priority timing.
+7. Candidate Sources are Active + Planning Ready at EvaluationDate and every evaluated candidate is snapshotted with eligibility/reasons.
+8. Preferred on-time, fastest on-time and fastest late selection follows the locked deterministic tie-break; Price is never a tie-breaker.
+9. No cross-currency cheapest-source guessing or FX conversion exists.
+10. Order By = Need By - Lead Time and Earliest Feasible Receipt = EvaluationDate + Lead Time.
+11. Decision Horizon = Target Receipt + Safe Start Days; insufficient Run horizon blocks normal valid quantity.
+12. Base Qty uses factual FirmProjected, event-sparse carry-forward and Safety Stock floor without PlanningBalance or repeated Safety Stock demand.
+13. System Qty = MAX(Base Qty, MOQ); MOQ zero is valid and no pack/carton rounding exists.
+14. MOQ excess is simulated from TargetReceiptDate, warned only when MOQ increases Qty, and is not guessed beyond Run horizon.
+15. All machine candidate/selected commercial facts are immutable snapshots in original Currency.
+16. Next Action and P0/P1/P2/P3 Priority are derived from EvaluationDate; blocked has no fake P priority.
+17. Machine Recommendation and Algorithm Version are immutable.
+18. Expert decisions are immutable historical ACCEPT/MODIFY/REJECT/DEFER records with stale-write protection.
+19. ACCEPT revalidates current Source operational state and returns SOURCE_REVALIDATION_REQUIRED when machine facts materially changed.
+20. MODIFY snapshots current final Source/commercial truth, enforces Base Unit/Price/MOQ/positive Qty and preserves EXPERT_TARGET_INFEASIBLE without silently rewriting the target.
+21. OUTDATED_RUN blocks ACCEPT/MODIFY and direct PO-conversion eligibility.
+22. Failed Generation/decision operations expose no partial official output or misleading successful audit.
+23. Golden GD-04/GD-04B/GD-08/GD-09/GD-10 fixed outputs remain unchanged and independently asserted.
+24. MRP-12 creates no PO, Firm Supply, Receipt, Inventory posting, payment/cash-flow result or AI decision.
 
 ---
 
@@ -1931,40 +1964,35 @@ MRP-12 is acceptable when:
 
 The following are locked for MRP-12:
 
-1. One next Recommendation per Item + MRP Run iteration in v1.
-2. Operational source Run = latest completed official MRP Run.
-3. Recommendation applies to external supply requirement only.
-4. Need By Date comes from MRP-10.
-5. Machine candidates = Active + Planning Ready Sourcing Options.
-6. Preferred Source selected if it can meet Need By.
-7. Otherwise fastest Source that can meet Need By.
-8. If none can meet, fastest valid Source is emergency/late candidate.
-9. No cross-currency cheapest ranking without FX.
-10. Selected Source lead time is snapshotted.
-11. Order By = Need By - Configured Lead Time.
-12. Earliest Feasible Receipt = As-Of + Lead Time when late.
-13. Decision Horizon = Target Receipt + Safe Start Days.
-14. Late Decision Horizon = Earliest Feasible Receipt + Safe Start Days.
-15. Horizon beyond MRP Run = HORIZON_INSUFFICIENT / blocked.
-16. Base Recommended Qty restores Safety Stock through Decision Horizon.
-17. System Recommended Qty = MAX(Base Qty, MOQ).
-18. MOQ=0 means no minimum.
-19. No pack/carton/order-multiple rounding.
-20. MOQ causing Excess creates warning.
-21. Recommendation snapshots Source/Supplier/Price/Currency/MOQ/Lead Time/Route.
-22. Next Action codes = Resolve Data / Emergency Review / Order Now / Order By Date / No Action.
-23. Priority = P0 Emergency / P1 Due Now / P2 Upcoming / P3 Planned.
-24. P2 window uses Item Critical Days.
-25. Machine Recommendation snapshot is immutable.
-26. Recommendation has Algorithm Version.
-27. Expert Decision = ACCEPT / MODIFY / REJECT / DEFER.
-28. Modify may change Source / Final Qty / Target Receipt and requires Reason.
-29. Reject requires Reason.
-30. Defer requires Reason + Review Date.
-31. Expert decisions are historical, not overwritten.
-32. Newer MRP Run makes older Recommendation OUTDATED_RUN.
-33. OUTDATED_RUN requires refresh/reconfirmation before PO conversion.
-34. MRP-12 creates no PO.
+1. Recommendation Generation has server-owned immutable EvaluationDate, GeneratedAtUtc and GenerationSequence within Run.
+2. Unique identities are RunId+GenerationSequence and GenerationId+ItemId; same-Run refresh creates a new immutable Generation.
+3. Latest successful Generation is CurrentGeneration; failed attempts expose no partial official Recommendations.
+4. Only latest completed official MRP Run provides current operational Recommendations; older Run Generations are OUTDATED_RUN.
+5. MRP-10 owns persisted Run+Item+DemandDate ResolvedPlanningRoute and route origin; MRP-12 never live-infers legacy route truth.
+6. Positive EXTERNAL Net Requirement is actionable; zero external need produces no row and NO_ACTION remains reserved.
+7. Need By comes from MRP-10; Run AsOf remains planning truth while EvaluationDate governs recommendation timing/readiness/Price/Priority.
+8. Machine candidates are Active + Planning Ready at EvaluationDate and all evaluated candidate snapshots are preserved.
+9. Selection = Preferred on-time, fastest on-time, fastest late, otherwise BLOCKED; tie-break is Lead Time, Sourcing Number, Sourcing Option ID.
+10. Price is not a selection tie-break and currencies are never cross-compared or FX-converted.
+11. Order By = Need By - Lead Time; Earliest Feasible Receipt = EvaluationDate + Lead Time.
+12. Target Receipt = Need By when on-time, otherwise Earliest Feasible Receipt; Decision Horizon = Target Receipt + Safe Start Days.
+13. Horizon beyond Run blocks normal valid quantity with HORIZON_INSUFFICIENT.
+14. Base Qty uses factual FirmProjected minimum with event-sparse carry-forward; PlanningBalance is forbidden for sizing.
+15. Safety Stock is a floor, existing Firm Supply is already in FirmProjected and neither is double-counted.
+16. System Qty = MAX(Base Qty, MOQ); MOQ zero is valid; no pack/carton/order-multiple rounding.
+17. MOQ excess is evaluated from TargetReceiptDate only when MOQ increases Qty and is never guessed beyond Run horizon.
+18. Machine candidate/selected Source/Supplier/Price/Currency/MOQ/Lead Time/route context is immutable and original Currency is preserved.
+19. Next Action codes remain stable; baseline creates no zero-need NO_ACTION row.
+20. Priority = P0/P1/P2/P3, P2 uses Critical Days and DaysUntilOrderBy is evaluated from EvaluationDate.
+21. Machine Recommendation and Algorithm Version are immutable.
+22. Expert Decision = ACCEPT/MODIFY/REJECT/DEFER and history is append-only with explicit Version/ExpectedVersion stale protection.
+23. ACCEPT revalidates latest Run/current Generation/current Source; material Source drift returns SOURCE_REVALIDATION_REQUIRED.
+24. MODIFY validates and snapshots current final Source, Price, MOQ, Lead Time and Base Unit; FinalQty must be positive and at least MOQ.
+25. Infeasible Expert Target is not rewritten and is recorded as EXPERT_TARGET_INFEASIBLE with required Reason.
+26. Reject requires Reason; Defer requires Reason + Review Date.
+27. OUTDATED_RUN blocks ACCEPT/MODIFY and procurement commitment.
+28. Golden GD-04/GD-08 use EvaluationDate=Run.AsOf; all approved Golden outputs remain unchanged.
+29. MRP-12 creates no PO, Firm Supply, Receipt, Inventory mutation, payment, cash flow, FX, pack rounding or AI decision.
 
 ---
 
@@ -2269,21 +2297,25 @@ Implement only approved MRP-12 Order Planning Recommendation + Expert Decision.
 If MRP-12A contains unresolved material contradictions, STOP.
 
 RECOMMENDATION
-Implement immutable machine Recommendation snapshots linked to:
-- MRP Run
-- Item
+Implement immutable Generation iterations linked to MRP Run:
+- server-owned `EvaluationDate` = Asia/Tehran business date at Generation start
+- `GeneratedAtUtc`
+- immutable `GenerationSequence`
+- unique RunId + GenerationSequence
+- immutable Machine Recommendation unique by GenerationId + ItemId
+- immutable evaluated Candidate snapshots
 - Algorithm Version
 
-Do not overwrite historical Recommendation versions.
+Same-Run refresh creates a new Generation. Latest successful Generation is CurrentGeneration for its Run. Failed attempts expose no partial official Recommendations. Do not overwrite historical Generations or Recommendations.
 
 APPLICABILITY
-Generate only for approved external requirement Items/routes.
+Generate only where MRP-10 immutable `Run + Item + DemandDate` ResolvedPlanningRoute is EXTERNAL and NetRequirement is positive. Consume persisted route origin/reason for BUY/MAKE/OUTSOURCE/HYBRID. Do not infer route from current Master Data. Legacy missing route context => BLOCKED / LEGACY_RUN_ROUTE_CONTEXT_INCOMPLETE. Zero actionable external need creates no row; NO_ACTION remains reserved.
 
 NEED BY
 Use MRP-10 result.
 
 SOURCES
-Load Active + Planning Ready Sourcing Options.
+At EvaluationDate, load all Sourcing Options in bounded batches and snapshot every evaluated candidate with eligibility/reason. Only Active + Planning Ready candidates are machine-eligible. Source readiness and effective Price use EvaluationDate.
 
 Machine selection:
 1. Preferred if can meet date
@@ -2291,7 +2323,12 @@ Machine selection:
 3. otherwise fastest valid late source
 4. no ready source => BLOCKED
 
-Do not rank cross-currency prices.
+Tie-break:
+- TotalLeadTimeDays ASC
+- SourcingNumber ASC
+- SourcingOptionId ASC
+
+Price is not a tie-breaker. Do not rank cross-currency prices.
 
 LEAD TIME
 Use configured Sourcing stage durations and snapshot them.
@@ -2300,8 +2337,9 @@ ORDER BY
 Need By - Total Lead Time.
 
 LATE
-When Order By is before As-Of:
-- Earliest Feasible Receipt = As-Of + Lead Time
+Use:
+- CanMeetNeedBy = EvaluationDate + Lead Time <= NeedBy
+- Earliest Feasible Receipt = EvaluationDate + Lead Time
 - derive Late Days
 - P0 emergency when after Need By
 
@@ -2320,9 +2358,12 @@ If Decision Horizon exceeds MRP Run horizon:
 
 QUANTITY
 Implement approved deterministic sizing simulation:
-- hypothetical supply at Target Receipt
-- preserve existing Firm Supply
-- minimum qty keeping projected balance >= Safety Stock through Decision Horizon
+- use factual MRP-10 FirmProjected, never PlanningBalance
+- carry forward latest FirmProjected at or before Target Receipt for event-sparse timelines
+- MinimumBaseline = minimum FirmProjected over Target Receipt..Decision Horizon
+- BaseRecommendedQty = MAX(SafetyStock - MinimumBaseline, 0)
+- existing Firm Supply is already represented by FirmProjected
+- hypothetical supply at Target Receipt for simulation only
 - no mutation of MRP Run
 
 MOQ
@@ -2334,20 +2375,22 @@ No:
 - pallet rounding
 
 Warn:
-- MOQ_CAUSES_EXCESS
+- MOQ_CAUSES_EXCESS only when SystemQty > BaseQty and simulated PostReceiptCoverageDays from TargetReceiptDate exceeds ExcessStartDays
+- do not guess excess beyond Run horizon
 
 COMMERCIAL SNAPSHOT
-Preserve:
-- Sourcing Option
-- Supplier
+For every evaluated candidate preserve:
+- Sourcing Option identity/number
+- Supplier identity/number/display
+- Preferred state
+- readiness/reason codes
+- Item Base Unit
 - route
-- Shipping Mode
-- Incoterm
-- Price
-- Currency
+- Shipping Mode / Incoterm
+- Price row identity, Price effective dates and Unit Price
+- Currency identity/code/display
 - MOQ
-- stage Lead Times
-- Total Lead Time
+- stage Lead Times and Total Lead Time
 - payment profile context including Credit Anchor Event (`ORDERED` / `SHIPPED` / `WAREHOUSE_RECEIPT`) where carried for PO conversion
 
 Do not make MRP-12 the payment source of truth. Preserve conditional validation. WAREHOUSE_RECEIPT uses MRP-13 operational Final Receipt Date; do not create or derive a competing date in MRP-12.
@@ -2365,6 +2408,8 @@ Implement:
 
 P2:
 Days Until Order By <= Item Critical Days
+
+Evaluate DaysUntilOrderBy, P1/P2/P3 and Next Action from EvaluationDate, not Run.AsOf. Run.AsOf remains persisted planning truth.
 
 Blocked Recommendation gets no fake P priority.
 
@@ -2387,7 +2432,7 @@ Implement historical:
 - DEFER
 
 ACCEPT:
-use machine Source/Qty/Target Receipt.
+Before using machine Source/Qty/Target Receipt, require latest completed official Run, CurrentGeneration, non-BLOCKED/non-OUTDATED Recommendation and revalidate current machine Source operational state. Material Source/Price/MOQ/LeadTime/BaseUnit drift => 409 / SOURCE_REVALIDATION_REQUIRED; do not mutate the machine snapshot.
 
 MODIFY:
 allow approved:
@@ -2400,6 +2445,7 @@ Validate final Source.
 Validate Qty.
 Apply approved MOQ rule from MRP-12A.
 Derive Expert Order By from final Source Lead Time.
+Use current truth at DecisionDate and immediately snapshot final Expert Source/Supplier/Price/Currency/MOQ/LeadTime/BaseUnit assumptions. Require active/usable Source, valid Price, compatible Base Unit and positive Qty. Final Qty below final Source MOQ is blocked. If Expert Target Receipt is earlier than current feasible receipt, keep the explicit target with required Reason and persist warning/audit fact EXPERT_TARGET_INFEASIBLE; never silently rewrite it.
 
 REJECT:
 Reason required.
@@ -2408,17 +2454,16 @@ DEFER:
 Reason + Review Date required.
 
 HISTORY
-Do not overwrite earlier Expert Decisions.
+Do not overwrite earlier Expert Decisions. Use append-only decisions with explicit `DecisionVersion : bigint`, ExpectedVersion and structured `409 / STALE_VERSION`; failed decisions create no partial history or successful audit event.
 
 OUTDATED RUN
 When newer completed official MRP Run exists:
 - old Recommendation remains historical
 - mark/derive OUTDATED_RUN
-- block future PO conversion contract
+- block ACCEPT, MODIFY and future PO conversion contract
 
 REFRESH
-Create new Recommendation history from latest Run.
-Do not mutate old snapshot.
+Create a new immutable Generation from the same Run for explicit commercial refresh or from the latest Run after OUTDATED_RUN. Do not mutate old snapshots.
 
 BACKEND
 Implement only approved:
@@ -2449,25 +2494,33 @@ Reuse existing platform.
 
 TESTS
 At minimum:
-- Golden regression from GD-04, GD-04B, GD-08 Recommendation and GD-09 Recommendation snapshot, with expected values encoded independently from production logic
+- Golden regression from GD-04, GD-04B, GD-08 Recommendation, GD-09 Recommendation snapshot and GD-10, with expected values encoded independently from production logic and unchanged
+- explicitly assert GD-04 S2 / NeedBy 1405/05/14 / OrderBy 1405/05/11 / Horizon 1405/05/16 / Base 55 / System 80 / 560 CNY / P2 / ORDER_BY_DATE; GD-04B Base 65 / System 80; GD-08 R1 NeedBy 1405/05/29 / OrderBy 1405/05/28 / Horizon 1405/05/30 / Base 30 / System 50 / P2; GD-09 historical 7.00 CNY × 80 = 560 CNY after live 8.00 CNY; and GD-10 currency isolation
+- delayed EvaluationDate vs Run.AsOf
+- same-Run Generation iteration/current identification and failed-attempt atomicity
+- resolved-route eligibility for BUY/MAKE/OUTSOURCE/HYBRID and legacy route-context block
+- zero external need creates no row
 - source selection scenarios
+- deterministic tie-break and all-candidate snapshots
 - timing formulas
 - Decision Horizon
 - Horizon insufficiency
-- Base Qty numeric fixtures
+- Base Qty from FirmProjected and event-sparse carry-forward; never PlanningBalance
 - Safety Stock
 - Firm Supply
-- MOQ / MOQ=0 / excess warning
+- MOQ / MOQ=0 / TargetReceipt-anchored excess warning
 - Priority P0..P3
 - blocked no priority
 - immutable machine snapshot
-- commercial snapshot history
+- Source/Price/MOQ/LeadTime commercial snapshot non-drift
 - Accept/Modify/Reject/Defer
 - Reason/Review validation
 - Expert history
 - concurrency
-- OUTDATED_RUN
-- refresh history
+- ACCEPT revalidation and SOURCE_REVALIDATION_REQUIRED
+- MODIFY current-source snapshot and EXPERT_TARGET_INFEASIBLE warning
+- OUTDATED_RUN blocks ACCEPT/MODIFY
+- same-Run and newer-Run refresh history
 - no PO creation
 - no FX conversion
 
@@ -2578,7 +2631,13 @@ Audit:
 
 2. Recommendation Source
    - linked to explicit MRP Run
-   - external requirement only
+   - immutable Generation has server-owned EvaluationDate, GeneratedAtUtc and sequence
+   - RunId+GenerationSequence and GenerationId+ItemId uniqueness
+   - same-Run refresh creates a new immutable Generation and CurrentGeneration is identifiable
+   - failed Generation exposes no partial official Recommendations
+   - positive external requirement only; zero external need creates no row
+   - consumes MRP-10 Run+Item+DemandDate ResolvedPlanningRoute/origin
+   - legacy missing route context blocks with LEGACY_RUN_ROUTE_CONTEXT_INCOMPLETE and no live fallback
    - latest Run operational context
    - historical review preserved
 
@@ -2586,7 +2645,8 @@ Audit:
    - immutable
    - Algorithm Version
    - MRP Run reference
-   - commercial snapshot
+   - every evaluated candidate has immutable eligibility/reason and commercial snapshot
+   - selected commercial snapshot includes Sourcing/Supplier/Preferred/BaseUnit/MOQ/route/Shipping/Incoterm/lead/Price row/effectivity/Currency
    - no live Master drift
    - Credit Anchor Event codes (`ORDERED` / `SHIPPED` / `WAREHOUSE_RECEIPT`) and conditional validation preserved when payment context is carried
    - MRP-12 does not own payment rules or payment-date resolution
@@ -2597,14 +2657,17 @@ Audit:
    - faster backup when Preferred late
    - fastest late when none can meet
    - no ready source blocked
+   - tie-break = TotalLeadTimeDays, SourcingNumber, SourcingOptionId
+   - Price is not a tie-breaker
    - no cheapest cross-currency guess
 
 5. Timing
    - Need By
    - Lead Time
    - Order By
-   - Earliest Feasible Receipt
+   - Earliest Feasible Receipt = EvaluationDate + Lead Time
    - Late Days
+   - Run.AsOf remains planning truth while EvaluationDate controls feasibility/readiness/Price/Priority
 
 6. Decision Horizon
    - normal = Target Receipt + Safe Days
@@ -2617,8 +2680,9 @@ Audit:
    - no normal valid qty issued
 
 8. Quantity
-   - deterministic simulation
-   - existing Firm Supply respected
+   - deterministic simulation uses factual FirmProjected, never PlanningBalance
+   - event-sparse carry-forward at/before TargetReceipt
+   - existing Firm Supply already represented and not double-counted
    - Safety Stock floor
    - no double-counting
    - Base Qty traceable
@@ -2627,7 +2691,8 @@ Audit:
    - MAX(Base, MOQ)
    - MOQ=0
    - no pack rounding
-   - excess warning
+   - excess warning only when MOQ increases Qty, anchored at TargetReceiptDate
+   - no beyond-horizon excess guess
 
 10. Priority
     - P0
@@ -2636,6 +2701,7 @@ Audit:
     - P3
     - blocked has no fake priority
     - Priority distinct from MRP-11 Risk
+    - DaysUntilOrderBy and P1/P2/P3 use EvaluationDate, not Run.AsOf
 
 11. Next Action
     - stable machine codes
@@ -2647,6 +2713,8 @@ Audit:
     - REJECT
     - DEFER
     - machine fields preserved
+    - ACCEPT requires latest Run, CurrentGeneration, valid state and current-source revalidation
+    - material Source drift returns SOURCE_REVALIDATION_REQUIRED
 
 13. Modify
     - Source/Qty/Target Receipt
@@ -2654,6 +2722,8 @@ Audit:
     - final Source snapshot
     - Expert Order By
     - MOQ validation
+    - current Source/Price/MOQ/LeadTime/BaseUnit revalidated and final Expert commercial truth snapshotted
+    - infeasible target is not rewritten and records EXPERT_TARGET_INFEASIBLE
 
 14. Reject / Defer
     - Reason
@@ -2662,13 +2732,14 @@ Audit:
 15. Decision History
     - old decisions preserved
     - latest decision derivable
-    - stale write protection
+    - explicit DecisionVersion bigint / ExpectedVersion and 409 STALE_VERSION
+    - failed decision creates no partial history/successful audit
 
 16. Outdated Run
     - older Recommendation preserved
     - newer MRP Run makes old recommendation outdated
-    - old recommendation blocked from PO-conversion contract
-    - refresh creates new history
+    - old recommendation blocked from ACCEPT, MODIFY and PO-conversion contract
+    - same-Run or newer-Run refresh creates a new Generation and retains history
 
 17. UI
     - System vs Expert values visually distinct
@@ -2689,7 +2760,9 @@ Audit:
     - candidate details on demand
 
 20. Tests
-    Verify meaningful numerical/source-selection assertions against GD-04, GD-04B, GD-08 Recommendation and GD-09 Recommendation snapshot. Confirm inputs/outputs match canonical v1.0, expectations are not generated by production logic, currency remains isolated and historical snapshots do not drift.
+    Verify real assertions for delayed EvaluationDate, same-Run Generation history/current identification, route eligibility/legacy block, zero-row suppression, FirmProjected sizing/event-sparse carry-forward, deterministic source tie-break, TargetReceipt-anchored MOQ excess, commercial non-drift, ACCEPT revalidation, MODIFY snapshot/infeasible warning, OUTDATED_RUN decision blocks, Expert concurrency and no PO creation/Firm Supply/Inventory mutation.
+
+    Verify fixed numerical/source-selection assertions against GD-04, GD-04B, GD-08 Recommendation, GD-09 Recommendation snapshot and GD-10. Confirm inputs/outputs match canonical v1.0, expectations are not generated by production logic, currencies remain isolated and historical snapshots do not drift. Explicitly confirm GD-04 Source S2 / NeedBy 1405/05/14 / OrderBy 1405/05/11 / Horizon 1405/05/16 / Base 55 / System 80 / 560 CNY / P2; GD-04B Base 65 / System 80; GD-08 R1 NeedBy 1405/05/29 / OrderBy 1405/05/28 / Horizon 1405/05/30 / Base 30 / System 50 / P2; and GD-09 historical 7.00 CNY × 80 = 560 CNY after live Price becomes 8.00 CNY.
 
 21. Specification Drift
     Compare:
@@ -2739,33 +2812,23 @@ STOP.
 
 ## Audited Approved Decisions
 
-تمام ۲۵ تصمیم تأییدشده Package 12 پوشش داده شده‌اند:
+تمام تصمیم‌های قفل‌شده Package 12، شامل Owner sync پس از MRP-12A، پوشش داده شده‌اند:
 
-1. One next Recommendation per Item+Run iteration.
-2. Latest completed MRP Run drives operational planning.
-3. External requirement Item/route only.
-4. Need By from MRP-10.
-5. Candidate Sources = Active + Planning Ready.
-6. Preferred/on-time then fastest/on-time then fastest/late source-selection rule.
-7. No cross-currency cheapest guess.
-8. Lead-Time snapshot.
-9. Order By formula.
-10. Earliest Feasible Receipt.
-11. Decision Horizon = Target Receipt + Safe Days.
-12. Late Decision Horizon = Earliest Feasible + Safe Days.
-13. Horizon-insufficient blocking.
-14. Base Recommended Qty restores Safety Stock through horizon.
-15. MOQ applied as minimum.
-16. No pack rounding.
-17. MOQ Excess warning.
-18. Commercial snapshot.
-19. Derived Next Action.
-20. Derived P0/P1/P2/P3 Priority.
-21. Immutable machine snapshot + Algorithm Version.
-22. Expert Accept/Modify/Reject/Defer.
-23. Modify Source/Qty/Receipt + Reason.
-24. Reject/Defer controlled with reasons and Review Date.
-25. Old Recommendation becomes OUTDATED_RUN after newer MRP Run.
+1. Immutable Generation iteration with server-owned EvaluationDate and same-Run refresh history.
+2. Latest successful CurrentGeneration of latest completed MRP Run drives operational planning.
+3. Persisted MRP-10 resolved-route truth controls positive external eligibility; legacy live inference is forbidden.
+4. Need By comes from MRP-10; EvaluationDate governs commercial timing/readiness/Price/Priority.
+5. Candidate Sources are snapshotted and selected Preferred/on-time → fastest/on-time → fastest/late with deterministic tie-break.
+6. No price tie-break, cross-currency cheapest guess or FX conversion.
+7. Order By, Earliest Feasible Receipt and Decision Horizon follow the locked EvaluationDate/TargetReceipt formulas.
+8. Base Qty uses factual FirmProjected and Safety Stock floor; PlanningBalance is forbidden.
+9. MOQ is applied as minimum; no pack rounding; MOQ excess is anchored at TargetReceiptDate.
+10. Candidate and selected commercial snapshots preserve historical Source/Price/MOQ/LeadTime/Currency truth.
+11. Next Action and P0/P1/P2/P3 Priority are derived; zero external need creates no row.
+12. Machine Recommendation and Algorithm Version are immutable.
+13. Expert ACCEPT/MODIFY/REJECT/DEFER history is append-only and concurrency-protected.
+14. ACCEPT revalidates machine Source; MODIFY snapshots current final commercial truth and preserves infeasible target warning.
+15. OUTDATED_RUN blocks ACCEPT/MODIFY and procurement commitment; no PO is created in MRP-12.
 
 ## Open Question Resolution
 
@@ -2859,4 +2922,4 @@ Independent read-only audit checks deterministic recommendation correctness, sna
 
 `MRP-12 Order Planning Recommendation + Expert UI` is approved for the project Prompt Baseline.
 
-It should not yet be sent to Codex until all MRP Packages are designed and the complete prompt set receives the final cross-package audit.
+MRP-12A is Owner-approved and synchronized. MRP-12B is ready but has not been executed; MRP-13 has not started.

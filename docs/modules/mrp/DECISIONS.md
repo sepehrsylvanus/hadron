@@ -335,7 +335,8 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ## DEC-043 — MRP Run and Net-Before-Explode
 
-**Decision:** هر official execution یک immutable، versioned و traceable MRP Run در grain روزانه است. Item-level stock و dated Firm Supply قبل از explosion net می‌شوند و فقط Net MAKE/OUTSOURCE-BOM requirement به فرزندان منتقل می‌شود.  
+**Decision:** هر official execution یک immutable، versioned و traceable MRP Run در grain روزانه است. Item-level stock و dated Firm Supply قبل از explosion net می‌شوند و فقط Net MAKE/OUTSOURCE-BOM requirement به فرزندان منتقل می‌شود. برای NEW Run، resolved route واقعی در grain `Run + Item + DemandDate` با stateهای `EXTERNAL`, `INTERNAL_BOM`, `INCOMPLETE` و origin/reason قابل‌ردیابی persist می‌شود؛ MRP-12 حق ندارد route تاریخی را از Master Data جاری infer کند و Runهای legacy backfill زنده نمی‌شوند. این snapshot فرمول، NetRequirement یا Golden output را تغییر نمی‌دهد.
+
 **Status:** LOCKED  
 **Source Package:** MRP-10
 
@@ -351,7 +352,8 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ## DEC-045 — Recommendation, Decision Horizon and Priority
 
-**Decision:** Machine Recommendation immutable و جدا از Expert Decision است. Decision Horizon on-time=`Target Receipt + Safe Start Days` و late=`Earliest Feasible Receipt + Safe Start Days`؛ priorities برابر P0/P1/P2/P3 و P2 based on Item Critical Days است.  
+**Decision:** Machine Recommendation immutable و جدا از Expert Decision است. هر explicit generation یک Generation immutable با `EvaluationDate` server-owned (Tehran business date در شروع)، `GeneratedAtUtc` و sequence داخل Run ایجاد می‌کند؛ refresh همان Run نیز Generation جدید می‌سازد و latest successful برابر CurrentGeneration است. Run.AsOf planning truth می‌ماند ولی feasibility/readiness/Price/Priority از EvaluationDate محاسبه می‌شود. فقط positive external NetRequirement row می‌سازد. Quantity از factual `FirmProjected` و Safety Stock floor، نه PlanningBalance، sizing می‌شود؛ `SystemQty=MAX(BaseQty,MOQ)` و MOQ excess از TargetReceipt سنجیده می‌شود. Decision Horizon=`Target Receipt + Safe Start Days`؛ priorities برابر P0/P1/P2/P3 و P2 based on Item Critical Days است.
+
 **Status:** LOCKED  
 **Source Package:** MRP-12
 
@@ -359,7 +361,8 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ## DEC-046 — Expert Decision and PO Conversion
 
-**Decision:** Expert decisions برابر ACCEPT/MODIFY/REJECT/DEFER هستند. فقط current valid ACCEPT/MODIFY با conversion کنترل‌شده، idempotent و lineage-preserving تبدیل می‌شود؛ هر Decision یک PO Line ایجاد می‌کند.  
+**Decision:** Expert decisions برابر ACCEPT/MODIFY/REJECT/DEFER و append-only هستند. ACCEPT فقط برای latest completed Run + CurrentGeneration و پس از revalidation Source مجاز است؛ drift مادی Source/Price/MOQ/LeadTime/BaseUnit برابر `SOURCE_REVALIDATION_REQUIRED` است. MODIFY current final Source/commercial truth را snapshot می‌کند، Qty مثبت و حداقل MOQ می‌خواهد و target infeasible را بدون rewrite با `EXPERT_TARGET_INFEASIBLE` ثبت می‌کند. `OUTDATED_RUN` هر دو ACCEPT/MODIFY را می‌بندد. فقط current valid ACCEPT/MODIFY با conversion کنترل‌شده، idempotent و lineage-preserving تبدیل می‌شود؛ هر Decision یک PO Line ایجاد می‌کند.
+
 **Status:** LOCKED  
 **Source Package:** MRP-12, MRP-13
 

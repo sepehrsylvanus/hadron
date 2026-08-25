@@ -179,6 +179,33 @@ At minimum, the Run must be able to identify the material inputs used, including
 - planning policy inputs relevant to the result
 - known simplifications
 
+For every NEW Run, MRP-10 must also persist the actual resolved planning route at:
+
+```text
+Run + Item + DemandDate
+```
+
+Canonical `ResolvedPlanningRoute` values are:
+
+```text
+EXTERNAL
+INTERNAL_BOM
+INCOMPLETE
+```
+
+The snapshot/result also preserves a traceable route origin/reason:
+
+```text
+BUY
+MAKE
+OUTSOURCE_EXTERNAL
+OUTSOURCE_BOM
+HYBRID_EXTERNAL
+HYBRID_INTERNAL
+```
+
+This immutable route truth is consumed by MRP-12. Historical route eligibility must not be reconstructed from current SupplyMethod, BOM, Sourcing or Catalog. Existing Runs are not backfilled from live Master Data. This contract extension does not change MRP-10 formulas, NetRequirement, Golden Dataset outputs or existing historical Run results.
+
 For every NEW Run, the immutable Item input snapshot owned by MRP-10 must also preserve the Material Planning context required by MRP-11:
 
 - `CategoryId`
@@ -273,6 +300,14 @@ MrpRunFirmSupplyInput
     SupplierNumber
     SupplierNameFa
     SupplierNameEn
+
+MrpRunResolvedRouteResult
+    RunId
+    ItemId
+    DemandDate
+    ResolvedPlanningRoute
+    RouteOrigin
+    RouteReasonCode
 ```
 
 MRP-10 calculation formulas and Golden Dataset outputs are unchanged by these presentation/trace snapshot additions.
@@ -2230,6 +2265,7 @@ MRP-10 is acceptable when:
 52. NEW Run Item snapshots preserve Category identity/display and Critical/Safe/Excess Day thresholds for historical MRP-11 risk presentation.
 53. NEW Run Firm Supply snapshots preserve Supplier identity/number/names for historical Supply Trace only; this creates no Supplier ranking or recommendation.
 54. Existing historical Runs are never backfilled from live Catalog/Supplier/PO data, and the presentation/trace snapshot additions do not change MRP formulas or Golden outputs.
+55. NEW Runs persist immutable Run+Item+DemandDate `ResolvedPlanningRoute` (`EXTERNAL` / `INTERNAL_BOM` / `INCOMPLETE`) plus traceable route origin/reason; MRP-12 never needs live route inference and existing Runs are not backfilled.
 
 ---
 
@@ -2292,6 +2328,7 @@ The following are locked for MRP-10:
 53. NEW Runs snapshot Item Category identity/names and Critical/Safe/Excess Day thresholds for MRP-11 historical presentation.
 54. NEW Runs snapshot Firm Supply Supplier identity/number/names for historical Supply Trace only.
 55. Existing Runs receive no live Master Data backfill; these snapshot extensions do not alter calculation formulas or Golden Dataset outputs.
+56. NEW Runs persist the actual resolved planning route at Run+Item+DemandDate with canonical route state and origin/reason; this is immutable MRP-10 planning truth for MRP-12 and changes no formula or Golden output.
 
 ---
 
@@ -2664,10 +2701,13 @@ Preserve approved:
 - Starting Inventory used
 - Firm Supply Schedule Qty/ETA used
 - HYBRID route decisions
+- for NEW Runs, immutable Run+Item+DemandDate ResolvedPlanningRoute (`EXTERNAL` / `INTERNAL_BOM` / `INCOMPLETE`) and traceable origin/reason (`BUY` / `MAKE` / `OUTSOURCE_EXTERNAL` / `OUTSOURCE_BOM` / `HYBRID_EXTERNAL` / `HYBRID_INTERNAL`)
 - for NEW Runs, immutable Item Category identity/names and Critical/Safe/Excess Day thresholds
 - for NEW Runs, immutable Firm Supply Supplier identity/number/names for historical Supply Trace only
 
 Do not backfill an existing historical Run from live Catalog, Supplier or PO data. These additional fields are trace/presentation context only and must not change MRP calculation formulas or Golden expected outputs.
+
+Resolved route is planning truth, not presentation-only context. Persist it without changing NetRequirement or route calculation behavior. Existing historical Runs remain unchanged and must never receive a live route fallback.
 
 Historical Run result must not drift when source data changes later.
 
@@ -2801,6 +2841,8 @@ HYBRID:
 - if no single route covers all affected dates, return explicit exception/incomplete
 - never silently split Make/Buy by date
 
+For every affected Item/date, persist the actual canonical resolved route and origin/reason. Do not defer route inference to MRP-12.
+
 EXCEPTIONS
 Do not silently replace missing critical data with zero.
 
@@ -2912,6 +2954,8 @@ Implement meaningful deterministic tests for all approved MRP-10A scenarios, inc
 - DATE as last fully covered demand date and factual Stock/Firm views
 - BUY/MAKE/OUTSOURCE/HYBRID
 - HYBRID Item+Run validity across every affected Demand Date and no date split
+- persisted resolved-route state/origin at Run+Item+DemandDate for BUY/MAKE/OUTSOURCE/HYBRID and INCOMPLETE cases
+- no formula/Golden-output change from the route snapshot extension
 - `NO_PLANNING_READY_EXTERNAL_SOURCE` leaves Net Requirement unchanged
 - missing BOM
 - missing forecast
@@ -3056,6 +3100,8 @@ Audit:
    - NEW Run Firm Supply snapshots preserve Supplier identity/number/names for historical trace
    - existing Runs are never completed from live Catalog/Supplier/PO data
    - HYBRID route decisions
+   - NEW Run+Item+DemandDate results persist canonical ResolvedPlanningRoute and traceable origin/reason
+   - legacy Runs are not backfilled and downstream consumers cannot infer historical route from live Master Data
    - later source changes do not mutate historical result
 
 4. Forecast Semantics
@@ -3154,6 +3200,8 @@ Audit:
     - one-route automatic resolution trace
     - HYBRID decision grain = Item + Run and route remains valid for every affected Demand Date
     - no silent date-specific Make/Buy split; no single valid route creates exception/incomplete
+    - persisted resolved route is exactly EXTERNAL / INTERNAL_BOM / INCOMPLETE with canonical BUY/MAKE/OUTSOURCE/HYBRID origin
+    - route snapshot addition does not alter NetRequirement, formulas or Golden outputs
     - internal process lead = 0 day assumption visible
     - child demand date equals parent Net Requirement date
 
