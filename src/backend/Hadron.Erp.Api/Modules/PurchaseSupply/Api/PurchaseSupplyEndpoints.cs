@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Modules.PurchaseSupply.Application;
+using Hadron.Erp.Api.Modules.Inventory.Application;
 
 namespace Hadron.Erp.Api.Modules.PurchaseSupply.Api;
 
@@ -41,6 +42,33 @@ public static class PurchaseSupplyEndpoints
         group.MapGet("/firm-incoming", (PurchaseSupplyService service, DateOnly? evaluationDate, Guid? itemId,
             DateOnly? etaFrom, DateOnly? etaTo, CancellationToken ct) => Execute(() => service.FirmIncoming(
                 RequireDate(evaluationDate), itemId, etaFrom, etaTo, ct)));
+        group.MapPost("/convert-decisions", (PurchaseOrderOperationsService service,
+            ConvertExpertDecisionsRequest request, CancellationToken ct) => Execute(() => service.Convert(request, ct)));
+        group.MapPost("/{id:guid}/schedules/{scheduleId:guid}/cancel", (PurchaseOrderOperationsService operations,
+            PurchaseSupplyService supply, Guid id, Guid scheduleId, CancelScheduleRequest request, CancellationToken ct) =>
+            Execute(() => operations.Cancel(id, scheduleId, request, supply, ct)));
+        group.MapPost("/{id:guid}/schedules/{scheduleId:guid}/actual-milestones", (PurchaseOrderOperationsService operations,
+            PurchaseSupplyService supply, Guid id, Guid scheduleId, RecordActualMilestoneRequest request, CancellationToken ct) =>
+            Execute(() => operations.RecordMilestone(id, scheduleId, request, supply, ct)));
+        group.MapPost("/{id:guid}/lines/{lineId:guid}/reallocate-schedules", (PurchaseOrderOperationsService operations,
+            PurchaseSupplyService supply, Guid id, Guid lineId, ReallocateSchedulesRequest request, CancellationToken ct) =>
+            Execute(() => operations.ReallocateSchedules(id, lineId, request, supply, ct)));
+
+        var receipts = endpoints.MapGroup("/api/purchase-receipts").WithTags("Purchase Receipts");
+        receipts.MapGet("/", (PurchaseOrderOperationsService service, Guid? purchaseOrderId, string? status,
+            int? page, int? pageSize, CancellationToken ct) => Execute(() =>
+                service.ListReceipts(purchaseOrderId, status, page ?? 1, pageSize ?? 25, ct)));
+        receipts.MapGet("/{id:guid}", async (PurchaseOrderOperationsService service, Guid id, CancellationToken ct) =>
+        {
+            try { return await service.GetReceipt(id, ct) is { } value ? Results.Ok(value) : Results.NotFound(); }
+            catch (Exception exception) { return Problem(exception); }
+        });
+        receipts.MapPost("/", (PurchaseOrderOperationsService service, CreatePurchaseReceiptRequest request,
+            CancellationToken ct) => ExecuteCreated(() => service.CreateReceipt(request, ct), x => $"/api/purchase-receipts/{x.Id}"));
+        receipts.MapPost("/{id:guid}/post", (PurchaseOrderOperationsService service, Guid id,
+            PostPurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.PostReceipt(id, request, ct)));
+        receipts.MapPost("/{id:guid}/reverse", (PurchaseOrderOperationsService service, Guid id,
+            ReversePurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.ReverseReceipt(id, request, ct)));
         return endpoints;
     }
 
@@ -68,6 +96,9 @@ public static class PurchaseSupplyEndpoints
         PurchaseSupplyValidationException validation => Results.ValidationProblem(validation.Errors),
         PurchaseSupplyConflictException conflict => Results.Problem(statusCode: 409,
             title: "Purchase supply conflict", detail: conflict.Message,
+            extensions: new Dictionary<string, object?> { ["code"] = conflict.Code }),
+        InventoryConflictException conflict => Results.Problem(statusCode: 409,
+            title: "Inventory conflict", detail: conflict.Message,
             extensions: new Dictionary<string, object?> { ["code"] = conflict.Code }),
         KeyNotFoundException => Results.NotFound(),
         _ => throw exception

@@ -1,6 +1,8 @@
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Hadron.Erp.Api.Modules.OrderPlanning.Domain;
+using Hadron.Erp.Api.Modules.Mrp.Domain;
 
 namespace Hadron.Erp.Api.Modules.PurchaseSupply.Infrastructure;
 
@@ -29,6 +31,7 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(x => x.CreditPercent).HasPrecision(5, 2);
         builder.Property(x => x.CreditAnchor).HasMaxLength(32);
         builder.Property(x => x.Notes).HasMaxLength(2000);
+        builder.Property(x => x.CreationSource).HasMaxLength(32).IsRequired();
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(x => x.UpdatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -61,6 +64,7 @@ public sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<Pu
         builder.Property(x => x.UnitPrice).HasPrecision(18, 6);
         builder.Property(x => x.MinimumOrderQuantity).HasPrecision(18, 6);
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.HasIndex(x => x.ExpertDecisionId).IsUnique().HasFilter("\"ExpertDecisionId\" IS NOT NULL");
         builder.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(x => x.UpdatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Ignore(x => x.LineTotal);
@@ -69,6 +73,10 @@ public sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<Pu
         builder.HasOne(x => x.SourcingOption).WithMany().HasForeignKey(x => x.SourcingOptionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.SourcingPrice).WithMany().HasForeignKey(x => x.SourcingPriceId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.ItemBaseUnit).WithMany().HasForeignKey(x => x.ItemBaseUnitId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<OrderRecommendationDecision>().WithMany().HasForeignKey(x => x.ExpertDecisionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<OrderRecommendation>().WithMany().HasForeignKey(x => x.RecommendationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<OrderPlanningGeneration>().WithMany().HasForeignKey(x => x.OrderPlanningGenerationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.MrpRunId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -130,7 +138,76 @@ public sealed class DeliveryScheduleActualMilestoneConfiguration : IEntityTypeCo
         builder.Property(x => x.MilestoneCode).HasMaxLength(40).IsRequired();
         builder.Property(x => x.SourceType).HasMaxLength(60).IsRequired();
         builder.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        builder.Property(x => x.Reason).HasMaxLength(1000);
+        builder.HasIndex(x => x.SupersedesMilestoneId).IsUnique().HasFilter("\"SupersedesMilestoneId\" IS NOT NULL");
         builder.HasOne(x => x.DeliverySchedule).WithMany(x => x.ActualMilestones).HasForeignKey(x => x.DeliveryScheduleId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.SupersedesMilestone).WithMany().HasForeignKey(x => x.SupersedesMilestoneId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class PurchaseReceiptConfiguration : IEntityTypeConfiguration<PurchaseReceipt>
+{
+    public void Configure(EntityTypeBuilder<PurchaseReceipt> b)
+    {
+        b.ToTable("purchase_receipts", "procurement", t =>
+        {
+            t.HasCheckConstraint("ck_purchase_receipt_number", "\"ReceiptNumber\" ~ '^RCV-[0-9]{6,}$'");
+            t.HasCheckConstraint("ck_purchase_receipt_status", "\"Status\" IN ('DRAFT','POSTED','REVERSED')");
+        });
+        b.HasKey(x => x.Id); b.Property(x => x.ReceiptNumber).HasMaxLength(32).IsRequired();
+        b.HasIndex(x => x.ReceiptNumber).IsUnique(); b.Property(x => x.Status).HasMaxLength(16).IsRequired();
+        b.Property(x => x.Notes).HasMaxLength(2000); b.Property(x => x.ReversalReason).HasMaxLength(1000);
+        b.Property(x => x.ActorIdentifier).HasMaxLength(200); b.Property(x => x.Version).IsConcurrencyToken();
+        b.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.Property(x => x.UpdatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Warehouse).WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.PurchaseOrderId, x.Status });
+    }
+}
+
+public sealed class PurchaseReceiptLineConfiguration : IEntityTypeConfiguration<PurchaseReceiptLine>
+{
+    public void Configure(EntityTypeBuilder<PurchaseReceiptLine> b)
+    {
+        b.ToTable("purchase_receipt_lines", "procurement", t =>
+            t.HasCheckConstraint("ck_purchase_receipt_line_qty", "\"Quantity\" > 0"));
+        b.HasKey(x => x.Id); b.Property(x => x.Quantity).HasPrecision(18, 6);
+        b.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.HasOne(x => x.Receipt).WithMany(x => x.Lines).HasForeignKey(x => x.ReceiptId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.PurchaseOrderLine).WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.DeliverySchedule).WithMany(x => x.ReceiptLines).HasForeignKey(x => x.DeliveryScheduleId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.InventoryTransaction).WithMany().HasForeignKey(x => x.InventoryTransactionId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.ReversalInventoryTransaction).WithMany().HasForeignKey(x => x.ReversalInventoryTransactionId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => x.InventoryTransactionId).IsUnique().HasFilter("\"InventoryTransactionId\" IS NOT NULL");
+        b.HasIndex(x => x.ReversalInventoryTransactionId).IsUnique().HasFilter("\"ReversalInventoryTransactionId\" IS NOT NULL");
+    }
+}
+
+public sealed class PurchaseScheduleCancellationConfiguration : IEntityTypeConfiguration<PurchaseScheduleCancellation>
+{
+    public void Configure(EntityTypeBuilder<PurchaseScheduleCancellation> b)
+    {
+        b.ToTable("purchase_schedule_cancellations", "procurement", t =>
+            t.HasCheckConstraint("ck_purchase_cancellation_qty", "\"Quantity\" > 0"));
+        b.HasKey(x => x.Id); b.Property(x => x.Quantity).HasPrecision(18, 6);
+        b.Property(x => x.Reason).HasMaxLength(1000).IsRequired(); b.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        b.HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.PurchaseOrderLine).WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.DeliverySchedule).WithMany(x => x.Cancellations).HasForeignKey(x => x.DeliveryScheduleId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class DeliveryScheduleAllocationEventConfiguration : IEntityTypeConfiguration<DeliveryScheduleAllocationEvent>
+{
+    public void Configure(EntityTypeBuilder<DeliveryScheduleAllocationEvent> b)
+    {
+        b.ToTable("delivery_schedule_allocation_events", "procurement"); b.HasKey(x => x.Id);
+        b.Property(x => x.BeforeJson).HasColumnType("jsonb"); b.Property(x => x.AfterJson).HasColumnType("jsonb");
+        b.Property(x => x.Reason).HasMaxLength(1000).IsRequired(); b.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        b.HasIndex(x => new { x.PurchaseOrderId, x.CreatedAtUtc });
     }
 }
 

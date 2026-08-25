@@ -432,12 +432,21 @@ public sealed class MrpService(
                 x.Lines.Any(line => relevantItemIds.Contains(line.ItemId)))
             .Include(x => x.Supplier)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.PlanRevisions)
+            .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ReceiptLines)
+                .ThenInclude(x => x.Receipt)
+            .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.Cancellations)
             .AsSplitQuery().ToListAsync(ct);
         var result = new List<MrpFirmSupply>();
         foreach (var order in orders)
             foreach (var line in order.Lines.Where(x => relevantItemIds.Contains(x.ItemId)))
                 foreach (var schedule in line.Schedules)
                 {
+                    var received = schedule.ReceiptLines
+                        .Where(x => x.Receipt.Status == PurchaseReceiptStatuses.Posted)
+                        .Sum(x => x.Quantity);
+                    var cancelled = schedule.Cancellations.Sum(x => x.Quantity);
+                    var openQty = schedule.AllocatedQuantity - received - cancelled;
+                    if (openQty <= 0) continue;
                     var revised = schedule.PlanRevisions.Where(x => x.PlanType == PurchasePlanTypes.Revised)
                         .OrderByDescending(x => x.RevisionNumber).Select(x => x.WarehouseReceiptDate).FirstOrDefault();
                     var original = schedule.PlanRevisions.Where(x => x.PlanType == PurchasePlanTypes.Original)
@@ -447,7 +456,7 @@ public sealed class MrpService(
                         original.HasValue ? "ORIGINAL_PLANNED_WAREHOUSE_RECEIPT" : "MISSING";
                     var etaStatus = !eta.HasValue ? "MISSING" : eta.Value < run.AsOfDate ? "OVERDUE" : "ON_TIME";
                     result.Add(new(line.ItemId, order.Id, order.PurchaseOrderNumber, line.Id, schedule.Id,
-                        schedule.AllocatedQuantity, eta, source, etaStatus, order.Status, order.SupplierId,
+                        openQty, eta, source, etaStatus, order.Status, order.SupplierId,
                         order.Supplier.SupplierNumber, order.Supplier.Name, null));
                 }
         return result;

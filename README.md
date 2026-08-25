@@ -1,6 +1,6 @@
 # Hadron Tavan ERP
 
-Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP baseline currently covers MRP-01 through MRP-12; MRP-13A analysis is Owner-approved and MRP-13 implementation has not started.
+Hadron Tavan ERP is a local-development modular-monolith foundation that will replace selected spreadsheet-based operational systems through small, validated vertical slices. The implemented MRP baseline currently covers MRP-01 through MRP-13, which are closed; MRP-14 has not started.
 
 ## Prerequisites
 
@@ -69,4 +69,4 @@ Readiness is exposed at `GET /health/ready`; liveness is exposed at `GET /health
 
 ## Current scope
 
-The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-12 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, MRP Calculation Engine, Material Planning UI, and Order Planning. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. MRP-13A analysis is approved; MRP-13B has not started. Identity and Workflow remain outside the current implementation scope.
+The repository contains platform startup, PostgreSQL connectivity, health checks, integration-test infrastructure, and the closed MRP-01 through MRP-13 modules: Reference Data, Product Master, Supplier Master, Part/Component Master, Sourcing and Commercial Terms, Multi-Level BOM, Forecast/Actual, Inventory Foundation, Purchase Supply Foundation, MRP Calculation Engine, Material Planning UI, Order Planning, and Purchase Order Operations. The Hadron ERP shell, bilingual FA/EN UI foundation, and shared enterprise page patterns are also implemented. MRP-14 has not started. Identity and Workflow remain outside the current implementation scope.

@@ -119,6 +119,27 @@ test('blocked machine recommendation prevents Accept but still permits append-on
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
+test('accepted expert decision converts through the explicit idempotent PO command', async () => {
+  const decision = { id: 'd1', decisionVersion: 1, decisionType: 'ACCEPT', decisionDate: '2026-08-25',
+    decidedAtUtc: '2026-08-25T05:00:00Z', finalQty: 80, warningCodes: '' }
+  const calls: string[] = []
+  const restore = installFetch((input) => {
+    calls.push(input)
+    if (input.includes('/convert-decisions')) return json({ groups: [{ success: true,
+      purchaseOrderId: '00000000-0000-0000-0000-000000001313', purchaseOrderNumber: 'PO-000013',
+      decisions: [{ decisionId: 'd1', success: true, purchaseOrderId: '00000000-0000-0000-0000-000000001313',
+        purchaseOrderNumber: 'PO-000013', detailReasons: [] }] }] })
+    return json({ ...detailRow(), decisions: [decision], latestDecisionType: 'ACCEPT' })
+  })
+  const renderer = await render('object', 'en', `/mrp/order-planning/${recommendationId}`)
+  try {
+    const convert = renderer.root.findAllByType('button').find(node => instanceText(node).includes('Convert to draft PO'))!
+    assert.ok(convert)
+    await act(async () => convert.props.onClick())
+    assert.ok(calls.some(value => value.includes('/purchase-orders/convert-decisions')))
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
 async function render(view: 'list' | 'object', language: 'fa-IR' | 'en', initialEntry: string) {
   const translation = await translations(language)
   const Component = await component()

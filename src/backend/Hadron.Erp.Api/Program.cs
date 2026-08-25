@@ -42,6 +42,9 @@ builder.Services.AddScoped<IBomOperationalReadinessQuery, BomOperationalReadines
 builder.Services.AddScoped<PlanningService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<PurchaseSupplyService>();
+builder.Services.AddScoped<PurchaseOrderOperationsService>();
+builder.Services.AddScoped<PurchaseReceiptInventoryCoordinator>();
+builder.Services.AddSingleton<IPurchaseReceiptFaultInjector, NoOpPurchaseReceiptFaultInjector>();
 builder.Services.AddScoped<MrpService>();
 builder.Services.AddScoped<MaterialPlanningService>();
 builder.Services.AddScoped<OrderPlanningService>();

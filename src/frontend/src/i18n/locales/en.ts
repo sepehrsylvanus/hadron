@@ -140,6 +140,9 @@ const en = {
     refresh: 'Refresh draft snapshot', approve: 'Approve', approveConfirm: 'Approve and lock the current commercial snapshot?', returnDraft: 'Return to draft',
     markOrdered: 'Mark ordered', orderedDate: 'Ordered date', reason: 'Reason', leadSnapshot: 'Lead-time snapshot', openQty: 'Open quantity',
     schedule: 'Schedule', firmEta: 'Firm ETA', timeline: 'Milestone timeline', revisePlan: 'Revise planned milestones', history: 'Lifecycle history',
+    receivedQty: 'Received quantity', cancelledQty: 'Cancelled quantity', completion: 'Completion outcome', firstReceipt: 'First receipt date', finalReceipt: 'Final receipt date',
+    lineage: 'Expert-decision lineage', actual: 'Actual milestone', actualDate: 'Actual date', correctMilestone: 'Correct prior milestone', operations: 'Operational actions', createReceipt: 'Create receipt draft',
+    cancelSchedule: 'Cancel schedule quantity', recordActual: 'Record actual milestone', receipts: 'Receipts and inventory lineage', receiptNumber: 'Receipt number', postReceipt: 'Post receipt', reverseReceipt: 'Reverse receipt', reversalReason: 'Reversal reason',
     status: { DRAFT: 'Draft', APPROVED: 'Approved — not firm', ORDERED: 'Ordered', SHIPPED: 'Shipped', CUSTOMS: 'Customs', PARTIALLY_RECEIVED: 'Partially received', RECEIVED: 'Received', CANCELLED: 'Cancelled' },
   },
   mrpRuns: {
@@ -177,6 +180,7 @@ const en = {
     runSearch: 'Find MRP run', selectGeneration: 'Select generation', generationUnavailable: 'Generation context is unavailable',
     sort: 'Global sort', sortDirection: 'Sort direction', calculationTrace: 'Immutable calculation trace',
     leadStages: 'Lead stages', shipping: 'Shipping mode', incoterm: 'Incoterm',
+    convertToPo: 'Convert to draft PO', conversionFailed: 'Purchase-order conversion failed',
   },
 } as const
 

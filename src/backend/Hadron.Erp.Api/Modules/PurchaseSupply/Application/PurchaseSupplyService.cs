@@ -52,7 +52,10 @@ public sealed class PurchaseSupplyService(
                 x.CreatedAtUtc,
                 LineCount = x.Lines.Count,
                 Total = x.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice),
-                Open = x.Lines.SelectMany(l => l.Schedules).Sum(s => s.AllocatedQuantity),
+                Open = x.Lines.SelectMany(l => l.Schedules).Sum(s => s.AllocatedQuantity -
+                    (s.ReceiptLines.Where(r => r.Receipt.Status == PurchaseReceiptStatuses.Posted)
+                        .Sum(r => (decimal?)r.Quantity) ?? 0) -
+                    (s.Cancellations.Sum(c => (decimal?)c.Quantity) ?? 0)),
                 Etas = x.Lines.SelectMany(l => l.Schedules).Select(s => new
                 {
                     Revised = s.PlanRevisions.Where(p => p.PlanType == PurchasePlanTypes.Revised)
@@ -147,6 +150,7 @@ public sealed class PurchaseSupplyService(
         var order = await LockAggregate(db, transaction, id, ct);
         EnsureVersion(order.Version, request.ExpectedVersion);
         EnsureDraft(order);
+        EnsureManualCore(order);
         var line = await db.PurchaseOrderLines.SingleOrDefaultAsync(x => x.Id == lineId && x.PurchaseOrderId == id, ct)
             ?? throw new KeyNotFoundException();
         var snapshot = await ResolveLine(db, order.SupplierId, order.CurrencyId, request.Line, order, ct);
@@ -174,6 +178,7 @@ public sealed class PurchaseSupplyService(
         var order = await LockAggregate(db, transaction, id, ct);
         EnsureVersion(order.Version, request.ExpectedVersion);
         EnsureDraft(order);
+        EnsureManualCore(order);
         var snapshot = await ResolveLine(db, order.SupplierId, order.CurrencyId, request.Line, order, ct);
         var nextLineNumber = (await db.PurchaseOrderLines.Where(x => x.PurchaseOrderId == id)
             .MaxAsync(x => (int?)x.LineNumber, ct) ?? 0) + 1;
@@ -197,6 +202,7 @@ public sealed class PurchaseSupplyService(
         var order = await LockAggregate(db, transaction, id, ct);
         EnsureVersion(order.Version, request.ExpectedVersion);
         EnsureDraft(order);
+        EnsureManualCore(order);
         if (await db.PurchaseOrderLines.CountAsync(x => x.PurchaseOrderId == id, ct) <= 1)
             throw Validation("lineId", "آخرین Line قابل حذف نیست.");
         var line = await db.PurchaseOrderLines.SingleOrDefaultAsync(x => x.Id == lineId && x.PurchaseOrderId == id, ct)
@@ -223,11 +229,18 @@ public sealed class PurchaseSupplyService(
         var order = await LockAggregate(db, transaction, id, ct);
         EnsureVersion(order.Version, request.ExpectedVersion);
         EnsureDraft(order);
+        if (order.CreationSource == "EXPERT_DECISION" && string.IsNullOrWhiteSpace(request.Reason))
+            throw Validation("reason", "دلیل تغییر برنامه تحویل PO مشتق از تصمیم الزامی است.");
         var line = await db.PurchaseOrderLines.SingleOrDefaultAsync(x => x.Id == lineId && x.PurchaseOrderId == id, ct)
             ?? throw new KeyNotFoundException();
         if (request.Schedules.Sum(x => x.AllocatedQuantity) != line.OrderedQuantity)
             throw Validation("schedules", "جمع Scheduleها باید دقیقاً برابر مقدار Line باشد.");
         var current = await db.DeliverySchedules.Where(x => x.PurchaseOrderLineId == lineId).ToListAsync(ct);
+        if (order.CreationSource == "EXPERT_DECISION")
+            db.DeliveryScheduleAllocationEvents.Add(new(order.Id, lineId,
+                System.Text.Json.JsonSerializer.Serialize(current.OrderBy(x => x.ScheduleNumber).Select(x => new { x.AllocatedQuantity, x.RequestedReceiptDate })),
+                System.Text.Json.JsonSerializer.Serialize(request.Schedules), request.Reason!.Trim(),
+                AuditEventContext.ActorId(accessor.HttpContext), DateTime.UtcNow));
         db.DeliverySchedules.RemoveRange(current);
         db.DeliverySchedules.AddRange(request.Schedules.Select((x, index) =>
             new DeliverySchedule(lineId, index + 1, x.AllocatedQuantity, x.RequestedReceiptDate)));
@@ -235,7 +248,7 @@ public sealed class PurchaseSupplyService(
         await Save(db, ct);
         await transaction.CommitAsync(ct);
         var response = (await Get(id, ct))!;
-        await Emit(id, "SCHEDULE_REPLACE", response, null, ct);
+        await Emit(id, "SCHEDULE_REPLACE", response, request.Reason, ct);
         return response;
     }
 
@@ -247,6 +260,7 @@ public sealed class PurchaseSupplyService(
         var order = await LockAggregate(db, transaction, id, ct);
         EnsureVersion(order.Version, request.ExpectedVersion);
         EnsureDraft(order);
+        EnsureManualCore(order);
         var supplier = await db.Suppliers.Include(x => x.PaymentProfile).ThenInclude(x => x.PaymentTerm)
             .SingleAsync(x => x.Id == order.SupplierId, ct);
         ValidateSupplier(supplier);
@@ -392,17 +406,23 @@ public sealed class PurchaseSupplyService(
         if (itemId.HasValue) query = query.Where(x => x.Lines.Any(l => l.ItemId == itemId));
         var orders = await query.Include(x => x.Lines).ThenInclude(x => x.Item)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.PlanRevisions)
+            .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ReceiptLines).ThenInclude(x => x.Receipt)
+            .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.Cancellations)
             .AsSplitQuery().ToListAsync(ct);
         var result = new List<FirmIncomingResponse>();
         foreach (var order in orders)
             foreach (var line in order.Lines.Where(x => !itemId.HasValue || x.ItemId == itemId))
                 foreach (var schedule in line.Schedules)
                 {
+                    var received = schedule.ReceiptLines.Where(x => x.Receipt.Status == PurchaseReceiptStatuses.Posted).Sum(x => x.Quantity);
+                    var cancelled = schedule.Cancellations.Sum(x => x.Quantity);
+                    var open = schedule.AllocatedQuantity - received - cancelled;
+                    if (open <= 0) continue;
                     var (eta, source) = ResolveFirmEta(schedule);
                     if (etaFrom.HasValue && (!eta.HasValue || eta < etaFrom)) continue;
                     if (etaTo.HasValue && (!eta.HasValue || eta > etaTo)) continue;
                     result.Add(new(order.Id, order.PurchaseOrderNumber, line.Id, schedule.Id, ItemRef(line.Item),
-                        schedule.AllocatedQuantity, eta, source, ResolveEtaStatus(eta, schedule.AllocatedQuantity, evaluationDate),
+                        open, eta, source, ResolveEtaStatus(eta, open, evaluationDate),
                         order.Status));
                 }
         return result.OrderBy(x => x.Eta.HasValue ? 0 : 1).ThenBy(x => x.Eta).ThenBy(x => x.PurchaseOrderNumber).ToList();
@@ -416,7 +436,9 @@ public sealed class PurchaseSupplyService(
         .Include(x => x.Lines).ThenInclude(x => x.SourcingOption)
         .Include(x => x.Lines).ThenInclude(x => x.ItemBaseUnit)
         .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.PlanRevisions)
-        .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ActualMilestones);
+        .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ActualMilestones)
+        .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.ReceiptLines).ThenInclude(x => x.Receipt)
+        .Include(x => x.Lines).ThenInclude(x => x.Schedules).ThenInclude(x => x.Cancellations);
 
     private static PurchaseOrderResponse ToResponse(PurchaseOrder order)
     {
@@ -425,25 +447,51 @@ public sealed class PurchaseSupplyService(
             var schedules = line.Schedules.OrderBy(x => x.ScheduleNumber).Select(schedule =>
             {
                 var (eta, source) = ResolveFirmEta(schedule);
+                var received = schedule.ReceiptLines.Where(x => x.Receipt.Status == PurchaseReceiptStatuses.Posted).Sum(x => x.Quantity);
+                var cancelled = schedule.Cancellations.Sum(x => x.Quantity);
+                var actualMilestones = schedule.ActualMilestones.Select(x => new ActualMilestoneResponse(
+                        x.Id, x.MilestoneCode, x.ActualDate, x.SourceType, x.SourceId, x.CreatedAtUtc,
+                        x.SupersedesMilestoneId, x.Reason))
+                    .Concat(schedule.ReceiptLines
+                        .Where(x => x.Receipt.Status == PurchaseReceiptStatuses.Posted)
+                        .Select(x => new ActualMilestoneResponse(x.Id, PurchaseMilestoneCodes.WarehouseReceipt,
+                            x.Receipt.EffectiveDate, "PURCHASE_RECEIPT", x.ReceiptId,
+                            x.Receipt.PostedAtUtc ?? x.Receipt.CreatedAtUtc, null, null)))
+                    .OrderBy(x => x.ActualDate).ThenBy(x => x.CreatedAtUtc).ToList();
                 return new DeliveryScheduleResponse(schedule.Id, schedule.ScheduleNumber, schedule.AllocatedQuantity,
-                    0, 0, schedule.AllocatedQuantity, schedule.RequestedReceiptDate, eta, source,
+                    received, cancelled, schedule.AllocatedQuantity - received - cancelled, schedule.RequestedReceiptDate, eta, source,
                     schedule.PlanRevisions.OrderBy(x => x.RevisionNumber).Select(PlanResponse).ToList(),
-                    schedule.ActualMilestones.OrderBy(x => x.ActualDate).Select(x => new ActualMilestoneResponse(
-                        x.Id, x.MilestoneCode, x.ActualDate, x.SourceType, x.SourceId, x.CreatedAtUtc)).ToList());
+                    actualMilestones);
             }).ToList();
             return new PurchaseOrderLineResponse(line.Id, line.LineNumber, ItemRef(line.Item), line.SourcingOptionId,
                 line.SourcingOption.SourcingNumber, line.SourcingPriceId, Ref(line.ItemBaseUnit), line.OrderedQuantity,
                 line.UnitPrice, line.MinimumOrderQuantity, line.SupplierLeadTimeDays, line.ForwarderToShipmentDays,
-                line.ShippingPeriodDays, line.DestinationCustomsDays, line.LineTotal, 0, 0, line.OrderedQuantity,
-                line.Notes, schedules);
+                line.ShippingPeriodDays, line.DestinationCustomsDays, line.LineTotal,
+                schedules.Sum(x => x.ReceivedQuantity), schedules.Sum(x => x.CancelledQuantity),
+                schedules.Sum(x => x.OpenQuantity),
+                line.Notes, line.ExpertDecisionId, line.RecommendationId, line.OrderPlanningGenerationId,
+                line.MrpRunId, schedules);
         }).ToList();
+        var receivedTotal = lines.Sum(x => x.ReceivedQuantity);
+        var cancelledTotal = lines.Sum(x => x.CancelledQuantity);
+        var openTotal = lines.Sum(x => x.OpenQuantity);
+        var completion = openTotal > 0 ? PurchaseCompletionOutcomes.Open : receivedTotal == 0
+            ? PurchaseCompletionOutcomes.FullyCancelled : cancelledTotal > 0
+                ? PurchaseCompletionOutcomes.ReceivedWithCancellation : PurchaseCompletionOutcomes.FullyReceived;
+        var validReceipts = order.Lines.SelectMany(x => x.Schedules).SelectMany(x => x.ReceiptLines)
+            .Where(x => x.Receipt.Status == PurchaseReceiptStatuses.Posted).Select(x => x.Receipt.EffectiveDate).ToList();
+        DateOnly? firstReceipt = validReceipts.Count == 0 ? null : validReceipts.Min();
+        DateOnly? finalReceipt = completion is PurchaseCompletionOutcomes.FullyReceived or PurchaseCompletionOutcomes.ReceivedWithCancellation
+            ? validReceipts.Count == 0 ? null : validReceipts.Max() : null;
+        var warnings = order.Lines.Any(x => !x.Item.IsActive) ? new[] { "INACTIVE_ITEM_EXISTING_COMMITMENT" } : [];
         return new(order.Id, order.PurchaseOrderNumber, SupplierRef(order.Supplier), Ref(order.Currency),
             RefRequired(order.PaymentTerm), order.AdvancePercent, order.BeforeShipmentPercent, order.CreditPercent,
             order.CreditDays, order.CreditAnchor, Ref(order.ShippingMode), Ref(order.Incoterm), order.Status,
             order.Notes, order.ApprovedAtUtc, order.OrderedDate, order.OrderedAtUtc, order.Version,
             order.CreatedAtUtc, order.UpdatedAtUtc, lines.Sum(x => x.LineTotal), lines,
             order.LifecycleEvents.OrderBy(x => x.CreatedAtUtc).Select(x => new PurchaseOrderLifecycleResponse(
-                x.Id, x.FromStatus, x.ToStatus, x.Reason, x.ActorIdentifier, x.CreatedAtUtc)).ToList());
+                x.Id, x.FromStatus, x.ToStatus, x.Reason, x.ActorIdentifier, x.CreatedAtUtc)).ToList(),
+            completion, firstReceipt, finalReceipt, warnings);
     }
 
     private static SchedulePlanRevisionResponse PlanResponse(DeliverySchedulePlanRevision x) => new(x.Id,
@@ -593,6 +641,12 @@ public sealed class PurchaseSupplyService(
         if (order.Status != PurchaseOrderStatuses.Draft) throw Conflict("PO_SNAPSHOT_LOCKED", "Snapshot سفارش قفل است.");
     }
 
+    private static void EnsureManualCore(PurchaseOrder order)
+    {
+        if (order.CreationSource == "EXPERT_DECISION")
+            throw Conflict("DECISION_DERIVED_CORE_IMMUTABLE", "فیلدهای اصلی PO مشتق از تصمیم Expert قابل تغییر نیستند.");
+    }
+
     private static void EnsureExpected(long expected)
     {
         if (expected < 1) throw Validation("expectedVersion", "نسخه معتبر الزامی است.");
@@ -672,7 +726,7 @@ public sealed class PurchaseSupplyValidationException(IReadOnlyDictionary<string
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }
 
-public sealed class PurchaseSupplyConflictException(string code, string message) : Exception(message)
+public class PurchaseSupplyConflictException(string code, string message) : Exception(message)
 {
     public string Code { get; } = code;
 }

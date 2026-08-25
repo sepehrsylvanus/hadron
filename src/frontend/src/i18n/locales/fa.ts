@@ -140,6 +140,9 @@ const fa = {
     refresh: 'به‌روزرسانی Snapshot پیش‌نویس', approve: 'تأیید', approveConfirm: 'Snapshot تجاری فعلی تأیید و قفل شود؟', returnDraft: 'بازگشت به پیش‌نویس',
     markOrdered: 'ثبت سفارش‌شده', orderedDate: 'تاریخ سفارش', reason: 'دلیل', leadSnapshot: 'Snapshot زمان‌های تأمین', openQty: 'مقدار باز',
     schedule: 'برنامه تحویل', firmEta: 'ETA قطعی', timeline: 'خط زمانی Milestone', revisePlan: 'اصلاح برنامه Milestone', history: 'تاریخچه چرخه عمر',
+    receivedQty: 'مقدار دریافت‌شده', cancelledQty: 'مقدار لغوشده', completion: 'نتیجه تکمیل', firstReceipt: 'تاریخ اولین رسید', finalReceipt: 'تاریخ رسید نهایی',
+    lineage: 'تبار تصمیم کارشناس', actual: 'Milestone واقعی', actualDate: 'تاریخ واقعی', correctMilestone: 'اصلاح Milestone قبلی', operations: 'عملیات سفارش', createReceipt: 'ایجاد پیش‌نویس رسید',
+    cancelSchedule: 'لغو مقدار برنامه', recordActual: 'ثبت Milestone واقعی', receipts: 'رسیدها و تبار موجودی', receiptNumber: 'شماره رسید', postReceipt: 'ثبت قطعی رسید', reverseReceipt: 'برگشت رسید', reversalReason: 'دلیل برگشت',
     status: { DRAFT: 'پیش‌نویس', APPROVED: 'تأییدشده — غیرقطعی', ORDERED: 'سفارش‌شده', SHIPPED: 'حمل‌شده', CUSTOMS: 'گمرک', PARTIALLY_RECEIVED: 'دریافت جزئی', RECEIVED: 'دریافت‌شده', CANCELLED: 'لغوشده' },
   },
   mrpRuns: {
@@ -177,6 +180,7 @@ const fa = {
     runSearch: 'جست‌وجوی اجرای MRP', selectGeneration: 'انتخاب نسل', generationUnavailable: 'بافت نسل انتخاب‌شده در دسترس نیست',
     sort: 'مرتب‌سازی سراسری', sortDirection: 'جهت مرتب‌سازی', calculationTrace: 'ردیابی تغییرناپذیر محاسبه',
     leadStages: 'مراحل Lead Time', shipping: 'روش حمل', incoterm: 'اینکوترم',
+    convertToPo: 'تبدیل به پیش‌نویس PO', conversionFailed: 'تبدیل به سفارش خرید ناموفق بود',
   },
 } as const
 

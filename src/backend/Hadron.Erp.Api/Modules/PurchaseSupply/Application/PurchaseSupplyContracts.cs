@@ -16,7 +16,8 @@ public sealed record PurchaseOrderLineInput(
 public sealed record UpdatePurchaseOrderRequest(long ExpectedVersion, string? Notes);
 public sealed record AddPurchaseOrderLineRequest(long ExpectedVersion, PurchaseOrderLineInput Line);
 public sealed record UpdatePurchaseOrderLineRequest(long ExpectedVersion, PurchaseOrderLineInput Line);
-public sealed record ReplaceSchedulesRequest(long ExpectedVersion, IReadOnlyList<DeliveryScheduleInput> Schedules);
+public sealed record ReplaceSchedulesRequest(long ExpectedVersion, IReadOnlyList<DeliveryScheduleInput> Schedules,
+    string? Reason = null);
 public sealed record DeliveryScheduleInput(decimal AllocatedQuantity, DateOnly? RequestedReceiptDate);
 public sealed record ExpectedVersionRequest(long ExpectedVersion);
 public sealed record ReturnToDraftRequest(long ExpectedVersion, string Reason);
@@ -75,7 +76,11 @@ public sealed record PurchaseOrderResponse(
     DateTime UpdatedAtUtc,
     decimal Total,
     IReadOnlyList<PurchaseOrderLineResponse> Lines,
-    IReadOnlyList<PurchaseOrderLifecycleResponse> Lifecycle);
+    IReadOnlyList<PurchaseOrderLifecycleResponse> Lifecycle,
+    string CompletionOutcome,
+    DateOnly? FirstReceiptDate,
+    DateOnly? FinalReceiptDate,
+    IReadOnlyList<string> Warnings);
 
 public sealed record PurchaseOrderLineResponse(
     Guid Id,
@@ -97,6 +102,10 @@ public sealed record PurchaseOrderLineResponse(
     decimal CancelledQuantity,
     decimal OpenQuantity,
     string? Notes,
+    Guid? ExpertDecisionId,
+    Guid? RecommendationId,
+    Guid? GenerationId,
+    Guid? MrpRunId,
     IReadOnlyList<DeliveryScheduleResponse> Schedules);
 
 public sealed record DeliveryScheduleResponse(
@@ -132,7 +141,9 @@ public sealed record ActualMilestoneResponse(
     DateOnly ActualDate,
     string SourceType,
     Guid SourceId,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    Guid? SupersedesMilestoneId,
+    string? Reason);
 
 public sealed record PurchaseOrderLifecycleResponse(
     Guid Id,
@@ -161,3 +172,32 @@ public sealed record PurchaseSupplyResult<T>(T? Value, PurchaseSupplyError? Erro
     public static PurchaseSupplyResult<T> Failure(string code, string message, int statusCode = 400,
         IReadOnlyDictionary<string, string[]>? errors = null) => new(default, new(code, message, statusCode, errors));
 }
+
+public sealed record ConvertExpertDecisionsRequest(IReadOnlyList<Guid> DecisionIds);
+public sealed record DecisionConversionResult(Guid DecisionId, bool Success, Guid? PurchaseOrderId,
+    string? PurchaseOrderNumber, string? Code, IReadOnlyList<string> DetailReasons);
+public sealed record ConversionGroupResult(string GroupKey, bool Success, Guid? PurchaseOrderId,
+    string? PurchaseOrderNumber, IReadOnlyList<DecisionConversionResult> Decisions);
+public sealed record ConvertExpertDecisionsResponse(IReadOnlyList<ConversionGroupResult> Groups);
+
+public sealed record CreatePurchaseReceiptRequest(Guid PurchaseOrderId, Guid WarehouseId,
+    DateOnly EffectiveDate, string? Notes, IReadOnlyList<PurchaseReceiptLineInput> Lines);
+public sealed record PurchaseReceiptLineInput(Guid PurchaseOrderLineId, Guid DeliveryScheduleId, decimal Quantity);
+public sealed record PostPurchaseReceiptRequest(long ExpectedReceiptVersion, long ExpectedPurchaseOrderVersion);
+public sealed record ReversePurchaseReceiptRequest(long ExpectedReceiptVersion, long ExpectedPurchaseOrderVersion, string Reason);
+public sealed record CancelScheduleRequest(long ExpectedPurchaseOrderVersion, decimal Quantity,
+    DateOnly EffectiveDate, string Reason);
+public sealed record RecordActualMilestoneRequest(long ExpectedPurchaseOrderVersion, string MilestoneCode,
+    DateOnly ActualDate, Guid? SupersedesMilestoneId, string? Reason);
+public sealed record ReallocateSchedulesRequest(long ExpectedPurchaseOrderVersion, string Reason,
+    IReadOnlyList<DeliveryScheduleInput> Schedules);
+
+public sealed record PurchaseReceiptListResponse(IReadOnlyList<PurchaseReceiptResponse> Items, int TotalCount, int Page, int PageSize);
+public sealed record PurchaseReceiptResponse(Guid Id, string ReceiptNumber, Guid PurchaseOrderId,
+    string PurchaseOrderNumber, Guid WarehouseId, string WarehouseCode, string WarehouseNameFa,
+    string? WarehouseNameEn, DateOnly EffectiveDate, string Status, string? Notes, long Version,
+    DateTime? PostedAtUtc, DateTime? ReversedAtUtc, string? ReversalReason,
+    IReadOnlyList<PurchaseReceiptLineResponse> Lines, IReadOnlyList<string> Warnings);
+public sealed record PurchaseReceiptLineResponse(Guid Id, Guid PurchaseOrderLineId, Guid DeliveryScheduleId,
+    PurchaseOrderItemRef Item, PurchaseOrderRef Unit, decimal Quantity, Guid? InventoryTransactionId,
+    Guid? ReversalInventoryTransactionId);

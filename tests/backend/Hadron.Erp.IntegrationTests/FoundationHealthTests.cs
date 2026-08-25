@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.OrderPlanning.Application;
 using Hadron.Erp.Api.Modules.Planning.Application;
+using Hadron.Erp.Api.Modules.PurchaseSupply.Application;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -50,6 +51,7 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
     public RecordingAuditEventSink AuditSink { get; } = new();
     public MutablePlanningCalendar PlanningCalendar { get; } = new();
     public TestOrderPlanningFaultInjector OrderPlanningFaultInjector { get; } = new();
+    public TestPurchaseReceiptFaultInjector PurchaseReceiptFaultInjector { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -71,6 +73,8 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
             services.AddSingleton<IPlanningCalendar>(PlanningCalendar);
             services.RemoveAll<IOrderPlanningGenerationFaultInjector>();
             services.AddSingleton<IOrderPlanningGenerationFaultInjector>(OrderPlanningFaultInjector);
+            services.RemoveAll<IPurchaseReceiptFaultInjector>();
+            services.AddSingleton<IPurchaseReceiptFaultInjector>(PurchaseReceiptFaultInjector);
         });
     }
 
@@ -104,6 +108,27 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
             ?? throw new InvalidOperationException("POSTGRES_PASSWORD is required for integration tests."),
         ApplicationName = "Hadron.Erp.IntegrationTests"
     }.ConnectionString;
+}
+
+public sealed class TestPurchaseReceiptFaultInjector : IPurchaseReceiptFaultInjector
+{
+    public bool FailAfterReceipt { get; set; }
+    public bool FailAfterInventory { get; set; }
+    public Task AfterReceiptBeforeInventory(CancellationToken ct)
+    {
+        if (FailAfterReceipt) throw new InvalidOperationException("Injected receipt-before-inventory failure");
+        return Task.CompletedTask;
+    }
+    public Task AfterInventoryBeforeReceiptCommit(CancellationToken ct)
+    {
+        if (FailAfterInventory) throw new InvalidOperationException("Injected receipt failure");
+        return Task.CompletedTask;
+    }
+    public void Reset()
+    {
+        FailAfterReceipt = false;
+        FailAfterInventory = false;
+    }
 }
 
 public sealed class MutablePlanningCalendar : IPlanningCalendar

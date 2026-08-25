@@ -2,6 +2,7 @@ using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
+using Hadron.Erp.Api.Modules.Inventory.Domain;
 
 namespace Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 
@@ -35,6 +36,21 @@ public static class FirmEtaStatuses
     public const string Missing = "MISSING";
 }
 
+public static class PurchaseReceiptStatuses
+{
+    public const string Draft = "DRAFT";
+    public const string Posted = "POSTED";
+    public const string Reversed = "REVERSED";
+}
+
+public static class PurchaseCompletionOutcomes
+{
+    public const string Open = "OPEN";
+    public const string FullyReceived = "FULLY_RECEIVED";
+    public const string ReceivedWithCancellation = "RECEIVED_WITH_CANCELLATION";
+    public const string FullyCancelled = "FULLY_CANCELLED";
+}
+
 public static class PurchaseMilestoneCodes
 {
     public const string SupplierReady = "SUPPLIER_READY";
@@ -64,7 +80,8 @@ public sealed class PurchaseOrder
         string? creditAnchor,
         Guid? shippingModeId,
         Guid? incotermId,
-        string? notes)
+        string? notes,
+        string creationSource = "MANUAL")
     {
         Id = Guid.NewGuid();
         PurchaseOrderNumber = purchaseOrderNumber;
@@ -79,6 +96,7 @@ public sealed class PurchaseOrder
         ShippingModeId = shippingModeId;
         IncotermId = incotermId;
         Notes = notes;
+        CreationSource = creationSource;
     }
 
     public Guid Id { get; private set; }
@@ -100,6 +118,7 @@ public sealed class PurchaseOrder
     public ReferenceValue? Incoterm { get; private set; }
     public string Status { get; private set; } = PurchaseOrderStatuses.Draft;
     public string? Notes { get; private set; }
+    public string CreationSource { get; private set; } = "MANUAL";
     public DateTime? ApprovedAtUtc { get; private set; }
     public DateOnly? OrderedDate { get; private set; }
     public DateTime? OrderedAtUtc { get; private set; }
@@ -179,6 +198,18 @@ public sealed class PurchaseOrder
         Advance();
     }
 
+    public void ApplyOperationalStatus(string status)
+    {
+        if (Status is PurchaseOrderStatuses.Draft or PurchaseOrderStatuses.Approved)
+            throw new InvalidOperationException("PO_NOT_ORDERED");
+        if (status is not (PurchaseOrderStatuses.Ordered or PurchaseOrderStatuses.Shipped or
+            PurchaseOrderStatuses.Customs or PurchaseOrderStatuses.PartiallyReceived or
+            PurchaseOrderStatuses.Received or PurchaseOrderStatuses.Cancelled))
+            throw new InvalidOperationException("INVALID_OPERATIONAL_STATUS");
+        Status = status;
+        Advance();
+    }
+
     private void EnsureDraft()
     {
         if (Status != PurchaseOrderStatuses.Draft)
@@ -210,7 +241,11 @@ public sealed class PurchaseOrderLine
         int? forwarderToShipmentDays,
         int? shippingPeriodDays,
         int? destinationCustomsDays,
-        string? notes)
+        string? notes,
+        Guid? expertDecisionId = null,
+        Guid? recommendationId = null,
+        Guid? generationId = null,
+        Guid? mrpRunId = null)
     {
         Id = Guid.NewGuid();
         PurchaseOrderId = purchaseOrderId;
@@ -227,6 +262,10 @@ public sealed class PurchaseOrderLine
         ShippingPeriodDays = shippingPeriodDays;
         DestinationCustomsDays = destinationCustomsDays;
         Notes = notes;
+        ExpertDecisionId = expertDecisionId;
+        RecommendationId = recommendationId;
+        OrderPlanningGenerationId = generationId;
+        MrpRunId = mrpRunId;
     }
 
     public Guid Id { get; private set; }
@@ -249,6 +288,10 @@ public sealed class PurchaseOrderLine
     public int? ShippingPeriodDays { get; private set; }
     public int? DestinationCustomsDays { get; private set; }
     public string? Notes { get; private set; }
+    public Guid? ExpertDecisionId { get; private set; }
+    public Guid? RecommendationId { get; private set; }
+    public Guid? OrderPlanningGenerationId { get; private set; }
+    public Guid? MrpRunId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
     public ICollection<DeliverySchedule> Schedules { get; private set; } = [];
@@ -327,6 +370,15 @@ public sealed class DeliverySchedule
     public DateTime UpdatedAtUtc { get; private set; }
     public ICollection<DeliverySchedulePlanRevision> PlanRevisions { get; private set; } = [];
     public ICollection<DeliveryScheduleActualMilestone> ActualMilestones { get; private set; } = [];
+    public ICollection<PurchaseReceiptLine> ReceiptLines { get; private set; } = [];
+    public ICollection<PurchaseScheduleCancellation> Cancellations { get; private set; } = [];
+
+    public void Reallocate(decimal quantity, DateOnly? requestedReceiptDate)
+    {
+        AllocatedQuantity = quantity;
+        RequestedReceiptDate = requestedReceiptDate;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
 }
 
 public sealed class DeliverySchedulePlanRevision
@@ -383,7 +435,8 @@ public sealed class DeliveryScheduleActualMilestone
     private DeliveryScheduleActualMilestone() { }
 
     internal DeliveryScheduleActualMilestone(Guid deliveryScheduleId, string milestoneCode, DateOnly actualDate,
-        string sourceType, Guid sourceId, string? actorIdentifier, DateTime createdAtUtc)
+        string sourceType, Guid sourceId, string? actorIdentifier, DateTime createdAtUtc,
+        Guid? supersedesMilestoneId = null, string? reason = null)
     {
         Id = Guid.NewGuid();
         DeliveryScheduleId = deliveryScheduleId;
@@ -393,6 +446,8 @@ public sealed class DeliveryScheduleActualMilestone
         SourceId = sourceId;
         ActorIdentifier = actorIdentifier;
         CreatedAtUtc = createdAtUtc;
+        SupersedesMilestoneId = supersedesMilestoneId;
+        Reason = reason;
     }
 
     public Guid Id { get; private set; }
@@ -402,6 +457,129 @@ public sealed class DeliveryScheduleActualMilestone
     public DateOnly ActualDate { get; private set; }
     public string SourceType { get; private set; } = string.Empty;
     public Guid SourceId { get; private set; }
+    public string? ActorIdentifier { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public Guid? SupersedesMilestoneId { get; private set; }
+    public DeliveryScheduleActualMilestone? SupersedesMilestone { get; private set; }
+    public string? Reason { get; private set; }
+}
+
+public sealed class PurchaseReceipt
+{
+    private PurchaseReceipt() { }
+
+    public PurchaseReceipt(string receiptNumber, Guid purchaseOrderId, Guid warehouseId,
+        DateOnly effectiveDate, string? notes, string? actorIdentifier)
+    {
+        Id = Guid.NewGuid();
+        ReceiptNumber = receiptNumber;
+        PurchaseOrderId = purchaseOrderId;
+        WarehouseId = warehouseId;
+        EffectiveDate = effectiveDate;
+        Notes = notes;
+        ActorIdentifier = actorIdentifier;
+    }
+
+    public Guid Id { get; private set; }
+    public string ReceiptNumber { get; private set; } = string.Empty;
+    public Guid PurchaseOrderId { get; private set; }
+    public PurchaseOrder PurchaseOrder { get; private set; } = null!;
+    public Guid WarehouseId { get; private set; }
+    public Warehouse Warehouse { get; private set; } = null!;
+    public DateOnly EffectiveDate { get; private set; }
+    public string Status { get; private set; } = PurchaseReceiptStatuses.Draft;
+    public string? Notes { get; private set; }
+    public string? ActorIdentifier { get; private set; }
+    public DateTime? PostedAtUtc { get; private set; }
+    public DateTime? ReversedAtUtc { get; private set; }
+    public string? ReversalReason { get; private set; }
+    public long Version { get; private set; } = 1;
+    public DateTime CreatedAtUtc { get; private set; }
+    public DateTime UpdatedAtUtc { get; private set; }
+    public ICollection<PurchaseReceiptLine> Lines { get; private set; } = [];
+
+    public void Post(DateTime now)
+    {
+        if (Status != PurchaseReceiptStatuses.Draft) throw new InvalidOperationException("RECEIPT_NOT_DRAFT");
+        Status = PurchaseReceiptStatuses.Posted; PostedAtUtc = now; Version++; UpdatedAtUtc = now;
+    }
+
+    public void Reverse(string reason, DateTime now)
+    {
+        if (Status != PurchaseReceiptStatuses.Posted) throw new InvalidOperationException("RECEIPT_NOT_POSTED");
+        Status = PurchaseReceiptStatuses.Reversed; ReversalReason = reason; ReversedAtUtc = now; Version++; UpdatedAtUtc = now;
+    }
+}
+
+public sealed class PurchaseReceiptLine
+{
+    private PurchaseReceiptLine() { }
+    public PurchaseReceiptLine(Guid receiptId, Guid purchaseOrderLineId, Guid deliveryScheduleId,
+        Guid itemId, Guid unitId, decimal quantity)
+    {
+        Id = Guid.NewGuid(); ReceiptId = receiptId; PurchaseOrderLineId = purchaseOrderLineId;
+        DeliveryScheduleId = deliveryScheduleId; ItemId = itemId; UnitId = unitId; Quantity = quantity;
+    }
+    public Guid Id { get; private set; }
+    public Guid ReceiptId { get; private set; }
+    public PurchaseReceipt Receipt { get; private set; } = null!;
+    public Guid PurchaseOrderLineId { get; private set; }
+    public PurchaseOrderLine PurchaseOrderLine { get; private set; } = null!;
+    public Guid DeliveryScheduleId { get; private set; }
+    public DeliverySchedule DeliverySchedule { get; private set; } = null!;
+    public Guid ItemId { get; private set; }
+    public Item Item { get; private set; } = null!;
+    public Guid UnitId { get; private set; }
+    public Unit Unit { get; private set; } = null!;
+    public decimal Quantity { get; private set; }
+    public Guid? InventoryTransactionId { get; private set; }
+    public InventoryTransaction? InventoryTransaction { get; private set; }
+    public Guid? ReversalInventoryTransactionId { get; private set; }
+    public InventoryTransaction? ReversalInventoryTransaction { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public void LinkInventory(Guid id) => InventoryTransactionId = id;
+    public void LinkReversal(Guid id) => ReversalInventoryTransactionId = id;
+}
+
+public sealed class PurchaseScheduleCancellation
+{
+    private PurchaseScheduleCancellation() { }
+    public PurchaseScheduleCancellation(Guid purchaseOrderId, Guid purchaseOrderLineId, Guid deliveryScheduleId,
+        decimal quantity, DateOnly effectiveDate, string reason, string? actorIdentifier, DateTime createdAtUtc)
+    {
+        Id = Guid.NewGuid(); PurchaseOrderId = purchaseOrderId; PurchaseOrderLineId = purchaseOrderLineId;
+        DeliveryScheduleId = deliveryScheduleId; Quantity = quantity; EffectiveDate = effectiveDate;
+        Reason = reason; ActorIdentifier = actorIdentifier; CreatedAtUtc = createdAtUtc;
+    }
+    public Guid Id { get; private set; }
+    public Guid PurchaseOrderId { get; private set; }
+    public PurchaseOrder PurchaseOrder { get; private set; } = null!;
+    public Guid PurchaseOrderLineId { get; private set; }
+    public PurchaseOrderLine PurchaseOrderLine { get; private set; } = null!;
+    public Guid DeliveryScheduleId { get; private set; }
+    public DeliverySchedule DeliverySchedule { get; private set; } = null!;
+    public decimal Quantity { get; private set; }
+    public DateOnly EffectiveDate { get; private set; }
+    public string Reason { get; private set; } = string.Empty;
+    public string? ActorIdentifier { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+}
+
+public sealed class DeliveryScheduleAllocationEvent
+{
+    private DeliveryScheduleAllocationEvent() { }
+    public DeliveryScheduleAllocationEvent(Guid purchaseOrderId, Guid purchaseOrderLineId, string beforeJson,
+        string afterJson, string reason, string? actorIdentifier, DateTime createdAtUtc)
+    {
+        Id = Guid.NewGuid(); PurchaseOrderId = purchaseOrderId; PurchaseOrderLineId = purchaseOrderLineId;
+        BeforeJson = beforeJson; AfterJson = afterJson; Reason = reason; ActorIdentifier = actorIdentifier; CreatedAtUtc = createdAtUtc;
+    }
+    public Guid Id { get; private set; }
+    public Guid PurchaseOrderId { get; private set; }
+    public Guid PurchaseOrderLineId { get; private set; }
+    public string BeforeJson { get; private set; } = "[]";
+    public string AfterJson { get; private set; } = "[]";
+    public string Reason { get; private set; } = string.Empty;
     public string? ActorIdentifier { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 }
