@@ -355,7 +355,7 @@ def module_rows():
         d = mods[m]
         out.append(
             f'<tr><td class="b">{m}</td>'
-            f'<td class="mono">{E(", ".join(d["schemas"]) or "—")}</td>'
+            f'<td class="mono">{E(", ".join(sorted(d["schemas"])) or "—")}</td>'
             f'<td class="num">{len(d["tables"])}</td>'
             f'<td class="num">{d["endpoints"]}</td>'
             f'<td class="mono sm">{E(", ".join(sorted(d["services"])) or "—")}</td>'
