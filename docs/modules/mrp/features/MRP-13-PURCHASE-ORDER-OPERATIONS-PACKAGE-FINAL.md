@@ -6,6 +6,15 @@
 
 ---
 
+## Owner Correction — 2026-08-31 (LOCKED)
+
+- تبدیل Expert Decision به PO از UnitPrice/Currency همان Decision snapshot استفاده می‌کند؛ هیچ Sourcing Price فعال، refresh یا repricing مجاز نیست.
+- ایجاد دستی PO نیز UnitPrice و Currency را صریحاً از کاربر مجاز دریافت می‌کند.
+- PO commercial snapshot پس از commitment طبق قواعد موجود immutable است و منبع حقیقت تجاری برای Cash Flow آینده خواهد بود.
+- داده‌های Sourcing Price قبلی فقط برای حفظ تاریخچه باقی می‌مانند و وارد عملیات جدید نمی‌شوند.
+
+---
+
 # A. Final Feature Specification — 13-PURCHASE-ORDER-OPERATIONS
 
 ## 1. Purpose

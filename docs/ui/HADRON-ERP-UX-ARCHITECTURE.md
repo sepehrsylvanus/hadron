@@ -103,7 +103,7 @@ List
 → Supplier
 → Contacts
 → Sourcing Options
-→ Price History
+→ Route / Lead Time
 ```
 
 ---
@@ -172,8 +172,13 @@ ERP باید از ابتدا برای داده زیاد و workflow پیچیده
 ```text
 Hadron ERP System
 │
-└── MRP
+├── MRP
+├── Production
+├── Inventory
+└── System Administration
 ```
+
+`Inventory` یک workspace مستقل است و الگوی آن `Overview → Worklist → Object/Operation` است. مسیرهای اصلی آن شامل موجودی اقلام، دفتر گردش، دریافت، خروج، انتقال دومرحله‌ای، تعدیل، انبارها و موجودی افتتاحیه است. Logistics هنوز workspace عملیاتی نیست و نباید به‌صورت صفحه جعلی نمایش داده شود.
 
 در آینده ممکن است domainهای دیگری اضافه شوند:
 
@@ -240,19 +245,32 @@ Click → Hadron ERP System Home
 
 # 4. Workspace Model
 
-MRP یک **Workspace / Business Space** داخل Hadron ERP است.
+MRP، Production، Inventory و Cash Flow چهار **Workspace / Business Space** مستقل داخل Hadron ERP هستند.
 
 ورود:
 
 ```text
 Hadron ERP System
-        ↓
-       MRP
-        ↓
-MRP Workspace
+        ├── MRP → MRP Workspace
+        └── Production → Production Workspace
 ```
 
-MRP Workspace باید context کاری MRP را حفظ کند و دسترسی به زیرسیستم‌های مرتبط را فراهم کند.
+MRP Workspace باید context برنامه‌ریزی نیازمندی مواد را حفظ کند. Production Workspace در v1 فقط سطح عملیاتی «آمار تولید روزانه» را ارائه می‌کند. Forecast در MRP باقی می‌ماند و ثبت/اصلاح Daily Actual فقط از Production Workspace انجام می‌شود؛ جداسازی Workspace نباید منبع داده یا محاسبات MRP را دوگانه کند.
+
+Cash Flow یک فضای حساس و permission-isolated است و زیرمجموعهٔ MRP، Analytics یا Trading نیست. ساختار فعلی آن:
+
+```text
+Cash Flow
+├── نمای کلی
+├── برنامه پرداخت
+│   └── تقویم تعهدات پرداخت
+├── بهای اقلام و محصولات
+│   └── بهای ساختار محصولات
+└── تنظیمات گزارشگری
+    └── نرخ‌های ارز
+```
+
+نرخ‌های ارز از الگوی `List Report -> Object Page` پیروی می‌کنند. ایجاد/اصلاح مجموعه نرخ یک فرم جدولی در صفحهٔ مستقل است؛ Modal بلند یا Wizard برای آن مجاز نیست. نسخهٔ Published در Display Mode تغییرناپذیر است و Correction، Revision جدید می‌سازد. داشبورد به‌صورت پیش‌فرض USD است ولی مبلغ و ارز اصلی را برای ردیابی حفظ می‌کند.
 
 ---
 
@@ -285,7 +303,7 @@ MRP
 │   └── BOM
 │
 ├── برنامه‌ریزی
-│   ├── Forecast & Actual
+│   ├── Production Forecast
 │   ├── موجودی
 │   ├── وضعیت تأمین
 │   ├── اجرای MRP
@@ -309,8 +327,9 @@ MRP
 | MRP-04 | قطعات / اجزا | اطلاعات پایه |
 | MRP-05 | منابع تأمین | تأمین‌کنندگان و منابع تأمین |
 | MRP-06 | BOM | مهندسی |
-| MRP-07 | Forecast & Actual | برنامه‌ریزی |
-| MRP-08 | موجودی | برنامه‌ریزی |
+| MRP-07 Forecast | Production Forecast | برنامه‌ریزی در MRP |
+| MRP-07 Daily Actual | Daily Production Statistics | عملیات تولید در Production |
+| MRP-08 | موجودی و انبارها | Inventory workspace مستقل |
 | MRP-09 | وضعیت تأمین | برنامه‌ریزی |
 | MRP-10 | اجرای MRP | برنامه‌ریزی |
 | MRP-11 | برنامه‌ریزی مواد | برنامه‌ریزی |
@@ -347,7 +366,7 @@ MRP
   BOM
 
 برنامه‌ریزی
-  Forecast & Actual
+  Production Forecast
   موجودی
   وضعیت تأمین
   اجرای MRP
@@ -355,6 +374,17 @@ MRP
 
 تحلیل و گزارش
   گزارش‌ها و تحلیل MRP
+```
+
+Production Workspace در v1 ناوبری مستقل و حداکثر دو سطحی دارد:
+
+```text
+Production
+
+نمای کلی
+
+عملیات تولید
+  Daily Production Statistics
 ```
 
 ## Collapsed
@@ -508,13 +538,20 @@ History
 
 ### Sourcing
 
-در صورت پیچیده شدن workflow:
+صفحه اصلی منابع تأمین یک Workbench قلم‌محور و دو سطحی است:
 
 ```text
-Sourcing Options
-→ Price History / Route
-→ Detail
+Item (Part / Component)
+└── Sourcing Option (Supplier + MOQ + Route + Lead Time + Readiness)
+    └── Contextual Detail
 ```
+
+- سطح اول قلم است و صفحه‌بندی نیز بر مبنای قلم انجام می‌شود؛ گزینه‌های یک قلم نباید بین دو صفحه شکسته شوند.
+- سطح دوم فقط گزینه‌های تأمین همان قلم است. این ساختار recursive نیست و نباید با درخت مهندسی BOM اشتباه شود.
+- انتخاب هر گزینه، جزئیات رابطه، خط زمانی تأمین و دلیل فارسی آمادگی/عدم‌آمادگی را در پنل کناری نشان می‌دهد.
+- Product فقط context و فیلتر مصرف است؛ مالک رابطه تأمین نیست. مالک رابطه همان Item است.
+- قیمت و ارز در Sourcing ثبت یا نمایش داده نمی‌شود و به فرایند تجاری/مالی مستقل تعلق دارد.
+- Create/Edit/Set Preferred باید علاوه بر محافظت Backend، در UI نیز بر اساس permission مستقل نمایش داده شود.
 
 ### Rule
 
@@ -1122,21 +1159,27 @@ Enterprise Search نباید فقط به‌صورت ظاهری Fake شود.
 
 Notification و User Profile بخشی از Shell Architecture هستند ولی implementation آنها به foundation واقعی نیاز دارد.
 
-تا زمان Identity:
+تا زمان پیاده‌سازی Identity مصوب:
 
 - Fake User profile ممنوع.
 - Fake Notification center ممنوع.
 - fake permission-driven menu ممنوع.
 
+پس از پیاده‌سازی `docs/PERMISSIONS.md`، Shell باید نام کامل و عکس پرسنلی واقعی User احرازشده را از Session سرور نشان دهد. User menu شامل Profile، Change Password و Logout است. عکس یا نام نباید از `localStorage` یا دادهٔ نمایشی ساخته شود.
+
 ---
 
-# 25. Permission-Driven UX — Future
+# 25. Permission-Driven UX
 
-بعد از Identity/RBAC:
+معماری Identity/RBAC در `docs/PERMISSIONS.md` Owner-approved است و بعد از implementation آن:
 
 Navigation باید role-aware شود.
 
 User باید فقط appها/actions مرتبط را ببیند.
+
+System Administration باید User Worklist، Personnel Profile، Role، Permission Matrix، Direct Grant/Deny، Effective Access، Session Revocation و Security History را به‌صورت واضح و جدا ارائه کند.
+
+هر route، navigation item و action جدید باید Permission مشخص داشته باشد. Permission جدید باید به‌صورت خودکار در Catalog مدیریتی ظاهر شود؛ کاربر بدون Grant آن را نمی‌بیند و direct URL/API نیز باید block شود.
 
 اما:
 
@@ -1334,19 +1377,24 @@ Worklist
 
 # 32. Future Page Mapping
 
-## MRP-07 — Forecast & Actual
+## MRP-07 — Production Forecast / Daily Production Actual
 
 ```text
 List Report
 → Product Forecast Object/Period Detail
 ```
 
+Forecast under MRP and Daily Actual under Production are separate user-facing destinations. The Forecast view may show read-only Actual MTD and Remaining Forecast as planning context, but actual entry/correction belongs only to the Production workspace.
+
 ## MRP-08 — Inventory
 
 ```text
-List Report / Analytical Table
-→ Item Inventory Detail
+Inventory Overview
+→ Item Positions / Warehouse Worklist / Immutable Ledger / Transfer Worklist
+→ Item or Warehouse Object / Explicit Posting / Two-Step Transfer Object
 ```
+
+ورود، خروج، Opening، Adjustment و انتقال باید use-case مستقل و permission-aware باشند؛ یک فرم generic با Type selector الگوی تأییدشده نیست. انتقال داخلی در Object Page وضعیت Dispatch، دریافت‌های جزئی و مانده In-Transit را به‌صورت روشن نمایش می‌دهد.
 
 ## MRP-09 — Purchase Supply Foundation
 
@@ -1430,7 +1478,7 @@ HADRON ERP UX — CANONICAL
 
 1. The product name is "Hadron ERP System".
 2. Hadron ERP Home is the global launchpad.
-3. MRP is a workspace/business space inside Hadron ERP.
+3. MRP and Production are separate workspace/business spaces inside Hadron ERP; MRP owns Forecast UX and Production owns Daily Actual UX.
 4. Never expose MRP package numbers as user navigation.
 5. Use business-domain navigation groups.
 6. Use SAP Fiori UX patterns as the enterprise interaction reference.
@@ -1541,3 +1589,39 @@ System truth
 ```
 
 این سه لایه باید مستقل بمانند و در کنار هم Hadron ERP System را بسازند.
+
+---
+
+# 38. Cash Flow Material Costing Pattern
+
+The restricted Cash Flow workspace groups **Product Structure Costing**, **Material Cost Book** and **Purchase Price History** under one Item and Product Costing navigation group. They remain separate pages because they answer different questions: calculated product cost, controlled manual price basis and actual procurement-price history.
+
+Material Cost Book uses List Report -> Object Page. The Object Page header owns book number, name, effective date, revision and lifecycle status. Draft price lines use a server-paged table with one row per Item. Original amount, currency, Pricing Quantity and Price Unit are editable; Item Base Unit, `FactorToBase` and backend-normalized price are visibly read-only. Published revisions are read-only and correction creates a new linked Draft. Publish is a separate permission-aware action with explicit confirmation and partial-coverage disclosure.
+
+Purchase Price History is a read-only List Report with one row per PO Line. Multiple receipts appear as one compact receipt summary, not duplicate rows. Item, Supplier, order-date, currency, PO-status and text filters execute server-side. Original currency is primary. Optional USD comparison is secondary and carries one clearly visible valuation As-Of Date/rate revision for the entire report; it must never look like transaction FX.
+
+Product Structure Costing exposes one explicit basis selector. `PURCHASE_HISTORY` remains the default. `MATERIAL_COST_BOOK` requires a Published revision eligible for the selected valuation date. The chosen basis is preserved in the URL. Missing prices or FX show an incomplete state and null total, never zero or an unlabeled partial total.
+
+For all three surfaces, Persian business date is primary with the Gregorian date in smaller text. Financial input cells use the approved soft-yellow treatment; calculated/system fields use neutral gray; complete results may use the restrained output tint. Status is never communicated by color alone. Validation remains adjacent to the affected field, keyboard focus stays stable during editing, and unsaved Draft changes are protected.
+
+---
+
+# 39. Enterprise Collaboration Pattern
+
+Enterprise Collaboration is a peer workspace with three explicit tasks: Messages, Formal Correspondence and Calls. It must not look like a consumer social network and must not hide formal actions inside chat bubbles.
+
+Messages use a responsive flexible-column layout: conversation list, active timeline and contextual details/composer. On narrow screens, only one task column is primary at a time. The composer remains reachable, keyboard focus is stable, loading does not clear typed content and realtime reconnect performs an authoritative refresh. Files, stickers and reactions are explicit user actions. Edited/deleted state is labelled in text, not color alone.
+
+Formal Correspondence uses List Report -> Object Page. Draft fields and recipients are editable; lifecycle actions are separated and confirmation-worthy. After Issue, the document is visibly read-only and its lifecycle history remains available. Calls expose provider readiness before start and always retain an obvious Leave action; browser device permission failures use local, actionable text.
+
+Hadron character stickers are user message content only. They never communicate system status, approval, security, finance or API truth. Empty/error/loading surfaces follow the companion rules in the brand guidance and keep operational content primary.
+
+## 39.1 Global Communication Center
+
+Authenticated users with Collaboration access retain one persistent Communication Center in the application shell. On desktop it has a clearly labelled, collapsed dock launcher in addition to the compact shell bell; on narrow screens the bell/popover remains the primary compact entry. Its behavior follows the familiar enterprise notification pattern used by professional networks: a bounded unread badge, a compact panel and deep links to the owning task. Its visual expression remains Hadron and must not reproduce another product's branding.
+
+The panel combines Messages, Formal Correspondence and Meetings/Calls while preserving their distinct meanings. Permission-aware quick actions expose Messages, the Meeting worklist, the effective New/Instant Meeting action and Formal Letters without requiring the user to know a route. It also provides All/Message/Letter/Call filters, concise provenance, Tehran-localized time and an explicit action marker. Opening the panel does not mark a message or formal letter as read; acknowledgement occurs only in the owning business context. Active meetings/calls remain visible until ended.
+
+Realtime updates run at authenticated shell scope and fall back to a bounded periodic refresh and refresh-on-window-focus. A new relevant event may produce one restrained, dismissible toast. Historical items never replay as new toasts after login. Failure of the notification surface must not block or paint the owning ERP page as failed.
+
+The shell center is permission-aware and backend-filtered. It must never expose private-channel, formal-letter or call information through frontend hiding alone. Browser/operating-system notifications remain opt-in and are not required for the core workflow.

@@ -4,6 +4,76 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Hadron.Erp.Api.Modules.Planning.Infrastructure;
 
+internal sealed class ForecastPlanConfiguration : IEntityTypeConfiguration<ForecastPlan>
+{
+    public void Configure(EntityTypeBuilder<ForecastPlan> b)
+    {
+        b.ToTable("forecast_plans", "planning", t =>
+        {
+            t.HasCheckConstraint("ck_forecast_plans_name", "btrim(\"Name\") <> ''");
+            t.HasCheckConstraint("ck_forecast_plans_start_month", "\"StartJalaliMonth\" BETWEEN 1 AND 12");
+            t.HasCheckConstraint("ck_forecast_plans_end_month", "\"EndJalaliMonth\" BETWEEN 1 AND 12");
+            t.HasCheckConstraint("ck_forecast_plans_dates", "\"EndDate\" >= \"StartDate\"");
+        });
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        b.Property(x => x.StartDate).HasColumnType("date");
+        b.Property(x => x.EndDate).HasColumnType("date");
+        b.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        b.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.HasIndex(x => new { x.StartDate, x.EndDate });
+        b.HasIndex(x => x.CreatedAtUtc);
+    }
+}
+
+internal sealed class ForecastPlanEntryConfiguration : IEntityTypeConfiguration<ForecastPlanEntry>
+{
+    public void Configure(EntityTypeBuilder<ForecastPlanEntry> b)
+    {
+        b.ToTable("forecast_plan_entries", "planning", t =>
+            t.HasCheckConstraint("ck_forecast_plan_entries_qty", "\"ForecastQty\" >= 0"));
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ForecastQty).HasPrecision(18, 6);
+        b.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.HasIndex(x => new { x.ForecastPlanId, x.ProductId, x.BusinessPeriodId }).IsUnique()
+            .HasDatabaseName("ux_forecast_plan_entry_plan_product_period");
+        b.HasIndex(x => x.ForecastRevisionId);
+        b.HasOne(x => x.ForecastPlan).WithMany(x => x.Entries).HasForeignKey(x => x.ForecastPlanId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.BusinessPeriod).WithMany().HasForeignKey(x => x.BusinessPeriodId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.ForecastRevision).WithMany().HasForeignKey(x => x.ForecastRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class ForecastPlanEntryCorrectionConfiguration : IEntityTypeConfiguration<ForecastPlanEntryCorrection>
+{
+    public void Configure(EntityTypeBuilder<ForecastPlanEntryCorrection> b)
+    {
+        b.ToTable("forecast_plan_entry_corrections", "planning", t =>
+        {
+            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_number", "\"RevisionNumber\" >= 2");
+            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_qty", "\"ForecastQty\" >= 0");
+            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_reason",
+                "btrim(\"Reason\") <> ''");
+        });
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ForecastQty).HasPrecision(18, 6);
+        b.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+        b.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        b.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        b.HasIndex(x => new { x.ForecastPlanEntryId, x.RevisionNumber }).IsUnique()
+            .HasDatabaseName("ux_forecast_plan_entry_correction_revision");
+        b.HasIndex(x => x.ForecastRevisionId);
+        b.HasOne(x => x.ForecastPlanEntry).WithMany(x => x.Corrections)
+            .HasForeignKey(x => x.ForecastPlanEntryId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.ForecastRevision).WithMany().HasForeignKey(x => x.ForecastRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class BusinessPeriodConfiguration : IEntityTypeConfiguration<BusinessPeriod>
 {
     public void Configure(EntityTypeBuilder<BusinessPeriod> b)

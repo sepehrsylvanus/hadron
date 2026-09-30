@@ -90,6 +90,29 @@ public sealed class PurchaseSupplyService(
     public async Task<PurchaseOrderResponse> Create(CreatePurchaseOrderRequest request, CancellationToken ct)
     {
         ValidateCreate(request);
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var response = await CreateOnce(request, ct);
+                await Emit(response.Id, "CREATE", response, null, ct);
+                return response;
+            }
+            catch (Exception ex) when (IsSerializationFailure(ex) && attempt < maxAttempts)
+            {
+                logger.LogWarning(ex,
+                    "Retrying concurrent purchase-order creation after PostgreSQL serialization failure. Attempt {Attempt}/{MaxAttempts}",
+                    attempt, maxAttempts);
+                await Task.Delay(TimeSpan.FromMilliseconds(20 * attempt), ct);
+            }
+        }
+
+        throw new InvalidOperationException("Purchase-order creation retry loop exited unexpectedly.");
+    }
+
+    private async Task<PurchaseOrderResponse> CreateOnce(CreatePurchaseOrderRequest request, CancellationToken ct)
+    {
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var supplier = await db.Suppliers.Include(x => x.PaymentProfile).ThenInclude(x => x.PaymentTerm)
@@ -121,9 +144,7 @@ public sealed class PurchaseSupplyService(
         }
         await Save(db, ct);
         await transaction.CommitAsync(ct);
-        var response = (await Get(order.Id, ct))!;
-        await Emit(order.Id, "CREATE", response, null, ct);
-        return response;
+        return (await Get(order.Id, ct))!;
     }
 
     public async Task<PurchaseOrderResponse> Update(Guid id, UpdatePurchaseOrderRequest request, CancellationToken ct)
@@ -154,8 +175,8 @@ public sealed class PurchaseSupplyService(
         var line = await db.PurchaseOrderLines.SingleOrDefaultAsync(x => x.Id == lineId && x.PurchaseOrderId == id, ct)
             ?? throw new KeyNotFoundException();
         var snapshot = await ResolveLine(db, order.SupplierId, order.CurrencyId, request.Line, order, ct);
-        line.ReplaceDraftSnapshot(snapshot.Option.ItemId, snapshot.Option.Id, snapshot.Price.Id, snapshot.Option.ItemBaseUnitId,
-            request.Line.OrderedQuantity, snapshot.Price.UnitPrice, snapshot.Option.MinimumOrderQuantity,
+        line.ReplaceDraftSnapshot(snapshot.Option.ItemId, snapshot.Option.Id, null, snapshot.Option.ItemBaseUnitId,
+            request.Line.OrderedQuantity, snapshot.UnitPrice, snapshot.Option.MinimumOrderQuantity,
             snapshot.Option.SupplierLeadTimeDays, snapshot.Option.ForwarderToShipmentDays, snapshot.Option.ShippingPeriodDays,
             snapshot.Option.DestinationCustomsDays, Clean(request.Line.Notes));
         var oldSchedules = await db.DeliverySchedules.Where(x => x.PurchaseOrderLineId == lineId).ToListAsync(ct);
@@ -270,7 +291,7 @@ public sealed class PurchaseSupplyService(
         var snapshots = new List<LineSnapshot>();
         foreach (var line in lines)
         {
-            var input = new PurchaseOrderLineInput(line.SourcingOptionId, line.SourcingPriceId, line.OrderedQuantity, null, line.Notes);
+            var input = new PurchaseOrderLineInput(line.SourcingOptionId, line.UnitPrice, line.OrderedQuantity, null, line.Notes);
             snapshots.Add(await ResolveLine(db, order.SupplierId, order.CurrencyId, input, null, ct));
         }
         ValidateGrouping(snapshots);
@@ -278,7 +299,7 @@ public sealed class PurchaseSupplyService(
         for (var i = 0; i < lines.Count; i++)
         {
             var snapshot = snapshots[i];
-            lines[i].RefreshDraftSnapshot(snapshot.Option.ItemBaseUnitId, snapshot.Price.UnitPrice,
+            lines[i].RefreshDraftSnapshot(snapshot.Option.ItemBaseUnitId, lines[i].UnitPrice,
                 snapshot.Option.MinimumOrderQuantity, snapshot.Option.SupplierLeadTimeDays,
                 snapshot.Option.ForwarderToShipmentDays, snapshot.Option.ShippingPeriodDays,
                 snapshot.Option.DestinationCustomsDays);
@@ -464,7 +485,7 @@ public sealed class PurchaseSupplyService(
                     actualMilestones);
             }).ToList();
             return new PurchaseOrderLineResponse(line.Id, line.LineNumber, ItemRef(line.Item), line.SourcingOptionId,
-                line.SourcingOption.SourcingNumber, line.SourcingPriceId, Ref(line.ItemBaseUnit), line.OrderedQuantity,
+                line.SourcingOption.SourcingNumber, Ref(line.ItemBaseUnit), line.OrderedQuantity,
                 line.UnitPrice, line.MinimumOrderQuantity, line.SupplierLeadTimeDays, line.ForwarderToShipmentDays,
                 line.ShippingPeriodDays, line.DestinationCustomsDays, line.LineTotal,
                 schedules.Sum(x => x.ReceivedQuantity), schedules.Sum(x => x.CancelledQuantity),
@@ -516,7 +537,7 @@ public sealed class PurchaseSupplyService(
 
     private static PurchaseOrderLine NewLine(Guid orderId, int lineNumber, LineSnapshot snapshot,
         PurchaseOrderLineInput input) => new(orderId, lineNumber, snapshot.Option.ItemId, snapshot.Option.Id,
-        snapshot.Price.Id, snapshot.Option.ItemBaseUnitId, input.OrderedQuantity, snapshot.Price.UnitPrice,
+        null, snapshot.Option.ItemBaseUnitId, input.OrderedQuantity, snapshot.UnitPrice,
         snapshot.Option.MinimumOrderQuantity, snapshot.Option.SupplierLeadTimeDays,
         snapshot.Option.ForwarderToShipmentDays, snapshot.Option.ShippingPeriodDays,
         snapshot.Option.DestinationCustomsDays, Clean(input.Notes));
@@ -543,23 +564,19 @@ public sealed class PurchaseSupplyService(
             throw Validation("sourcingOptionId", "اینکوترم تخصیص‌یافته باید فعال باشد.");
         if (option.IncotermId.HasValue && !await ActiveReference(db, option.IncotermId.Value, "INCOTERM", ct))
             throw Validation("sourcingOptionId", "نوع Reference اینکوترم معتبر نیست.");
-        var price = await db.SourcingPrices.Include(x => x.Currency)
-            .SingleOrDefaultAsync(x => x.Id == input.SourcingPriceId && x.SourcingOptionId == option.Id, ct)
-            ?? throw Validation("sourcingPriceId", "ردیف قیمت انتخابی متعلق به گزینه تأمین نیست.");
-        if (price.CurrencyId != currencyId) throw Validation("sourcingPriceId", "همه Lineها باید ارز PO را داشته باشند.");
-        if (!price.Currency.IsActive) throw Validation("sourcingPriceId", "ارز فعال الزامی است.");
+        if (!await db.Currencies.AnyAsync(x => x.Id == currencyId && x.IsActive, ct))
+            throw Validation("currencyId", "ارز فعال الزامی است.");
         if (option.MinimumOrderQuantity.HasValue && input.OrderedQuantity < option.MinimumOrderQuantity)
             throw Validation("orderedQuantity", "مقدار سفارش از MOQ کمتر است.");
         if (existingOrder is not null && (existingOrder.ShippingModeId != option.ShippingModeId ||
             existingOrder.IncotermId != option.IncotermId))
             throw Validation("sourcingOptionId", "Shipping Mode و Incoterm باید با PO سازگار باشند.");
-        return new(option, price);
+        return new(option, input.UnitPrice);
     }
 
     private static void ValidateGrouping(IReadOnlyList<LineSnapshot> snapshots)
     {
         if (snapshots.Select(x => x.Option.SupplierId).Distinct().Count() != 1 ||
-            snapshots.Select(x => x.Price.CurrencyId).Distinct().Count() != 1 ||
             snapshots.Select(x => x.Option.ShippingModeId).Distinct().Count() != 1 ||
             snapshots.Select(x => x.Option.IncotermId).Distinct().Count() != 1)
             throw Validation("lines", "Supplier/Currency/Shipping Mode/Incoterm همه Lineها باید یکسان باشد.");
@@ -587,7 +604,6 @@ public sealed class PurchaseSupplyService(
             .Include(x => x.Lines).ThenInclude(x => x.Item)
             .Include(x => x.Lines).ThenInclude(x => x.ItemBaseUnit)
             .Include(x => x.Lines).ThenInclude(x => x.SourcingOption)
-            .Include(x => x.Lines).ThenInclude(x => x.SourcingPrice).ThenInclude(x => x.Currency)
             .Include(x => x.Lines).ThenInclude(x => x.Schedules)
             .AsSplitQuery().SingleAsync(x => x.Id == order.Id, ct);
         if (!loaded.Supplier.IsActive || !loaded.Currency.IsActive || !loaded.PaymentTerm.IsActive ||
@@ -602,7 +618,7 @@ public sealed class PurchaseSupplyService(
         {
             if (!line.Item.IsActive || !line.ItemBaseUnit.IsActive || line.Item.BaseUnitId != line.ItemBaseUnitId ||
                 !line.SourcingOption.IsActive || line.SourcingOption.SupplierId != loaded.SupplierId ||
-                line.SourcingPrice.CurrencyId != loaded.CurrencyId)
+                line.UnitPrice < 0)
                 throw Validation("lines", "Line برای تعهد عملیاتی معتبر نیست.");
             if (line.Schedules.Count == 0 || line.Schedules.Sum(x => x.AllocatedQuantity) != line.OrderedQuantity)
                 throw Validation("schedules", "Scheduleهای هر Line باید دقیقاً با OrderedQty تطبیق داشته باشند.");
@@ -623,7 +639,7 @@ public sealed class PurchaseSupplyService(
     private static void ValidateLine(PurchaseOrderLineInput input)
     {
         if (input.SourcingOptionId == Guid.Empty) throw Validation("sourcingOptionId", "گزینه تأمین الزامی است.");
-        if (input.SourcingPriceId == Guid.Empty) throw Validation("sourcingPriceId", "ردیف قیمت الزامی است.");
+        if (input.UnitPrice < 0) throw Validation("unitPrice", "قیمت خرید باید بزرگ‌تر یا مساوی صفر باشد.");
         if (input.OrderedQuantity <= 0) throw Validation("orderedQuantity", "مقدار سفارش باید مثبت باشد.");
     }
 
@@ -703,6 +719,13 @@ public sealed class PurchaseSupplyService(
         { throw Validation("integrity", ex.InnerException.Message); }
     }
 
+    private static bool IsSerializationFailure(Exception exception) =>
+        exception is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure } ||
+        exception is DbUpdateException
+        {
+            InnerException: PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }
+        };
+
     private async Task Emit(Guid id, string action, object value, string? reason, CancellationToken ct)
     {
         try
@@ -718,7 +741,7 @@ public sealed class PurchaseSupplyService(
     private static PurchaseSupplyValidationException Validation(string key, string message) =>
         new(new Dictionary<string, string[]> { [key] = [message] });
     private static PurchaseSupplyConflictException Conflict(string code, string message) => new(code, message);
-    private sealed record LineSnapshot(SourcingOption Option, SourcingPrice Price);
+    private sealed record LineSnapshot(SourcingOption Option, decimal UnitPrice);
 }
 
 public sealed class PurchaseSupplyValidationException(IReadOnlyDictionary<string, string[]> errors) : Exception

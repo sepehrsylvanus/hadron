@@ -8,7 +8,7 @@ public sealed record CreatePurchaseOrderRequest(
 
 public sealed record PurchaseOrderLineInput(
     Guid SourcingOptionId,
-    Guid SourcingPriceId,
+    decimal UnitPrice,
     decimal OrderedQuantity,
     DateOnly? RequestedReceiptDate,
     string? Notes);
@@ -88,7 +88,6 @@ public sealed record PurchaseOrderLineResponse(
     PurchaseOrderItemRef Item,
     Guid SourcingOptionId,
     string SourcingNumber,
-    Guid SourcingPriceId,
     PurchaseOrderRef ItemBaseUnit,
     decimal OrderedQuantity,
     decimal UnitPrice,

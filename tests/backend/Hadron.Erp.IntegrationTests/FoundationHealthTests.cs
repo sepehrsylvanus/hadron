@@ -1,11 +1,14 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Hadron.Erp.Api.Infrastructure;
+using Hadron.Erp.Api.Modules.Collaboration.Application;
+using Hadron.Erp.Api.Modules.Identity.Domain;
 using Hadron.Erp.Api.Modules.OrderPlanning.Application;
 using Hadron.Erp.Api.Modules.Planning.Application;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Application;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -52,11 +55,13 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
     public MutablePlanningCalendar PlanningCalendar { get; } = new();
     public TestOrderPlanningFaultInjector OrderPlanningFaultInjector { get; } = new();
     public TestPurchaseReceiptFaultInjector PurchaseReceiptFaultInjector { get; } = new();
+    public TestMeetingMediaGateway MeetingMediaGateway { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
+        builder.UseSetting("POSTGRES_DB", DatabaseName);
+        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole().SetMinimumLevel(LogLevel.Warning));
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -64,6 +69,8 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
             }));
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IDataProtectionProvider>();
+            services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
             services.RemoveAll<IDbContextFactory<HadronDbContext>>();
             services.AddDbContextFactory<HadronDbContext>(options =>
                 options.UseNpgsql(TestDatabaseConnectionString(DatabaseName)));
@@ -75,6 +82,8 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
             services.AddSingleton<IOrderPlanningGenerationFaultInjector>(OrderPlanningFaultInjector);
             services.RemoveAll<IPurchaseReceiptFaultInjector>();
             services.AddSingleton<IPurchaseReceiptFaultInjector>(PurchaseReceiptFaultInjector);
+            services.RemoveAll<IMeetingMediaGateway>();
+            services.AddSingleton<IMeetingMediaGateway>(MeetingMediaGateway);
         });
     }
 
@@ -110,6 +119,52 @@ public sealed class FoundationApiFactory : WebApplicationFactory<Program>, IAsyn
     }.ConnectionString;
 }
 
+public sealed class TestMeetingMediaGateway : IMeetingMediaGateway
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<MeetingMediaTokenDescriptor> tokens = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string RoomName, string Identity)> removals = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> endedRooms = new();
+
+    public bool Available { get; set; } = true;
+    public string? UnavailabilityReason => Available ? null : "TEST_PROVIDER_UNAVAILABLE";
+    public string ServerUrl => "wss://meeting.test.invalid";
+    public MeetingRoomEndResult EndResult { get; set; } = MeetingRoomEndResult.Ended();
+    public MeetingParticipantRemoveResult RemoveResult { get; set; } = MeetingParticipantRemoveResult.Removed();
+    public IReadOnlyList<MeetingMediaTokenDescriptor> Tokens => tokens.ToArray();
+    public IReadOnlyList<(string RoomName, string Identity)> Removals => removals.ToArray();
+    public IReadOnlyList<string> EndedRooms => endedRooms.ToArray();
+
+    public string CreateJoinToken(MeetingMediaTokenDescriptor descriptor)
+    {
+        if (!Available) throw new InvalidOperationException(UnavailabilityReason);
+        tokens.Enqueue(descriptor);
+        return $"meeting-test-token:{descriptor.ParticipantIdentity}";
+    }
+
+    public Task<MeetingRoomEndResult> EndRoomAsync(string roomName, CancellationToken cancellationToken)
+    {
+        endedRooms.Enqueue(roomName);
+        return Task.FromResult(EndResult);
+    }
+
+    public Task<MeetingParticipantRemoveResult> RemoveParticipantAsync(string roomName,
+        string participantIdentity, CancellationToken cancellationToken)
+    {
+        removals.Enqueue((roomName, participantIdentity));
+        return Task.FromResult(RemoveResult);
+    }
+
+    public void Reset()
+    {
+        Available = true;
+        EndResult = MeetingRoomEndResult.Ended();
+        RemoveResult = MeetingParticipantRemoveResult.Removed();
+        while (tokens.TryDequeue(out _)) { }
+        while (removals.TryDequeue(out _)) { }
+        while (endedRooms.TryDequeue(out _)) { }
+    }
+}
+
 public sealed class TestPurchaseReceiptFaultInjector : IPurchaseReceiptFaultInjector
 {
     public bool FailAfterReceipt { get; set; }
@@ -138,6 +193,10 @@ public sealed class MutablePlanningCalendar : IPlanningCalendar
     public DateOnly TehranToday => TodayOverride ?? _inner.TehranToday;
     public (DateOnly StartDate, DateOnly EndDate) GetPeriodBounds(int jalaliYear, int jalaliMonth) =>
         _inner.GetPeriodBounds(jalaliYear, jalaliMonth);
+    public DateOnly GetGregorianDate(int jalaliYear, int jalaliMonth, int jalaliDay) =>
+        _inner.GetGregorianDate(jalaliYear, jalaliMonth, jalaliDay);
+    public (int JalaliYear, int JalaliMonth, int JalaliDay) GetJalaliDate(DateOnly gregorianDate) =>
+        _inner.GetJalaliDate(gregorianDate);
     public (int JalaliYear, int JalaliMonth) GetJalaliPeriod(DateOnly gregorianDate) =>
         _inner.GetJalaliPeriod(gregorianDate);
 }
@@ -208,6 +267,51 @@ public static partial class TestDatabaseSafety
             throw new InvalidOperationException(
                 $"Destructive integration-test operation refused for non-test database '{databaseName}'.");
         }
+    }
+}
+
+public static class IntegrationTestIdentity
+{
+    public static async Task<Guid> EnsureActiveWarehouseResponsible(HadronDbContext db,
+        string discriminator)
+    {
+        var normalizedUserName = $"WAREHOUSE-{discriminator}".ToUpperInvariant();
+        var existing = await db.Users.AsNoTracking()
+            .Where(x => x.NormalizedUserName == normalizedUserName)
+            .Select(x => (Guid?)x.Id).SingleOrDefaultAsync();
+        if (existing.HasValue) return existing.Value;
+
+        var unit = new OrganizationalUnit($"واحد تست {discriminator}", $"Test unit {discriminator}");
+        var now = DateTime.UtcNow;
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = $"warehouse-{discriminator}",
+            NormalizedUserName = normalizedUserName,
+            Email = $"warehouse-{discriminator}@example.test",
+            NormalizedEmail = $"WAREHOUSE-{discriminator}@EXAMPLE.TEST".ToUpperInvariant(),
+            EmailConfirmed = true,
+            FirstName = "Warehouse",
+            LastName = "Responsible",
+            PhoneNumber = "+980000000000",
+            PhoneNumberConfirmed = true,
+            OrganizationalUnitId = unit.Id,
+            IsActive = true,
+            MustChangePassword = false,
+            AccessVersion = 1,
+            ProfilePhotoObjectKey = $"tests/{discriminator}.png",
+            ProfilePhotoContentType = "image/png",
+            ProfilePhotoSize = 1,
+            ProfilePhotoSha256 = new string('0', 64),
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            ConcurrencyStamp = Guid.NewGuid().ToString("N"),
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        db.OrganizationalUnits.Add(unit);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        return user.Id;
     }
 }
 

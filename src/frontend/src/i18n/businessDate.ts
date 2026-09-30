@@ -14,6 +14,15 @@ export function formatBusinessDate(value: string | null | undefined, language: s
   }).format(date)
 }
 
+export function formatDualBusinessDateRange(start: string, end: string, language: string) {
+  const englishPrimary = isEnglish(language)
+  const secondaryLanguage = englishPrimary ? 'fa-IR' : 'en'
+  return {
+    primary: `${formatBusinessDate(start, language)} - ${formatBusinessDate(end, language)}`,
+    secondary: `${formatBusinessDate(start, secondaryLanguage)} - ${formatBusinessDate(end, secondaryLanguage)}`,
+  }
+}
+
 export function formatBusinessDateTime(value: string | null | undefined, language: string) {
   if (!value) return '—'
   const locale = isEnglish(language) ? 'en-GB-u-ca-gregory' : 'fa-IR-u-ca-persian'

@@ -96,12 +96,12 @@ public sealed class AnalyticsExportService(AnalyticsService analytics, MaterialP
                     }
                     break;
                 }
-            case "commercial-commitments":
             case "purchase-order-receipt":
                 {
-                    rows.Add(["PONumber", "Supplier", "Currency", "OriginalAmount", "OrderedQty", "ReceivedQty",
-                        "CancelledQty", "OpenQty", "OriginalETA", "CurrentETA", "FirstReceipt", "FinalReceipt",
-                        "Outcome", "Anchor", "AnchorDate", "ExpectedCreditDate"]);
+                    // Keep this legacy Analytics export operational-only. Financial amount/currency and
+                    // payment-anchor fields belong to the separately authorized Cash Flow workspace.
+                    rows.Add(["PONumber", "Supplier", "OrderedQty", "ReceivedQty", "CancelledQty", "OpenQty",
+                        "OriginalETA", "CurrentETA", "FirstReceipt", "FinalReceipt", "Outcome"]);
                     var result = await analytics.Commercial(request.EvaluationDate, request.DataCutoffUtc, request.Search, 1,
                         Math.Min(request.MaximumRows, AnalyticsService.MaximumPageSize), ct);
                     EnsureBounded(result.Page.TotalCount, request.MaximumRows);
@@ -110,11 +110,9 @@ public sealed class AnalyticsExportService(AnalyticsService analytics, MaterialP
                         var current = page == 1 ? result : await analytics.Commercial(request.EvaluationDate,
                             request.DataCutoffUtc, request.Search, page, AnalyticsService.MaximumPageSize, ct);
                         foreach (var x in current.Page.Items) rows.Add([x.PurchaseOrderNumber, x.SupplierNumber,
-                        x.CurrencyCode, x.OriginalAmount.ToString(), x.OrderedQuantity.ToString(),
-                        x.ReceivedQuantity.ToString(), x.CancelledQuantity.ToString(), x.OpenQuantity.ToString(),
-                        x.OriginalEta?.ToString("O"), x.CurrentEta?.ToString("O"), x.FirstReceiptDate?.ToString("O"),
-                        x.FinalReceiptDate?.ToString("O"), x.CompletionOutcome, x.CreditAnchor,
-                        x.CreditAnchorDate?.ToString("O"), x.ExpectedCreditDate?.ToString("O")]);
+                        x.OrderedQuantity.ToString(), x.ReceivedQuantity.ToString(), x.CancelledQuantity.ToString(),
+                        x.OpenQuantity.ToString(), x.OriginalEta?.ToString("O"), x.CurrentEta?.ToString("O"),
+                        x.FirstReceiptDate?.ToString("O"), x.FinalReceiptDate?.ToString("O"), x.CompletionOutcome]);
                     }
                     break;
                 }

@@ -14,13 +14,13 @@ public static class MaterialRiskBands
 
 public sealed record MaterialPlanningRunItem(Guid Id, string RunNumber, DateOnly AsOfDate,
     DateOnly HorizonEndDate, string EngineVersion, string Status, string Completeness,
-    DateTime CompletedAtUtc, int ExceptionCount);
+    string PlanRole, DateTime CompletedAtUtc, int ExceptionCount);
 public sealed record MaterialPlanningRunListResponse(IReadOnlyList<MaterialPlanningRunItem> Items,
     int Page, int PageSize, int TotalCount);
 public sealed record MaterialPlanningRunHeader(Guid Id, string RunNumber, DateOnly AsOfDate,
     DateOnly HorizonEndDate, string EngineVersion, string Status, string Completeness,
     DateTime StartedAtUtc, DateTime? SnapshotCapturedAtUtc, DateTime CompletedAtUtc,
-    bool IsLatest, int MaterialCount, int ExceptionCount);
+    bool IsLatest, string PlanRole, int MaterialCount, int ExceptionCount);
 public sealed record MaterialPlanningCategoryFacet(Guid Id, string Code, string NameFa, string? NameEn);
 public sealed record MaterialPlanningFacetsResponse(IReadOnlyList<MaterialPlanningCategoryFacet> Categories,
     IReadOnlyList<string> SupplyMethods);
@@ -39,14 +39,31 @@ public sealed record MaterialPlanningSummaryRow(MaterialPlanningItemRef Item, de
 public sealed record MaterialPlanningSummaryListResponse(IReadOnlyList<MaterialPlanningSummaryRow> Items,
     int Page, int PageSize, int TotalCount);
 
+public sealed record MaterialPlanningProductRow(MaterialPlanningItemRef Product,
+    decimal PlannedProductionQty, int MaterialCount, int AttentionMaterialCount,
+    string? StockCoverageState, DateOnly? StockCoverageDate, int? StockCoverageDays,
+    string? FirmCoverageState, DateOnly? FirmCoverageDate, int? FirmCoverageDays,
+    MaterialPlanningItemRef? FirstConstraintMaterial, DateOnly? FirstConstraintDate,
+    string RiskBand, string Completeness, string? PrimaryExceptionCode);
+public sealed record MaterialPlanningProductListResponse(IReadOnlyList<MaterialPlanningProductRow> Items,
+    int Page, int PageSize, int TotalCount);
+public sealed record MaterialPlanningUsageProduct(Guid Id, string Code, string NameFa, string? NameEn);
+
+public sealed record MaterialPlanningRefreshStatusResponse(string Status, Guid? LatestRunId,
+    string? LatestRunNumber, DateOnly? LatestAsOfDate, DateTime? LastUpdatedAtUtc,
+    DateTime? LastInputChangeAtUtc, int PendingChangeCount, string? ErrorCode,
+    string? ErrorMessage, Guid? CertifiedRunId, string? CertifiedRunNumber,
+    DateOnly? CertifiedBusinessDate, DateTime? CertifiedAtUtc, string? CertifiedResultHash);
+
 public sealed record MaterialPlanningTimelineBucket(DateOnly StartDate, DateOnly EndDate,
     decimal GrossDemand, decimal FirmIncoming, decimal NetRequirement, decimal FirmProjected,
-    decimal PlanningBalance, string Completeness, bool IncludesStockoutEvent,
-    bool IncludesSafetyBreachEvent);
+    decimal PlanningBalance, decimal StockOnlyProjected, int? CoverageDays, string Zone,
+    string Completeness, bool IncludesStockoutEvent, bool IncludesSafetyBreachEvent);
 public sealed record MaterialPlanningTimelineResponse(MaterialPlanningItemRef Item, string Grain,
     decimal SafetyStockQty,
     string? StockCoverageState, DateOnly? StockCoverageDate, int? StockCoverageDays,
     string? FirmCoverageState, DateOnly? FirmCoverageDate, int? FirmCoverageDays,
+    IReadOnlyList<MaterialPlanningUsageProduct> UsedByProducts,
     IReadOnlyList<MaterialPlanningTimelineBucket> Buckets);
 
 public sealed record MaterialPlanningExceptionRow(Guid Id, Guid? ItemId, string? ItemCode,

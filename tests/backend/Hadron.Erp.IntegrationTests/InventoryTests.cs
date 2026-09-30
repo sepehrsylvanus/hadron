@@ -20,6 +20,7 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
     private readonly List<Guid> _items = [];
     private readonly List<Guid> _units = [];
     private readonly List<Guid> _referenceValues = [];
+    private Guid _responsibleUserId;
 
     public InventoryTests(FoundationApiFactory factory)
     {
@@ -34,6 +35,7 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
         TestDatabaseSafety.EnsureSafeDatabaseName(db.Database.GetDbConnection().Database);
         await db.Database.ExecuteSqlRawAsync(
             "TRUNCATE inventory.transactions, inventory.warehouses RESTART IDENTITY CASCADE");
+        _responsibleUserId = await IntegrationTestIdentity.EnsureActiveWarehouseResponsible(db, "inventory");
         _factory.AuditSink.Clear();
     }
 
@@ -43,6 +45,7 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
         TestDatabaseSafety.EnsureSafeDatabaseName(db.Database.GetDbConnection().Database);
         await db.Database.ExecuteSqlRawAsync(
             "TRUNCATE inventory.transactions, inventory.warehouses RESTART IDENTITY CASCADE");
+        await db.InventoryItemUnitConversions.Where(x => _items.Contains(x.ItemId)).ExecuteDeleteAsync();
         await db.MaterialItemProfiles.Where(x => _items.Contains(x.ItemId)).ExecuteDeleteAsync();
         await db.Products.Where(x => _items.Contains(x.ItemId)).ExecuteDeleteAsync();
         await db.Items.Where(x => _items.Contains(x.Id)).ExecuteDeleteAsync();
@@ -59,6 +62,9 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
                 code = "WH-MANUAL",
                 nameFa = $"انبار {index}",
                 nameEn = $"Warehouse {index}",
+                addressFa = $"موقعیت {index}",
+                addressEn = $"Location {index}",
+                primaryResponsibleUserId = _responsibleUserId,
                 notes = (string?)null
             })));
         Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
@@ -69,11 +75,11 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
 
         var warehouse = rows[0]!;
         var stale = await _client.PutAsJsonAsync($"/api/inventory/warehouses/{warehouse.Id}", new
-        { nameFa = "قدیمی", nameEn = "Stale", notes = (string?)null, expectedVersion = warehouse.Version + 99 });
+        { nameFa = "قدیمی", nameEn = "Stale", addressFa = "موقعیت قدیمی", addressEn = "Stale location", primaryResponsibleUserId = _responsibleUserId, notes = (string?)null, expectedVersion = warehouse.Version + 99 });
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
         Assert.Equal("STALE_VERSION", await Code(stale));
         var editedResponse = await _client.PutAsJsonAsync($"/api/inventory/warehouses/{warehouse.Id}", new
-        { nameFa = "انبار ویرایش", nameEn = "Edited warehouse", notes = "note", expectedVersion = warehouse.Version });
+        { nameFa = "انبار ویرایش", nameEn = "Edited warehouse", addressFa = "موقعیت ویرایش‌شده", addressEn = "Edited location", primaryResponsibleUserId = _responsibleUserId, notes = "note", expectedVersion = warehouse.Version });
         editedResponse.EnsureSuccessStatusCode();
         var edited = (await editedResponse.Content.ReadFromJsonAsync<WarehouseDto>())!;
         Assert.Equal(warehouse.Code, edited.Code);
@@ -128,6 +134,10 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
             ledger!.Items.Select(x => x.TransactionType).Distinct().Order().ToArray());
         Assert.DoesNotContain(ledger.Items, x => x.TransactionType.Contains("ADJUSTMENT"));
         Assert.All(ledger.Items, x => Assert.Matches("^(PRD|PRT|CMP)-[0-9]{4,}$", x.Item.Code));
+
+        var unfilteredLedger = await _client.GetFromJsonAsync<TransactionListDto>(
+            "/api/inventory/transactions?transactionType=&page=1&pageSize=100");
+        Assert.Equal(ledger.Items.Count(), unfilteredLedger!.Items.Count());
     }
 
     [Fact]
@@ -153,7 +163,7 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
     }
 
     [Fact]
-    public async Task Transfer_is_atomic_company_neutral_reversible_and_same_warehouse_is_rejected()
+    public async Task Transfer_is_two_step_company_neutral_reversible_and_same_warehouse_is_rejected()
     {
         var unit = await AddUnit("کیلوگرم", "Kilogram");
         var item = await AddItem(ItemTypes.Component, unit.Id, "ماده", "Material");
@@ -167,23 +177,74 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
             sourceWarehouseId = source.Id,
             destinationWarehouseId = destination.Id,
             quantity = 7.5m,
-            effectiveDate = date,
             reason = "move"
         });
         Assert.Equal(HttpStatusCode.Created, transferResponse.StatusCode);
-        var transfer = (await transferResponse.Content.ReadFromJsonAsync<TransactionDto>())!;
+        var draft = (await transferResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("DRAFT", draft.Status);
+        var dispatchResponse = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/dispatch",
+            new { effectiveDate = date, expectedVersion = draft.Version, reason = "loaded" });
+        dispatchResponse.EnsureSuccessStatusCode();
+        var dispatched = (await dispatchResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("DISPATCHED", dispatched.Status);
         var detail = await _client.GetFromJsonAsync<ItemPositionDto>(
             $"/api/inventory/items/{item}/position?asOfDate={date:yyyy-MM-dd}");
-        Assert.Equal(20, detail!.CompanyTotal);
+        Assert.Equal(20, detail!.CompanyOwnedTotal);
+        Assert.Equal(12.5m, detail.UsablePhysicalTotal);
+        Assert.Equal(7.5m, detail.InTransitTotal);
         Assert.Equal(12.5m, detail.Warehouses.Single(x => x.Warehouse.Id == source.Id).ActualOnHand);
-        Assert.Equal(7.5m, detail.Warehouses.Single(x => x.Warehouse.Id == destination.Id).ActualOnHand);
 
-        await Reverse(transfer.Id, "return transfer");
+        var partialResponse = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/receive",
+            new { quantity = 3m, effectiveDate = date, expectedVersion = dispatched.Version, reason = "first pallet" });
+        partialResponse.EnsureSuccessStatusCode();
+        var partial = (await partialResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("PARTIALLY_RECEIVED", partial.Status);
+        Assert.Equal(3m, partial.ReceivedQuantity);
+        Assert.Equal(4.5m, partial.InTransitQuantity);
+        var overReceipt = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/receive",
+            new { quantity = 5m, effectiveDate = date, expectedVersion = partial.Version, reason = "too much" });
+        Assert.Equal(HttpStatusCode.Conflict, overReceipt.StatusCode);
+        Assert.Equal("TRANSFER_OVER_RECEIPT", await Code(overReceipt));
+        var receiveResponse = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/receive",
+            new { quantity = 4.5m, effectiveDate = date, expectedVersion = partial.Version, reason = "final pallet" });
+        receiveResponse.EnsureSuccessStatusCode();
+        var received = (await receiveResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("RECEIVED", received.Status);
+        Assert.Equal(2, received.Receipts.Length);
         detail = await _client.GetFromJsonAsync<ItemPositionDto>(
             $"/api/inventory/items/{item}/position?asOfDate={date:yyyy-MM-dd}");
-        Assert.Equal(20, detail!.CompanyTotal);
+        Assert.Equal(20, detail!.CompanyOwnedTotal);
+        Assert.Equal(20, detail.UsablePhysicalTotal);
+        Assert.Equal(0, detail.InTransitTotal);
+        Assert.Equal(7.5m, detail.Warehouses.Single(x => x.Warehouse.Id == destination.Id).ActualOnHand);
+
+        var reverseFinalResponse = await _client.PostAsJsonAsync(
+            $"/api/inventory/transfers/{draft.Id}/receipts/{received.Receipts[1].Id}/reverse",
+            new { expectedVersion = received.Version, reason = "wrong receipt" });
+        reverseFinalResponse.EnsureSuccessStatusCode();
+        var partiallyReversed = (await reverseFinalResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("PARTIALLY_RECEIVED", partiallyReversed.Status);
+        var blockedCancel = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/cancel",
+            new { expectedVersion = partiallyReversed.Version, reason = "still received" });
+        Assert.Equal(HttpStatusCode.Conflict, blockedCancel.StatusCode);
+        Assert.Equal("PARTIALLY_RECEIVED_TRANSFER_CANNOT_BE_CANCELLED", await Code(blockedCancel));
+        var reverseFirstResponse = await _client.PostAsJsonAsync(
+            $"/api/inventory/transfers/{draft.Id}/receipts/{received.Receipts[0].Id}/reverse",
+            new { expectedVersion = partiallyReversed.Version, reason = "reverse first pallet" });
+        reverseFirstResponse.EnsureSuccessStatusCode();
+        var reversed = (await reverseFirstResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("DISPATCHED", reversed.Status);
+        var cancelResponse = await _client.PostAsJsonAsync($"/api/inventory/transfers/{draft.Id}/cancel",
+            new { expectedVersion = reversed.Version, reason = "return to source" });
+        cancelResponse.EnsureSuccessStatusCode();
+        var cancelled = (await cancelResponse.Content.ReadFromJsonAsync<TransferDto>())!;
+        Assert.Equal("CANCELLED", cancelled.Status);
+        detail = await _client.GetFromJsonAsync<ItemPositionDto>(
+            $"/api/inventory/items/{item}/position?asOfDate={date:yyyy-MM-dd}");
+        Assert.Equal(20, detail!.CompanyOwnedTotal);
+        Assert.Equal(20, detail.UsablePhysicalTotal);
+        Assert.Equal(0, detail.InTransitTotal);
         Assert.Equal(20, detail.Warehouses.Single(x => x.Warehouse.Id == source.Id).ActualOnHand);
-        Assert.Equal(0, detail.Warehouses.Single(x => x.Warehouse.Id == destination.Id).ActualOnHand);
 
         var invalid = await _client.PostAsJsonAsync("/api/inventory/transfers", new
         {
@@ -191,12 +252,31 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
             sourceWarehouseId = source.Id,
             destinationWarehouseId = source.Id,
             quantity = 1,
-            effectiveDate = date,
             reason = (string?)null
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         await using var db = await Db();
-        Assert.Equal(3, await db.InventoryTransactions.CountAsync());
+        Assert.Equal(7, await db.InventoryTransactions.CountAsync());
+        Assert.Single(await db.InventoryTransfers.ToListAsync());
+        Assert.Equal(2, await db.InventoryTransferReceipts.CountAsync());
+        var immutableTransfer = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE inventory.transfers SET \"RequestedQuantity\" = {99m} WHERE \"Id\" = {draft.Id}"));
+        Assert.Equal("ck_inventory_transfer_immutable", immutableTransfer.ConstraintName);
+        var immutableReceipt = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM inventory.transfer_receipts WHERE \"Id\" = {received.Receipts[0].Id}"));
+        Assert.Equal("ck_inventory_transfer_receipt_immutable", immutableReceipt.ConstraintName);
+        var directLegacyTransfer = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO inventory.transactions
+                  ("Id","TransactionType","ItemId","WarehouseId","DestinationWarehouseId",
+                   "Quantity","UnitId","EnteredQuantity","TransactionUnitId",
+                   "ConversionFactorToBase","EffectiveDate")
+                VALUES ({Guid.NewGuid()}, {'T' + "RANSFER"}, {item}, {source.Id}, {destination.Id},
+                        {1m}, {unit.Id}, {1m}, {unit.Id}, {1m}, {date})
+                """));
+        Assert.Equal("ck_inventory_transfer_workflow_required", directLegacyTransfer.ConstraintName);
     }
 
     [Fact]
@@ -393,7 +473,7 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
         await Reverse(issue.Id, "controlled correction");
         var position = await _client.GetFromJsonAsync<ItemPositionDto>(
             $"/api/inventory/items/{item}/position?asOfDate={date:yyyy-MM-dd}");
-        Assert.Equal(10, position!.CompanyTotal);
+        Assert.Equal(10, position!.CompanyOwnedTotal);
         Assert.True(position.HasInactiveWarehouseStockWarning);
         Assert.True(position.Warehouses.Single().InactiveWarehouseStockWarning);
     }
@@ -614,6 +694,122 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
     }
 
     [Fact]
+    public async Task Transaction_unit_conversion_is_exact_snapshotted_and_supports_piece_to_weight()
+    {
+        var kilogram = await AddUnit("کیلوگرم تبدیل", "Conversion kilogram");
+        var piece = await AddUnit("عدد تبدیل", "Conversion piece");
+        var item = await AddItem(ItemTypes.Part, kilogram.Id, "بدنه چهارده گرمی", "Fourteen gram body");
+        var warehouse = await CreateWarehouse("انبار تبدیل واحد", "Unit conversion warehouse");
+
+        var create = await _client.PostAsJsonAsync($"/api/inventory/items/{item}/units", new
+        {
+            transactionUnitId = piece.Id,
+            factorToBase = .014m
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var conversion = (await create.Content.ReadFromJsonAsync<UnitConversionDto>())!;
+        Assert.Equal(.014m, conversion.FactorToBase);
+        Assert.True(conversion.IsActive);
+
+        var firstResponse = await _client.PostAsJsonAsync("/api/inventory/receipts", new
+        {
+            itemId = item,
+            warehouseId = warehouse.Id,
+            quantity = 1000m,
+            transactionUnitId = piece.Id,
+            effectiveDate = new DateOnly(2025, 11, 1),
+            reason = (string?)null
+        });
+        firstResponse.EnsureSuccessStatusCode();
+        var first = (await firstResponse.Content.ReadFromJsonAsync<TransactionDto>())!;
+        Assert.Equal(1000m, first.EnteredQuantity);
+        Assert.Equal(piece.Id, first.TransactionUnit.Id);
+        Assert.Equal(.014m, first.ConversionFactorToBase);
+        Assert.Equal(14m, first.Quantity);
+        Assert.Equal(kilogram.Id, first.Unit.Id);
+
+        var edit = await _client.PutAsJsonAsync(
+            $"/api/inventory/items/{item}/units/{conversion.Id}", new
+            {
+                factorToBase = .015m,
+                expectedVersion = conversion.Version
+            });
+        edit.EnsureSuccessStatusCode();
+        var changed = (await edit.Content.ReadFromJsonAsync<UnitConversionDto>())!;
+        Assert.Equal(.015m, changed.FactorToBase);
+
+        var secondResponse = await _client.PostAsJsonAsync("/api/inventory/receipts", new
+        {
+            itemId = item,
+            warehouseId = warehouse.Id,
+            quantity = 1000m,
+            transactionUnitId = piece.Id,
+            effectiveDate = new DateOnly(2025, 11, 2),
+            reason = (string?)null
+        });
+        secondResponse.EnsureSuccessStatusCode();
+        var second = (await secondResponse.Content.ReadFromJsonAsync<TransactionDto>())!;
+        Assert.Equal(15m, second.Quantity);
+        Assert.Equal(.015m, second.ConversionFactorToBase);
+
+        var persistedFirst = await _client.GetFromJsonAsync<TransactionDto>(
+            $"/api/inventory/transactions/{first.Id}");
+        Assert.Equal(14m, persistedFirst!.Quantity);
+        Assert.Equal(.014m, persistedFirst.ConversionFactorToBase);
+        Assert.Equal(29m, (await Balances(new DateOnly(2025, 11, 2))).Items.Single().ActualOnHand);
+    }
+
+    [Fact]
+    public async Task Production_staging_is_company_owned_but_excluded_from_usable_mrp_stock()
+    {
+        var unit = await AddUnit("واحد انبار تولید", "Production warehouse unit");
+        var item = await AddItem(ItemTypes.Component, unit.Id, "ماده تولید", "Production material");
+        var source = await CreateWarehouse("انبار مواد", "Material storage", "STORAGE");
+        var staging = await CreateWarehouse("پای خط تولید", "Production staging", "PRODUCTION_STAGING");
+        var date = new DateOnly(2025, 12, 1);
+        await Post("openings", item, source.Id, 100m, date);
+
+        var create = await _client.PostAsJsonAsync("/api/inventory/transfers", new
+        {
+            itemId = item,
+            sourceWarehouseId = source.Id,
+            destinationWarehouseId = staging.Id,
+            quantity = 40m,
+            reason = "آماده‌سازی تولید"
+        });
+        create.EnsureSuccessStatusCode();
+        var transfer = (await create.Content.ReadFromJsonAsync<TransferDto>())!;
+        var dispatch = await _client.PostAsJsonAsync($"/api/inventory/transfers/{transfer.Id}/dispatch",
+            new { effectiveDate = date, expectedVersion = transfer.Version, reason = "تحویل به خط" });
+        dispatch.EnsureSuccessStatusCode();
+        transfer = (await dispatch.Content.ReadFromJsonAsync<TransferDto>())!;
+        var receive = await _client.PostAsJsonAsync($"/api/inventory/transfers/{transfer.Id}/receive",
+            new { quantity = 40m, effectiveDate = date, expectedVersion = transfer.Version, reason = "دریافت پای خط" });
+        receive.EnsureSuccessStatusCode();
+
+        var position = await _client.GetFromJsonAsync<ItemPositionDto>(
+            $"/api/inventory/items/{item}/position?asOfDate={date:yyyy-MM-dd}");
+        Assert.Equal(100m, position!.CompanyOwnedTotal);
+        Assert.Equal(60m, position.UsablePhysicalTotal);
+        Assert.Equal(40m, position.ProductionStagingTotal);
+        Assert.Equal(0m, position.InTransitTotal);
+        Assert.False(position.Warehouses.Single(x => x.Warehouse.Id == staging.Id)
+            .Warehouse.IncludeInMrpAvailable);
+
+        var filtered = await _client.GetFromJsonAsync<WarehouseListDto>(
+            "/api/inventory/warehouses?warehouseType=PRODUCTION_STAGING&page=1&pageSize=25");
+        Assert.Single(filtered!.Items);
+        Assert.Equal(staging.Id, filtered.Items[0].Id);
+        Assert.Equal("PRODUCTION_STAGING", filtered.Items[0].WarehouseType);
+
+        await using var db = await Db();
+        var forbidden = await Assert.ThrowsAsync<PostgresException>(() =>
+            db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE inventory.warehouses SET \"WarehouseType\" = {'S' + "TORAGE"}, \"IncludeInMrpAvailable\" = true WHERE \"Id\" = {staging.Id}"));
+        Assert.Equal("ck_warehouse_type_immutable_with_history", forbidden.ConstraintName);
+    }
+
+    [Fact]
     public async Task Failed_mutations_emit_no_success_audit_and_post_commit_sink_failure_keeps_transaction()
     {
         var unit = await AddUnit("واحد ممیزی", "Audit unit");
@@ -667,10 +863,11 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
         return item.Id;
     }
 
-    private async Task<WarehouseDto> CreateWarehouse(string nameFa, string? nameEn)
+    private async Task<WarehouseDto> CreateWarehouse(string nameFa, string? nameEn,
+        string? warehouseType = null)
     {
         var response = await _client.PostAsJsonAsync("/api/inventory/warehouses",
-            new { nameFa, nameEn, notes = (string?)null });
+            new { nameFa, nameEn, addressFa = $"موقعیت {nameFa}", addressEn = $"Location {nameEn}", primaryResponsibleUserId = _responsibleUserId, notes = (string?)null, warehouseType });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<WarehouseDto>())!;
     }
@@ -727,8 +924,9 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
         Guid itemId, Guid warehouseId, Guid unitId, DateOnly effectiveDate) =>
         await Execute(connection, transaction, """
             INSERT INTO inventory.transactions
-              ("Id","TransactionType","ItemId","WarehouseId","Quantity","UnitId","EffectiveDate")
-            VALUES (@id,'RECEIPT',@item,@warehouse,1,@unit,@date)
+              ("Id","TransactionType","ItemId","WarehouseId","Quantity","UnitId",
+               "EnteredQuantity","TransactionUnitId","ConversionFactorToBase","EffectiveDate")
+            VALUES (@id,'RECEIPT',@item,@warehouse,1,@unit,1,@unit,1,@date)
             """, ("id", Guid.NewGuid()), ("item", itemId), ("warehouse", warehouseId),
             ("unit", unitId), ("date", effectiveDate));
 
@@ -762,10 +960,11 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
     private sealed record ItemDto(Guid Id, string Code, string ItemType, string NameFa,
         string? NameEn, bool IsActive, UnitDto BaseUnit);
     private sealed record WarehouseDto(Guid Id, string Code, string NameFa, string? NameEn,
-        bool IsActive, string? Notes, long Version);
+        string WarehouseType, bool IncludeInMrpAvailable, bool IsActive, string? Notes, long Version);
     private sealed record WarehouseListDto(WarehouseDto[] Items, int Page, int PageSize, int TotalCount);
     private sealed record TransactionDto(Guid Id, string TransactionType, ItemDto Item,
         WarehouseDto Warehouse, WarehouseDto? DestinationWarehouse, decimal Quantity, UnitDto Unit,
+        decimal EnteredQuantity, UnitDto TransactionUnit, decimal ConversionFactorToBase,
         DateOnly EffectiveDate, string? Reason, Guid? OriginalTransactionId,
         string? SourceDocumentType, Guid? SourceDocumentId);
     private sealed record TransactionListDto(TransactionDto[] Items, int TotalCount);
@@ -774,7 +973,19 @@ public sealed class InventoryTests : IClassFixture<FoundationApiFactory>, IAsync
     private sealed record BalanceListDto(DateOnly AsOfDate, BalanceRowDto[] Items, int TotalCount);
     private sealed record ItemWarehouseBalanceDto(WarehouseDto Warehouse, decimal ActualOnHand,
         bool InactiveWarehouseStockWarning);
-    private sealed record ItemPositionDto(DateOnly AsOfDate, ItemDto Item, decimal CompanyTotal,
-        bool HasInactiveWarehouseStockWarning, ItemWarehouseBalanceDto[] Warehouses);
+    private sealed record ItemPositionDto(DateOnly AsOfDate, ItemDto Item, decimal UsablePhysicalTotal,
+        decimal ProductionStagingTotal, decimal InTransitTotal, decimal CompanyOwnedTotal,
+        bool HasInactiveWarehouseStockWarning,
+        ItemWarehouseBalanceDto[] Warehouses);
+    private sealed record TransferReceiptDto(Guid Id, decimal Quantity, decimal EnteredQuantity,
+        UnitDto TransactionUnit, decimal ConversionFactorToBase, DateOnly EffectiveDate,
+        Guid InventoryTransactionId, bool IsReversed);
+    private sealed record TransferDto(Guid Id, string Code, string Status, ItemDto Item, UnitDto Unit,
+        WarehouseDto SourceWarehouse, WarehouseDto DestinationWarehouse, decimal RequestedQuantity,
+        decimal EnteredRequestedQuantity, UnitDto TransactionUnit, decimal ConversionFactorToBase,
+        decimal DispatchedQuantity, decimal ReceivedQuantity, decimal InTransitQuantity,
+        DateOnly? DispatchDate, long Version, TransferReceiptDto[] Receipts);
+    private sealed record UnitConversionDto(Guid? Id, UnitDto TransactionUnit, UnitDto BaseUnit,
+        decimal FactorToBase, bool IsBaseUnit, bool IsActive, long Version);
     private sealed record BusinessDateDto(DateOnly TehranBusinessDate, int JalaliYear, int JalaliMonth);
 }

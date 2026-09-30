@@ -6,6 +6,17 @@
 
 ---
 
+## Owner Correction — 2026-08-31 (LOCKED)
+
+- PO Line دیگر یک Sourcing Price فعال انتخاب نمی‌کند؛ `SourcingPriceId` برای رکوردهای جدید تهی است.
+- UnitPrice و Currency ورودی صریح کاربر مجاز در تصمیم تجاری/PO هستند و در PO Snapshot تغییرناپذیر می‌شوند.
+- Sourcing فقط منبع Item–Supplier، MOQ، Route و Lead Time است؛ هیچ fallback یا refresh قیمت از Sourcing مجاز نیست.
+- داده قدیمی Sourcing Price حذف نمی‌شود، اما فقط آرشیو تاریخی است.
+
+این اصلاح بر عبارت‌های متعارض «selected Sourcing Price» در baseline قدیمی این سند مقدم است.
+
+---
+
 # A. Final Feature Specification — 09-PURCHASE-SUPPLY-FOUNDATION
 
 ## 1. Purpose

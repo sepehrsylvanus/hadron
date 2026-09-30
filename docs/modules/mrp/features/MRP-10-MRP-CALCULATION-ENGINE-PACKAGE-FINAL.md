@@ -6,6 +6,12 @@
 
 ---
 
+## Owner Correction — Current BOM Run Snapshot (2026-08-30)
+
+MRP-10 دیگر BOM را بر اساس Demand Date از Master زنده resolve نمی‌کند. در transaction کوتاه Source Snapshot، موتور فقط BOM جاری `APPROVED` هر Parent قابل‌دسترسی را capture می‌کند و همان ساختار تغییرناپذیر را برای تمام تاریخ‌های Run به کار می‌برد. تغییر یا جایگزینی BOM بعدی، Run تاریخی را تغییر نمی‌دهد. Machine code قدیمی `MISSING_EFFECTIVE_BOM` برای سازگاری contract باقی می‌ماند، اما معنای آن «نبود BOM جاری Approved در snapshot Run» است. هر wording پایین‌تر درباره EffectiveFrom/EffectiveTo یا انتخاب BOM بر اساس Demand Date توسط این تصمیم supersede می‌شود. فرمول‌ها، Golden Dataset و تاریخ‌های Forecast/MRP تغییر نمی‌کنند.
+
+---
+
 # A. Final Feature Specification — 10-MRP-CALCULATION-ENGINE
 
 ## 1. Purpose
@@ -83,20 +89,23 @@ The user/system may run a shorter or longer horizon when needed.
 
 ### LOCKED DECISION
 
-Each official calculation execution creates a separate immutable:
+Each calculation is first produced as an immutable candidate Run. Operational publication uses two replaceable pointers:
 
 ```text
-MRP Calculation Run
+CURRENT   = latest atomically published operational plan
+CERTIFIED = last audited prior-day operational plan
 ```
 
-Example:
+The Run rows and children remain immutable while referenced. Replacing a slot never mutates its prior Run; it atomically points the slot to the completed candidate and then removes the superseded full operational Run only when no business lineage references it.
+
+Explicit decision-bearing executions are `PUBLISHED` snapshots and remain immutable:
 
 ```text
 MRP-RUN-000127
 MRP-RUN-000128
 ```
 
-A new Run never overwrites a previous Run.
+Daily audit history is kept as lightweight immutable certificates with deterministic content hashes, not an unbounded sequence of full calculation datasets. This storage lifecycle does not change calculation formulas or trace content inside a retained snapshot.
 
 ---
 
@@ -2155,16 +2164,14 @@ Run cancellation is not implemented in v1. Do not add unnecessary orchestration 
 
 ## 119. Storage Retention
 
-Historical Runs are valuable for:
+Historical decision snapshots are valuable for:
 
 - audit
 - recommendation explanation
 - regression
 - planning comparison
 
-Do not automatically delete old official Runs.
-
-Future archival policy may be added later.
+Keep only the full `CURRENT` and `CERTIFIED` operational datasets plus immutable `PUBLISHED`/business-lineage snapshots. After an atomic slot replacement, delete the superseded unreferenced operational Run and retain its lightweight daily certificate. Never prune a Run referenced by Recommendation Generation, Expert Decision/PO lineage, What-If Scenario or another immutable business record.
 
 ---
 
@@ -2277,7 +2284,7 @@ The following are locked for MRP-10:
 2. Run-specific As-Of Date + Horizon End.
 3. Default Horizon = Jalali Period containing As-Of + next 11 Periods; default Horizon End = Gregorian end of the twelfth Period; explicit override requires `HorizonEnd >= AsOf`.
 4. No hard database horizon limit.
-5. Every official execution creates immutable MRP Run.
+5. Every candidate calculation is immutable; operational publication atomically replaces `CURRENT` or `CERTIFIED`, while only explicit business-decision snapshots are retained as additional full Runs.
 6. Run records Engine Version.
 7. Forecast Revision input trace is required.
 8. BOM Revision input trace is required.

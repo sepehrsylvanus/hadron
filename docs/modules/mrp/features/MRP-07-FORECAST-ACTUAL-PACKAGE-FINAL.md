@@ -276,7 +276,7 @@ It does NOT yet implement a full Forecast Analytics engine.
 
 ### LOCKED DECISION
 
-Until the future Production Module exists, MRP-07 provides a simple temporary operational source for Daily Production Actual.
+MRP-07 continues to provide the v1 persistence/API source for Daily Production Actual, while its user-facing entry, review, and correction surface belongs to the top-level Production Workspace. This navigation separation does not create a second Actual source or change MRP planning formulas.
 
 Grain:
 
@@ -325,7 +325,7 @@ Do not introduce:
 
 level production tracking in MRP-07.
 
-Those belong to a future Production Module.
+Those belong to a future full Production domain expansion and are not introduced by the minimal Production Workspace.
 
 ---
 
@@ -349,7 +349,7 @@ Product + Production Date
 
 ### LOCKED DECISION
 
-MRP-07 Daily Actual is a temporary source.
+MRP-07 Daily Actual remains the v1 technical source behind the Production Workspace.
 
 Future architecture:
 
@@ -359,7 +359,7 @@ Production Module Daily Actual
 MRP reads Actual
 ```
 
-When Production Module becomes source of truth:
+If a future full Production module later replaces this technical source of truth:
 
 - duplicate manual monthly Actual must not remain
 - MRP must not double-count both sources
@@ -787,7 +787,7 @@ Server-side query/paging/range design should fit expected volume.
 
 ## 39. Daily Actual UI
 
-MRP-07 should provide a simple Daily Actual entry/review interface.
+The Production Workspace must provide a simple Daily Actual entry/review interface, separate from the MRP Production Forecast destination.
 
 Baseline:
 
@@ -801,7 +801,7 @@ Filters:
 - Product
 - Product Category where useful
 
-No Production Module complexity should be introduced.
+No Shift, Line, Machine, Work Center, Batch, or other full Production Module complexity should be introduced.
 
 ---
 
@@ -1149,7 +1149,7 @@ MRP-07 is acceptable when:
 9. Historical Forecast revisions are not overwritten/zeroed.
 10. Daily Actual grain is Product + Date.
 11. Only one logical Daily Actual aggregate exists per Product + Date.
-12. Daily Actual is temporary MRP input pending future Production Module.
+12. Daily Actual is entered from the Production Workspace and remains the temporary MRP-07 technical input pending a future full Production domain module.
 13. Monthly Actual is derived from Daily Actual.
 14. No separate manually editable Monthly Actual exists.
 15. Past planning truth uses Actual while Forecast history remains.
@@ -1251,15 +1251,15 @@ Forecast Accuracy cutoffs are locked as follows:
 
 The previous open question:
 
-`Temporary source of Daily Production Actual until Production Module exists`
+`Temporary technical source of Daily Production Actual until a full Production domain module exists`
 
 is now CLOSED.
 
 Approved answer:
 
 ```text
-MRP-07 provides temporary Product + Date aggregate Daily Actual input.
-Future Production Module becomes the authoritative source without double counting.
+MRP-07 provides temporary Product + Date aggregate Daily Actual persistence/API.
+The v1 user-facing surface is the Production Workspace; a future full Production domain module may become the authoritative technical source without double counting.
 ```
 
 The previous open question:
@@ -1361,7 +1361,7 @@ Required analysis:
     - Product + Date
     - one logical aggregate per day
     - correction/audit
-11. Future Production Module source-of-truth migration boundary.
+11. Production Workspace UI separation and future full Production domain source-of-truth migration boundary.
 12. Monthly Actual and Actual MTD derivation.
 13. Past/Current/Future planning-source rules.
 14. Confirm:
@@ -1601,6 +1601,12 @@ Do not implement MRP Run yet.
 
 FRONTEND
 Implement approved:
+
+Workspace separation:
+- Production Forecast is under the MRP Workspace.
+- Daily Actual entry/review/correction is under the top-level Production Workspace.
+- Forecast may display Actual MTD/Remaining as read-only planning context.
+- no duplicate Actual source, API, or persistence model is created.
 
 Forecast:
 - row-oriented Product grid
@@ -1882,6 +1888,8 @@ Audit:
     - BOM warnings
     - revision history
     - Daily Actual
+    - Forecast and Daily Actual are separate Workspace destinations
+    - Actual mutation is not exposed from the MRP Forecast destination
     - Close/Reopen clarity
 
 15. Permissions / Auditability
@@ -2011,8 +2019,8 @@ Closed:
 ### Temporary Daily Production Actual Source
 
 ```text
-MRP-07 temporary Product+Date aggregate input
-→ future Production Module becomes source of truth
+Production Workspace → MRP-07 temporary Product+Date aggregate technical input
+→ future full Production domain module may become source of truth
 ```
 
 ### Closed-Period Editing
@@ -2052,7 +2060,7 @@ Canonical Date Storage = Gregorian
 - Forecast and BOM readiness were separated so Engineering incompleteness does not destroy demand data.
 - Long-term storage is decoupled from UI working range.
 - Jalali Business Period is separated from Gregorian canonical date arithmetic.
-- Future Production Module migration boundary prevents double counting.
+- Production Workspace UI separation creates no duplicate source, and the future full Production domain migration boundary prevents double counting.
 
 ## Deferred Downstream Scope
 
@@ -2074,7 +2082,7 @@ Analysis-only, Repository-aware, and specifically audits calendar correctness, r
 ### MRP-07B
 PASS
 
-Implementation is bounded to Forecast/Actual and explicitly blocks BOM Explosion, Inventory, MRP Calculation and Production Module scope creep.
+Implementation is bounded to Forecast/Actual and explicitly blocks BOM Explosion, Inventory, MRP Calculation and full Production Module scope creep. The minimal Production Workspace is only the user-facing Daily Actual operational surface.
 
 ### MRP-07C
 PASS

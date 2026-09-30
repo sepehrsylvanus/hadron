@@ -10,6 +10,95 @@ public static class BusinessPeriodStatuses
     public const string Closed = "CLOSED";
 }
 
+public sealed class ForecastPlan
+{
+    private ForecastPlan() { }
+
+    public ForecastPlan(string name, int startJalaliYear, int startJalaliMonth,
+        int endJalaliYear, int endJalaliMonth, DateOnly startDate, DateOnly endDate,
+        string? actorIdentifier)
+    {
+        Id = Guid.NewGuid();
+        Name = name;
+        StartJalaliYear = startJalaliYear;
+        StartJalaliMonth = startJalaliMonth;
+        EndJalaliYear = endJalaliYear;
+        EndJalaliMonth = endJalaliMonth;
+        StartDate = startDate;
+        EndDate = endDate;
+        ActorIdentifier = actorIdentifier;
+    }
+
+    public Guid Id { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public int StartJalaliYear { get; private set; }
+    public int StartJalaliMonth { get; private set; }
+    public int EndJalaliYear { get; private set; }
+    public int EndJalaliMonth { get; private set; }
+    public DateOnly StartDate { get; private set; }
+    public DateOnly EndDate { get; private set; }
+    public string? ActorIdentifier { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public ICollection<ForecastPlanEntry> Entries { get; private set; } = [];
+}
+
+public sealed class ForecastPlanEntry
+{
+    private ForecastPlanEntry() { }
+
+    public ForecastPlanEntry(Guid forecastPlanId, Guid productId, Guid businessPeriodId,
+        Guid forecastRevisionId, decimal forecastQty)
+    {
+        Id = Guid.NewGuid();
+        ForecastPlanId = forecastPlanId;
+        ProductId = productId;
+        BusinessPeriodId = businessPeriodId;
+        ForecastRevisionId = forecastRevisionId;
+        ForecastQty = forecastQty;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid ForecastPlanId { get; private set; }
+    public ForecastPlan ForecastPlan { get; private set; } = null!;
+    public Guid ProductId { get; private set; }
+    public Product Product { get; private set; } = null!;
+    public Guid BusinessPeriodId { get; private set; }
+    public BusinessPeriod BusinessPeriod { get; private set; } = null!;
+    public Guid ForecastRevisionId { get; private set; }
+    public ForecastRevision ForecastRevision { get; private set; } = null!;
+    public decimal ForecastQty { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+    public ICollection<ForecastPlanEntryCorrection> Corrections { get; private set; } = [];
+}
+
+public sealed class ForecastPlanEntryCorrection
+{
+    private ForecastPlanEntryCorrection() { }
+
+    public ForecastPlanEntryCorrection(Guid forecastPlanEntryId, Guid forecastRevisionId,
+        int revisionNumber, decimal forecastQty, string reason, string? actorIdentifier)
+    {
+        Id = Guid.NewGuid();
+        ForecastPlanEntryId = forecastPlanEntryId;
+        ForecastRevisionId = forecastRevisionId;
+        RevisionNumber = revisionNumber;
+        ForecastQty = forecastQty;
+        Reason = reason;
+        ActorIdentifier = actorIdentifier;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid ForecastPlanEntryId { get; private set; }
+    public ForecastPlanEntry ForecastPlanEntry { get; private set; } = null!;
+    public Guid ForecastRevisionId { get; private set; }
+    public ForecastRevision ForecastRevision { get; private set; } = null!;
+    public int RevisionNumber { get; private set; }
+    public decimal ForecastQty { get; private set; }
+    public string Reason { get; private set; } = string.Empty;
+    public string? ActorIdentifier { get; private set; }
+    public DateTime CreatedAtUtc { get; private set; }
+}
+
 public sealed class BusinessPeriod
 {
     private BusinessPeriod() { }

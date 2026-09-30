@@ -82,13 +82,40 @@ test('English detail renders immutable machine context separately from expert de
   try {
     const text = renderedText(renderer.toJSON())
     for (const expected of ['CMP-0001 — Test component', 'MRP-RUN-000012', '25/08/2026', 'MRP-12-v1',
-      'Test component', 'SRC-0002', 'SUP-0002', '80', '7 CNY', '560 CNY',
+      'Test component', 'SRC-0002', 'SUP-0002', '80', 'Price and currency are entered at this commercial decision',
       'P2_UPCOMING', 'ORDER_BY_DATE', 'PREFERRED_ELIGIBLE_ON_TIME', 'Expert decision', 'Decision history'])
       assert.ok(text.includes(expected), `Expected visible text: ${expected}\n${text}`)
+    assert.ok(!text.includes('7 CNY'))
+    assert.ok(!text.includes('560 CNY'))
     assert.ok(!text.toLowerCase().includes('create po'))
     const back = renderer.root.findAllByType('a').find(node => String(node.props.href).includes('/mrp/supply/order-planning'))
     assert.ok(back)
     assert.match(back.props.href, /runId=.*page=3.*priority=P2_UPCOMING/)
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
+test('commercial decision shows ISO currency codes and concise operational quantities', async () => {
+  const precise = 21959.399999999998
+  const restore = installFetch(input => input.includes('/reference-data/currencies')
+    ? json([{ id: 'usd', isoCode: 'USD', nameFa: 'دلار آمریکا', nameEn: 'US Dollar', isActive: true }])
+    : json({
+        ...detailRow(),
+        netRequirementQty: 34847.000000000065,
+        systemRecommendedQty: precise,
+        baseRecommendedQty: precise,
+        minimumBaseline: -1959.399999999999,
+        decisions: [{ id: 'd1', decisionVersion: 1, decisionType: 'ACCEPT', decisionDate: '2026-08-25',
+          decidedAtUtc: '2026-08-25T05:00:00Z', finalQty: precise, finalUnitPrice: 1.25,
+          finalCurrencyCode: 'USD', warningCodes: '' }],
+      }))
+  const renderer = await render('object', 'en', `/mrp/order-planning/${recommendationId}`)
+  try {
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.replace(/\s+/g, ' ').includes('USD — US Dollar'), text)
+    assert.ok(text.includes('21,959.4'), text)
+    assert.ok(text.includes('34,847'), text)
+    assert.ok(!text.includes('21959.399999999998'), text)
+    assert.ok(!text.includes('34847.000000000065'), text)
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 

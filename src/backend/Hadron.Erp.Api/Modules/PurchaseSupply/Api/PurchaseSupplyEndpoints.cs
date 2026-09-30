@@ -1,5 +1,6 @@
 using Hadron.Erp.Api.Modules.PurchaseSupply.Application;
 using Hadron.Erp.Api.Modules.Inventory.Application;
+using Hadron.Erp.Api.Platform.Security;
 
 namespace Hadron.Erp.Api.Modules.PurchaseSupply.Api;
 
@@ -10,65 +11,86 @@ public static class PurchaseSupplyEndpoints
         var group = endpoints.MapGroup("/api/purchase-orders").WithTags("Purchase Supply");
         group.MapGet("/", (PurchaseSupplyService service, DateOnly? evaluationDate, string? search, string? status,
             Guid? supplierId, Guid? currencyId, int? page, int? pageSize, CancellationToken ct) => Execute(() => service.List(
-                RequireDate(evaluationDate), search, status, supplierId, currencyId, page ?? 1, pageSize ?? 25, ct)));
+                RequireDate(evaluationDate), search, status, supplierId, currencyId, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.PurchaseOrderView);
         group.MapGet("/{id:guid}", async (PurchaseSupplyService service, Guid id, CancellationToken ct) =>
         {
             try { return await service.Get(id, ct) is { } value ? Results.Ok(value) : Results.NotFound(); }
             catch (Exception exception) { return Problem(exception); }
-        });
+        }).RequirePermission(Permissions.PurchaseOrderView);
         group.MapPost("/", (PurchaseSupplyService service, CreatePurchaseOrderRequest request, CancellationToken ct) =>
-            ExecuteCreated(() => service.Create(request, ct), x => $"/api/purchase-orders/{x.Id}"));
+            ExecuteCreated(() => service.Create(request, ct), x => $"/api/purchase-orders/{x.Id}"))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPut("/{id:guid}", (PurchaseSupplyService service, Guid id, UpdatePurchaseOrderRequest request,
-            CancellationToken ct) => Execute(() => service.Update(id, request, ct)));
+            CancellationToken ct) => Execute(() => service.Update(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPut("/{id:guid}/lines/{lineId:guid}", (PurchaseSupplyService service, Guid id, Guid lineId,
-            UpdatePurchaseOrderLineRequest request, CancellationToken ct) => Execute(() => service.UpdateLine(id, lineId, request, ct)));
+            UpdatePurchaseOrderLineRequest request, CancellationToken ct) => Execute(() => service.UpdateLine(id, lineId, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPost("/{id:guid}/lines", (PurchaseSupplyService service, Guid id,
-            AddPurchaseOrderLineRequest request, CancellationToken ct) => Execute(() => service.AddLine(id, request, ct)));
+            AddPurchaseOrderLineRequest request, CancellationToken ct) => Execute(() => service.AddLine(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPost("/{id:guid}/lines/{lineId:guid}/remove", (PurchaseSupplyService service, Guid id, Guid lineId,
-            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.RemoveLine(id, lineId, request, ct)));
+            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.RemoveLine(id, lineId, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPut("/{id:guid}/lines/{lineId:guid}/schedules", (PurchaseSupplyService service, Guid id, Guid lineId,
-            ReplaceSchedulesRequest request, CancellationToken ct) => Execute(() => service.ReplaceSchedules(id, lineId, request, ct)));
+            ReplaceSchedulesRequest request, CancellationToken ct) => Execute(() => service.ReplaceSchedules(id, lineId, request, ct)))
+            .RequirePermission(Permissions.PurchaseScheduleManage);
         group.MapPost("/{id:guid}/refresh-snapshot", (PurchaseSupplyService service, Guid id,
-            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.RefreshSnapshot(id, request, ct)));
+            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.RefreshSnapshot(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPost("/{id:guid}/approve", (PurchaseSupplyService service, Guid id,
-            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.Approve(id, request, ct)));
+            ExpectedVersionRequest request, CancellationToken ct) => Execute(() => service.Approve(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderApprove);
         group.MapPost("/{id:guid}/return-to-draft", (PurchaseSupplyService service, Guid id,
-            ReturnToDraftRequest request, CancellationToken ct) => Execute(() => service.ReturnToDraft(id, request, ct)));
+            ReturnToDraftRequest request, CancellationToken ct) => Execute(() => service.ReturnToDraft(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderReturnToDraft);
         group.MapPost("/{id:guid}/mark-ordered", (PurchaseSupplyService service, Guid id,
-            MarkOrderedRequest request, CancellationToken ct) => Execute(() => service.MarkOrdered(id, request, ct)));
+            MarkOrderedRequest request, CancellationToken ct) => Execute(() => service.MarkOrdered(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderMarkOrdered);
         group.MapPost("/{id:guid}/schedules/{scheduleId:guid}/revise-plan", (PurchaseSupplyService service,
             Guid id, Guid scheduleId, ReviseSchedulePlanRequest request, CancellationToken ct) =>
-            Execute(() => service.ReviseSchedule(id, scheduleId, request, ct)));
+            Execute(() => service.ReviseSchedule(id, scheduleId, request, ct)))
+            .RequirePermission(Permissions.PurchaseScheduleManage);
         group.MapGet("/firm-incoming", (PurchaseSupplyService service, DateOnly? evaluationDate, Guid? itemId,
             DateOnly? etaFrom, DateOnly? etaTo, CancellationToken ct) => Execute(() => service.FirmIncoming(
-                RequireDate(evaluationDate), itemId, etaFrom, etaTo, ct)));
+                RequireDate(evaluationDate), itemId, etaFrom, etaTo, ct)))
+            .RequirePermission(Permissions.PurchaseOrderView);
         group.MapPost("/convert-decisions", (PurchaseOrderOperationsService service,
-            ConvertExpertDecisionsRequest request, CancellationToken ct) => Execute(() => service.Convert(request, ct)));
+            ConvertExpertDecisionsRequest request, CancellationToken ct) => Execute(() => service.Convert(request, ct)))
+            .RequirePermission(Permissions.PurchaseOrderDraftManage);
         group.MapPost("/{id:guid}/schedules/{scheduleId:guid}/cancel", (PurchaseOrderOperationsService operations,
             PurchaseSupplyService supply, Guid id, Guid scheduleId, CancelScheduleRequest request, CancellationToken ct) =>
-            Execute(() => operations.Cancel(id, scheduleId, request, supply, ct)));
+            Execute(() => operations.Cancel(id, scheduleId, request, supply, ct)))
+            .RequirePermission(Permissions.PurchaseScheduleCancel);
         group.MapPost("/{id:guid}/schedules/{scheduleId:guid}/actual-milestones", (PurchaseOrderOperationsService operations,
             PurchaseSupplyService supply, Guid id, Guid scheduleId, RecordActualMilestoneRequest request, CancellationToken ct) =>
-            Execute(() => operations.RecordMilestone(id, scheduleId, request, supply, ct)));
+            Execute(() => operations.RecordMilestone(id, scheduleId, request, supply, ct)))
+            .RequirePermission(Permissions.PurchaseMilestoneManage);
         group.MapPost("/{id:guid}/lines/{lineId:guid}/reallocate-schedules", (PurchaseOrderOperationsService operations,
             PurchaseSupplyService supply, Guid id, Guid lineId, ReallocateSchedulesRequest request, CancellationToken ct) =>
-            Execute(() => operations.ReallocateSchedules(id, lineId, request, supply, ct)));
+            Execute(() => operations.ReallocateSchedules(id, lineId, request, supply, ct)))
+            .RequirePermission(Permissions.PurchaseScheduleManage);
 
         var receipts = endpoints.MapGroup("/api/purchase-receipts").WithTags("Purchase Receipts");
         receipts.MapGet("/", (PurchaseOrderOperationsService service, Guid? purchaseOrderId, string? status,
             int? page, int? pageSize, CancellationToken ct) => Execute(() =>
-                service.ListReceipts(purchaseOrderId, status, page ?? 1, pageSize ?? 25, ct)));
+                service.ListReceipts(purchaseOrderId, status, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.PurchaseReceiptView);
         receipts.MapGet("/{id:guid}", async (PurchaseOrderOperationsService service, Guid id, CancellationToken ct) =>
         {
             try { return await service.GetReceipt(id, ct) is { } value ? Results.Ok(value) : Results.NotFound(); }
             catch (Exception exception) { return Problem(exception); }
-        });
+        }).RequirePermission(Permissions.PurchaseReceiptView);
         receipts.MapPost("/", (PurchaseOrderOperationsService service, CreatePurchaseReceiptRequest request,
-            CancellationToken ct) => ExecuteCreated(() => service.CreateReceipt(request, ct), x => $"/api/purchase-receipts/{x.Id}"));
+            CancellationToken ct) => ExecuteCreated(() => service.CreateReceipt(request, ct), x => $"/api/purchase-receipts/{x.Id}"))
+            .RequirePermission(Permissions.PurchaseReceiptCreate);
         receipts.MapPost("/{id:guid}/post", (PurchaseOrderOperationsService service, Guid id,
-            PostPurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.PostReceipt(id, request, ct)));
+            PostPurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.PostReceipt(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseReceiptPost);
         receipts.MapPost("/{id:guid}/reverse", (PurchaseOrderOperationsService service, Guid id,
-            ReversePurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.ReverseReceipt(id, request, ct)));
+            ReversePurchaseReceiptRequest request, CancellationToken ct) => Execute(() => service.ReverseReceipt(id, request, ct)))
+            .RequirePermission(Permissions.PurchaseReceiptReverse);
         return endpoints;
     }
 

@@ -6,6 +6,8 @@ public interface IPlanningCalendar
 {
     DateOnly TehranToday { get; }
     (DateOnly StartDate, DateOnly EndDate) GetPeriodBounds(int jalaliYear, int jalaliMonth);
+    DateOnly GetGregorianDate(int jalaliYear, int jalaliMonth, int jalaliDay);
+    (int JalaliYear, int JalaliMonth, int JalaliDay) GetJalaliDate(DateOnly gregorianDate);
     (int JalaliYear, int JalaliMonth) GetJalaliPeriod(DateOnly gregorianDate);
 }
 
@@ -39,7 +41,26 @@ public sealed class PlanningCalendar(TimeProvider timeProvider) : IPlanningCalen
 
     public (int JalaliYear, int JalaliMonth) GetJalaliPeriod(DateOnly gregorianDate)
     {
+        var jalali = GetJalaliDate(gregorianDate);
+        return (jalali.JalaliYear, jalali.JalaliMonth);
+    }
+
+    public DateOnly GetGregorianDate(int jalaliYear, int jalaliMonth, int jalaliDay)
+    {
+        try
+        {
+            return DateOnly.FromDateTime(Persian.ToDateTime(
+                jalaliYear, jalaliMonth, jalaliDay, 0, 0, 0, 0));
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            throw PlanningValidationException.Single("jalaliDate", "تاریخ شمسی معتبر نیست.");
+        }
+    }
+
+    public (int JalaliYear, int JalaliMonth, int JalaliDay) GetJalaliDate(DateOnly gregorianDate)
+    {
         var date = gregorianDate.ToDateTime(TimeOnly.MinValue);
-        return (Persian.GetYear(date), Persian.GetMonth(date));
+        return (Persian.GetYear(date), Persian.GetMonth(date), Persian.GetDayOfMonth(date));
     }
 }

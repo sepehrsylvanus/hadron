@@ -9,7 +9,10 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import {
+  cloneElement,
   FormEvent,
+  isValidElement,
+  type ReactElement,
   ReactNode,
   useEffect,
   useId,
@@ -27,6 +30,7 @@ export function PageHeader({
   actions,
   backTo,
   backLabel,
+  sticky = false,
 }: {
   title: string
   subtitle?: string
@@ -35,8 +39,9 @@ export function PageHeader({
   actions?: ReactNode
   backTo?: string
   backLabel?: string
+  sticky?: boolean
 }) {
-  return <header className="ui-page-header">
+  return <header className={`ui-page-header${sticky ? ' ui-page-header--sticky' : ''}`}>
     <div className="ui-page-header__identity">
       {backTo && <Link className="ui-back-link" to={backTo}>{backLabel}</Link>}
       {eyebrow && <p className="ui-eyebrow">{eyebrow}</p>}
@@ -92,8 +97,8 @@ export function DataTable({
   noResultDescription?: string
 }) {
   return <div className="ui-table-wrap">
-    <table className="ui-data-table">
-      <thead><tr>{headers.map((header, index) => <th key={index}>{header}</th>)}</tr></thead>
+    <table className="ui-data-table" aria-busy={loading || undefined}>
+      <thead><tr>{headers.map((header, index) => <th scope="col" key={index}>{header}</th>)}</tr></thead>
       <tbody>
         {loading
           ? <tr><td colSpan={headers.length}><LoadingState label={loadingLabel} compact /></td></tr>
@@ -160,10 +165,25 @@ export function FormField({
   className?: string
 }) {
   const hintId = useId()
+  type FieldControlProps = {
+    'aria-describedby'?: string
+    'aria-invalid'?: boolean | 'false' | 'true'
+    'aria-required'?: boolean | 'false' | 'true'
+  }
+  const isFieldControl = (value: ReactNode): value is ReactElement<FieldControlProps> =>
+    isValidElement<FieldControlProps>(value) && typeof value.type === 'string' &&
+    ['input', 'select', 'textarea'].includes(value.type)
+  const control = isFieldControl(children)
+    ? cloneElement(children, {
+      'aria-describedby': [children.props['aria-describedby'], hint || error ? hintId : undefined].filter(Boolean).join(' ') || undefined,
+      'aria-invalid': error ? true : children.props['aria-invalid'],
+      'aria-required': required ? true : children.props['aria-required'],
+    })
+    : children
   return <label className={`ui-form-field ${className}`}>
     <span>{label}{required && <span className="ui-required" aria-hidden="true">*</span>}</span>
-    {children}
-    {error ? <small id={hintId} className="ui-field-error">{error}</small> : hint && <small id={hintId}>{hint}</small>}
+    {control}
+    {error ? <small id={hintId} className="ui-field-error" role="alert">{error}</small> : hint && <small id={hintId}>{hint}</small>}
   </label>
 }
 
@@ -190,7 +210,7 @@ export function MessageStrip({ tone = 'information', children }: { tone?: Status
 }
 
 export function LoadingState({ label, compact = false }: { label: string; compact?: boolean }) {
-  return <div className={`ui-loading${compact ? ' ui-state--compact' : ''}`} role="status"><span className="ui-spinner" aria-hidden="true" />{label}</div>
+  return <div className={`ui-loading${compact ? ' ui-state--compact' : ''}`} role="status" aria-live="polite"><span className="ui-spinner" aria-hidden="true" />{label}</div>
 }
 
 export function EmptyState({
@@ -207,7 +227,7 @@ export function EmptyState({
   compact?: boolean
 }) {
   const Icon = filtered ? SearchX : CircleDashed
-  return <div className={`ui-empty${compact ? ' ui-state--compact' : ''}`}><Icon aria-hidden="true" /><strong>{title}</strong>{description && <p>{description}</p>}{action}</div>
+  return <div className={`ui-empty${compact ? ' ui-state--compact' : ''}`} role="status" aria-live="polite"><Icon aria-hidden="true" /><strong>{title}</strong>{description && <p>{description}</p>}{action}</div>
 }
 
 export function ConfirmationDialog({
@@ -217,6 +237,8 @@ export function ConfirmationDialog({
   confirmLabel,
   cancelLabel,
   tone = 'critical',
+  className,
+  confirmDisabled = false,
   children,
   onConfirm,
   onCancel,
@@ -227,27 +249,53 @@ export function ConfirmationDialog({
   confirmLabel: string
   cancelLabel: string
   tone?: 'critical' | 'normal'
+  className?: string
+  confirmDisabled?: boolean
   children?: ReactNode
   onConfirm: () => void
   onCancel: () => void
 }) {
   const titleId = useId()
+  const descriptionId = useId()
+  const dialogRef = useRef<HTMLElement>(null)
   const confirmRef = useRef<HTMLButtonElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const onCancelRef = useRef(onCancel)
+  useEffect(() => { onCancelRef.current = onCancel }, [onCancel])
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
-    confirmRef.current?.focus()
-    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') onCancel() }
+    const body = document.body
+    const previousOverflow = body?.style.overflow ?? ''
+    if (body) body.style.overflow = 'hidden'
+    const field = dialogRef.current?.querySelector<HTMLElement>('[autofocus], input:not([disabled]), textarea:not([disabled]), select:not([disabled])')
+    ;(field ?? (tone === 'critical' ? cancelRef.current : confirmRef.current))?.focus()
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCancelRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? []).filter(element => element.getAttribute('aria-hidden') !== 'true')
+      if (!focusable.length) { event.preventDefault(); return }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
     document.addEventListener('keydown', key)
-    return () => { document.removeEventListener('keydown', key); previous?.focus() }
-  }, [open, onCancel])
+    return () => { document.removeEventListener('keydown', key); if (body) body.style.overflow = previousOverflow; previous?.focus() }
+  }, [open, tone])
   if (!open) return null
   return <div className="ui-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
-    <section className="ui-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
-      <h2 id={titleId}>{title}</h2>{description && <p>{description}</p>}{children}
+    <section ref={dialogRef} className={`ui-confirmation${className ? ` ${className}` : ''}`} role={tone === 'critical' ? 'alertdialog' : 'dialog'} aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
+      <h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}{children}
       <div className="ui-dialog-actions">
-        <button ref={confirmRef} type="button" className={`button ${tone === 'critical' ? 'button--danger' : 'button--primary'}`} onClick={onConfirm}>{confirmLabel}</button>
-        <button type="button" className="button" onClick={onCancel}>{cancelLabel}</button>
+        <button ref={confirmRef} type="button" disabled={confirmDisabled} className={`button ${tone === 'critical' ? 'button--danger' : 'button--primary'}`} onClick={onConfirm}>{confirmLabel}</button>
+        <button ref={cancelRef} type="button" className="button" onClick={onCancel}>{cancelLabel}</button>
       </div>
     </section>
   </div>
@@ -263,6 +311,7 @@ export function DisplayEditActions({
   onCancel,
   formId,
   saving,
+  saveDisabled,
 }: {
   editing: boolean
   dirty?: boolean
@@ -273,9 +322,10 @@ export function DisplayEditActions({
   onCancel: () => void
   formId?: string
   saving?: boolean
+  saveDisabled?: boolean
 }) {
   return editing
-    ? <><button className="button button--primary" type="submit" form={formId} disabled={saving}>{saveLabel}</button><button className="button" type="button" onClick={onCancel}>{cancelLabel}{dirty ? ' •' : ''}</button></>
+    ? <><button className="button button--primary" type="submit" form={formId} disabled={saving || saveDisabled}>{saveLabel}</button><button className="button" type="button" onClick={onCancel}>{cancelLabel}{dirty ? ' •' : ''}</button></>
     : <button className="button button--primary" type="button" onClick={onEdit}>{editLabel}</button>
 }
 

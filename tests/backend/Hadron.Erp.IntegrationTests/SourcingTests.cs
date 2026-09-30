@@ -4,6 +4,7 @@ using System.Text.Json;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
+using Hadron.Erp.Api.Modules.Sourcing.Application;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -103,6 +104,76 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
     }
 
     [Fact]
+    public async Task Material_master_supplier_links_are_bounded_and_do_not_expose_price_or_currency()
+    {
+        var candidates = await _client.GetAsync(
+            $"/api/sourcing-options/supplier-candidates?itemId={_item}&search=تأمین&page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.OK, candidates.StatusCode);
+        using (var candidateJson = JsonDocument.Parse(await candidates.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(1, candidateJson.RootElement.GetProperty("totalCount").GetInt32());
+            var supplier = Assert.Single(candidateJson.RootElement.GetProperty("items").EnumerateArray());
+            Assert.Equal(_supplier, supplier.GetProperty("id").GetGuid());
+        }
+
+        var option = await Created(await Create());
+        var links = await _client.GetAsync(
+            $"/api/sourcing-options/item-suppliers?itemId={_item}&page=1&pageSize=25");
+        Assert.Equal(HttpStatusCode.OK, links.StatusCode);
+        var body = await links.Content.ReadAsStringAsync();
+        using var linkJson = JsonDocument.Parse(body);
+        var link = Assert.Single(linkJson.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(option.Id, link.GetProperty("id").GetGuid());
+        Assert.Equal(_supplier, link.GetProperty("supplier").GetProperty("id").GetGuid());
+        Assert.False(link.GetProperty("isPreferred").GetBoolean());
+        Assert.False(body.Contains("price", StringComparison.OrdinalIgnoreCase));
+        Assert.False(body.Contains("currency", StringComparison.OrdinalIgnoreCase));
+
+        var afterLink = await _client.GetFromJsonAsync<JsonElement>(
+            $"/api/sourcing-options/supplier-candidates?itemId={_item}&page=1&pageSize=10");
+        Assert.Equal(0, afterLink.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Tree_read_model_groups_options_by_item_and_pages_items_not_individual_routes()
+    {
+        var first = await Created(await Create(moq: 10m, complete: true));
+        var second = await Created(await Create());
+        var otherItem = await AddItem(SupplyMethods.Buy, "SRC-TREE-OTHER");
+        var third = await Created(await Create(moq: 20m, complete: true, itemId: otherItem));
+
+        var response = await _client.GetAsync(
+            $"/api/sourcing-options/tree?evaluationDate={Date}&page=1&pageSize=100");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("price", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("currency", body, StringComparison.OrdinalIgnoreCase);
+
+        using var json = JsonDocument.Parse(body);
+        var root = json.RootElement;
+        Assert.Equal(2, root.GetProperty("totalItemCount").GetInt32());
+        Assert.Equal(3, root.GetProperty("totalOptionCount").GetInt32());
+        var groups = root.GetProperty("items").EnumerateArray().ToArray();
+        var firstGroup = Assert.Single(groups, group => group.GetProperty("item").GetProperty("id").GetGuid() == _item);
+        Assert.Equal(2, firstGroup.GetProperty("optionCount").GetInt32());
+        Assert.Equal(1, firstGroup.GetProperty("readyOptionCount").GetInt32());
+        var optionIds = firstGroup.GetProperty("options").EnumerateArray()
+            .Select(option => option.GetProperty("id").GetGuid()).ToArray();
+        Assert.Contains(first.Id, optionIds);
+        Assert.Contains(second.Id, optionIds);
+        var otherGroup = Assert.Single(groups, group => group.GetProperty("item").GetProperty("id").GetGuid() == otherItem);
+        Assert.Equal(third.Id, Assert.Single(otherGroup.GetProperty("options").EnumerateArray()).GetProperty("id").GetGuid());
+
+        var readyOnly = await _client.GetFromJsonAsync<JsonElement>(
+            $"/api/sourcing-options/tree?evaluationDate={Date}&readiness=READY&page=1&pageSize=100");
+        Assert.Equal(2, readyOnly.GetProperty("totalItemCount").GetInt32());
+        Assert.Equal(2, readyOnly.GetProperty("totalOptionCount").GetInt32());
+        Assert.All(readyOnly.GetProperty("items").EnumerateArray(), group =>
+            Assert.All(group.GetProperty("options").EnumerateArray(), option =>
+                Assert.Equal("READY", option.GetProperty("readiness").GetProperty("state").GetString())));
+    }
+
+    [Fact]
     public async Task Concurrent_numbers_are_unique_and_item_compatibility_is_explicit()
     {
         var creates = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => Create()));
@@ -122,6 +193,15 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Equal(HttpStatusCode.Created, (await Create(itemId: buy)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await Create(itemId: outsource)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await Create(itemId: hybrid)).StatusCode);
+
+        var eligiblePage = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/parts?externalSourcingEligible=true&page=1&pageSize=100");
+        var eligibleIds = eligiblePage.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetGuid()).ToHashSet();
+        Assert.DoesNotContain(make, eligibleIds);
+        Assert.Contains(buy, eligibleIds);
+        Assert.Contains(outsource, eligibleIds);
+        Assert.Contains(hybrid, eligibleIds);
     }
 
     [Fact]
@@ -238,20 +318,11 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             new { expectedVersion = inactive.Version }));
         Assert.Equal(inactive.Version + 1, active.Version);
 
-        var priceResponse = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
+        var retiredPriceEndpoint = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
             new { unitPrice = 5m, currencyId = _currency, effectiveFrom = "2040-01-01", expectedVersion = active.Version });
-        var priced = await Read(priceResponse);
-        Assert.Equal(active.Version + 1, priced.Version);
-        Assert.Contains(_factory.AuditSink.Snapshot(), x => x.EntityId == option.Id && x.Action == "PRICE_ADD");
-        var afterPriceEvents = _factory.AuditSink.Snapshot().Count;
-        var stalePrice = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 6m, currencyId = _currency, effectiveFrom = "2041-01-01", expectedVersion = active.Version });
-        Assert.Equal(HttpStatusCode.Conflict, stalePrice.StatusCode);
-        Assert.Equal("STALE_VERSION", await ProblemCode(stalePrice));
-        var invalidPrice = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = -1m, currencyId = _currency, effectiveFrom = "2041-01-01", expectedVersion = priced.Version });
-        Assert.Equal(HttpStatusCode.BadRequest, invalidPrice.StatusCode);
-        Assert.Equal(afterPriceEvents, _factory.AuditSink.Snapshot().Count);
+        Assert.Equal(HttpStatusCode.NotFound, retiredPriceEndpoint.StatusCode);
+        Assert.Equal(active.Version, (await Get(option.Id)).Version);
+        Assert.Equal(successfulEvents + 2, _factory.AuditSink.Snapshot().Count);
 
         var preferredTarget = await Created(await Create());
         var preferred = await Read(await SetPreferred(preferredTarget, null));
@@ -280,12 +351,10 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Equal(0m, zero.Moq);
         Assert.Equal(0, zero.TotalLeadTime);
         Assert.DoesNotContain("INCOTERM_MISSING", zero.Reasons);
-        var ready = await Read(await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 0m, currencyId = _currency, effectiveFrom = "2026-01-01", expectedVersion = zero.Version }));
-        Assert.Equal("READY", ready.Readiness);
-        Assert.DoesNotContain("INCOTERM_MISSING", ready.Reasons);
+        Assert.Equal("READY", zero.Readiness);
+        Assert.DoesNotContain("INCOTERM_MISSING", zero.Reasons);
 
-        var exact = await Read(await Update(ready, 12.345678m, _shipping, null, 1, 2, 3, 4));
+        var exact = await Read(await Update(zero, 12.345678m, _shipping, null, 1, 2, 3, 4));
         Assert.Equal(12.345678m, exact.Moq);
         Assert.Equal(10, exact.TotalLeadTime);
         var oneMissing = await Read(await Update(exact, 12.345678m, _shipping, null, 1, 2, 3, null));
@@ -312,104 +381,75 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
     }
 
     [Fact]
-    public async Task Prices_are_exact_zero_valid_inclusive_nonoverlapping_and_evaluation_date_is_explicit()
+    public async Task Price_endpoints_are_retired_and_legacy_history_is_preserved_but_not_exposed_or_used()
     {
         var option = await Created(await Create(moq: 0m, complete: true));
         var missingDate = await _client.GetAsync($"/api/sourcing-options/{option.Id}");
         Assert.Equal(HttpStatusCode.BadRequest, missingDate.StatusCode);
-        var first = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate=2026-08-05",
+        Assert.Equal("READY", option.Readiness);
+
+        var retiredCreate = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate=2026-08-05",
             new { unitPrice = 0m, currencyId = _currency, effectiveFrom = "2026-08-01", effectiveTo = "2026-08-10", expectedVersion = option.Version });
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        var afterFirst = await Read(first);
-        Assert.Equal("2026-08-05", afterFirst.EvaluationDate);
-        Assert.Equal(0m, afterFirst.CurrentPrice);
-        Assert.Equal("READY", afterFirst.Readiness);
-        var auditCountAfterFirst = _factory.AuditSink.Snapshot().Count;
-        var readyList = await _client.GetAsync($"/api/sourcing-options?evaluationDate=2026-08-05&readiness=READY&pageSize=25");
-        Assert.Equal(HttpStatusCode.OK, readyList.StatusCode);
-        using (var readyJson = JsonDocument.Parse(await readyList.Content.ReadAsStringAsync()))
-            Assert.Contains(readyJson.RootElement.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == option.Id);
+        Assert.Equal(HttpStatusCode.NotFound, retiredCreate.StatusCode);
 
-        var inclusiveOverlap = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 1.123456m, currencyId = _currency, effectiveFrom = "2026-08-10", effectiveTo = "2026-08-20", expectedVersion = afterFirst.Version });
-        Assert.Equal(HttpStatusCode.Conflict, inclusiveOverlap.StatusCode);
-        Assert.Equal("PRICE_PERIOD_OVERLAP", await ProblemCode(inclusiveOverlap));
-        Assert.Equal(auditCountAfterFirst, _factory.AuditSink.Snapshot().Count);
+        await using (var db = await Db())
+        {
+            db.SourcingPrices.Add(new SourcingPrice(option.Id, 7.123456m, _currency,
+                new DateOnly(2026, 1, 1), null));
+            await db.SaveChangesAsync();
+            Assert.Single(await db.SourcingPrices.Where(x => x.SourcingOptionId == option.Id).ToListAsync());
+        }
 
-        var next = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate=2026-08-11",
-            new { unitPrice = 1.123456m, currencyId = _currency, effectiveFrom = "2026-08-11", effectiveTo = (string?)null, expectedVersion = afterFirst.Version });
-        Assert.Equal(HttpStatusCode.OK, next.StatusCode);
-        var detail = await Read(next);
-        Assert.Equal(1.123456m, detail.CurrentPrice);
-        Assert.Equal(2, detail.PriceCount);
-        Assert.Null((await Get(option.Id, "2026-07-31")).CurrentPrice);
-        Assert.Equal(0m, (await Get(option.Id, "2026-08-10")).CurrentPrice);
-        Assert.Equal(1.123456m, (await Get(option.Id, "2030-01-01")).CurrentPrice);
-        using var nextJson = JsonDocument.Parse(await next.Content.ReadAsStringAsync());
-        var openPrice = nextJson.RootElement.GetProperty("prices").EnumerateArray()
-            .Single(x => x.GetProperty("unitPrice").GetDecimal() == 1.123456m);
-        Assert.Equal(JsonValueKind.Null, openPrice.GetProperty("effectiveTo").ValueKind);
-        var openPriceId = openPrice.GetProperty("id").GetGuid();
-
-        _factory.AuditSink.Clear();
-        var closedResponse = await _client.PostAsJsonAsync(
-            $"/api/sourcing-options/{option.Id}/prices/{openPriceId}/close?evaluationDate=2026-08-20",
-            new { effectiveTo = "2026-08-20", expectedVersion = detail.Version, reason = "close" });
-        var closed = await Read(closedResponse);
-        Assert.Equal(detail.Version + 1, closed.Version);
-        Assert.Equal(2, closed.PriceCount);
-        Assert.Equal(1.123456m, closed.CurrentPrice);
-        using (var closedJson = JsonDocument.Parse(await closedResponse.Content.ReadAsStringAsync()))
-            Assert.Contains(closedJson.RootElement.GetProperty("prices").EnumerateArray(),
-                x => x.GetProperty("id").GetGuid() == openPriceId && x.GetProperty("effectiveTo").GetString() == "2026-08-20");
-        Assert.Null((await Get(option.Id, "2026-08-21")).CurrentPrice);
-        Assert.Contains(_factory.AuditSink.Snapshot(), x => x.EntityId == option.Id && x.Action == "PRICE_CLOSE");
-        var staleClose = await _client.PostAsJsonAsync(
-            $"/api/sourcing-options/{option.Id}/prices/{openPriceId}/close?evaluationDate={Date}",
-            new { effectiveTo = "2026-08-19", expectedVersion = detail.Version });
-        Assert.Equal(HttpStatusCode.Conflict, staleClose.StatusCode);
-        Assert.Equal("STALE_VERSION", await ProblemCode(staleClose));
-
-        var negative = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = -0.000001m, currencyId = _currency, effectiveFrom = "2030-01-01", expectedVersion = closed.Version });
-        Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
-        var missingCurrency = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 10m, currencyId = Guid.Empty, effectiveFrom = "2030-01-01", expectedVersion = closed.Version });
-        Assert.Equal(HttpStatusCode.BadRequest, missingCurrency.StatusCode);
-        var invalidPeriod = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 10m, currencyId = _currency, effectiveFrom = "2030-02-01", effectiveTo = "2030-01-01", expectedVersion = closed.Version });
-        Assert.Equal(HttpStatusCode.BadRequest, invalidPeriod.StatusCode);
+        var detail = await _client.GetAsync($"/api/sourcing-options/{option.Id}?evaluationDate={Date}");
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        var body = await detail.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("price", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("currency", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("READY", (await Read(detail)).Readiness);
     }
 
     [Fact]
     public async Task Concurrent_overlapping_price_writes_are_stopped_by_database_exclusion_constraint()
     {
         var option = await Created(await Create());
+
+        static bool IsExpectedDatabaseRace(Exception exception)
+        {
+            for (var current = exception; current is not null; current = current.InnerException)
+            {
+                if (current is PostgresException postgres &&
+                    postgres.SqlState is PostgresErrorCodes.ExclusionViolation or PostgresErrorCodes.DeadlockDetected)
+                    return true;
+            }
+
+            return false;
+        }
+
         async Task<bool> TryInsert(decimal value)
         {
             await using var db = await Db();
             db.SourcingPrices.Add(new SourcingPrice(option.Id, value, _currency,
                 new DateOnly(2035, 1, 1), new DateOnly(2035, 12, 31)));
             try { await db.SaveChangesAsync(); return true; }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
+            catch (Exception ex) when (IsExpectedDatabaseRace(ex))
             { return false; }
         }
         var outcomes = await Task.WhenAll(TryInsert(10m), TryInsert(20m));
         Assert.Single(outcomes, x => x);
         Assert.Single(outcomes, x => !x);
+
+        await using var verificationDb = await Db();
+        Assert.Single(await verificationDb.SourcingPrices
+            .Where(x => x.SourcingOptionId == option.Id)
+            .ToListAsync());
     }
 
     [Fact]
     public async Task Readiness_precedence_base_unit_drift_and_reactivation_rules_are_enforced()
     {
         var option = await Created(await Create(moq: 0m, complete: true));
-        Assert.Equal("INCOMPLETE_DATA", option.Readiness);
-        Assert.Contains("CURRENT_PRICE_MISSING", option.Reasons);
-        var pricedResponse = await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/prices?evaluationDate={Date}",
-            new { unitPrice = 100.123456m, currencyId = _currency, effectiveFrom = "2026-01-01", expectedVersion = option.Version });
-        var ready = await Read(pricedResponse);
-        Assert.Equal("READY", ready.Readiness);
-        Assert.Equal(10, ready.TotalLeadTime);
+        Assert.Equal("READY", option.Readiness);
+        Assert.Equal(10, option.TotalLeadTime);
 
         await using (var db = await Db())
         {
@@ -438,7 +478,6 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Equal("BLOCKED", blocked.Readiness);
         Assert.Contains("BASE_UNIT_CHANGED", blocked.Reasons);
         Assert.Equal(_unit, blocked.BaseUnitId);
-        Assert.Equal(100.123456m, blocked.CurrentPrice);
 
         var deactivated = await Read(await _client.PostAsJsonAsync($"/api/sourcing-options/{option.Id}/deactivate?evaluationDate={Date}",
             new { expectedVersion = blocked.Version }));
@@ -460,6 +499,138 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             new { expectedVersion = inactive.Version });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("INCOMPLETE_DATA", (await Read(response)).Readiness);
+    }
+
+    [Fact]
+    public async Task Domestic_route_uses_local_lead_stages_and_rejects_import_only_fields()
+    {
+        var createdResponse = await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
+        {
+            itemId = _item,
+            supplierId = _supplier,
+            routeScope = SourcingRouteScopes.Domestic,
+            minimumOrderQuantity = 100m,
+            shippingModeId = _shipping,
+            incotermId = (Guid?)null,
+            supplierLeadTimeDays = 4,
+            forwarderToShipmentDays = (int?)null,
+            shippingPeriodDays = 2,
+            destinationCustomsDays = (int?)null
+        });
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        using var createdJson = JsonDocument.Parse(await createdResponse.Content.ReadAsStringAsync());
+        var root = createdJson.RootElement;
+        Assert.Equal(SourcingRouteScopes.Domestic, root.GetProperty("routeScope").GetString());
+        Assert.Equal(6, root.GetProperty("totalConfiguredLeadTimeDays").GetInt32());
+        Assert.Equal("READY", root.GetProperty("readiness").GetProperty("state").GetString());
+        Assert.DoesNotContain(root.GetProperty("readiness").GetProperty("reasonCodes").EnumerateArray(),
+            reason => reason.GetString() is "INCOTERM_MISSING" or "FORWARDER_LEAD_TIME_MISSING" or
+                "DESTINATION_CUSTOMS_MISSING");
+
+        var invalid = await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
+        {
+            itemId = _item,
+            supplierId = _supplier,
+            routeScope = SourcingRouteScopes.Domestic,
+            minimumOrderQuantity = 100m,
+            shippingModeId = _shipping,
+            incotermId = _incoterm,
+            supplierLeadTimeDays = 4,
+            forwarderToShipmentDays = 1,
+            shippingPeriodDays = 2,
+            destinationCustomsDays = 1
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
+    public async Task Twenty_domestic_sources_round_trip_without_false_import_readiness_errors()
+    {
+        var created = new List<(OptionDto Option, decimal Moq, int SupplierDays, int TransportDays)>();
+        for (var index = 1; index <= 20; index++)
+        {
+            var moq = index * 100m;
+            var supplierDays = index % 7;
+            var transportDays = index % 4;
+            var response = await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
+            {
+                itemId = _item,
+                supplierId = _supplier,
+                routeScope = SourcingRouteScopes.Domestic,
+                minimumOrderQuantity = moq,
+                shippingModeId = _shipping,
+                incotermId = (Guid?)null,
+                supplierLeadTimeDays = supplierDays,
+                forwarderToShipmentDays = (int?)null,
+                shippingPeriodDays = transportDays,
+                destinationCustomsDays = (int?)null
+            });
+
+            var option = await Created(response);
+            Assert.Equal(SourcingReadiness.Ready, option.Readiness);
+            Assert.Empty(option.Reasons);
+            Assert.Equal(supplierDays + transportDays, option.TotalLeadTime);
+            created.Add((option, moq, supplierDays, transportDays));
+        }
+
+        foreach (var sample in created)
+        {
+            var detail = await Get(sample.Option.Id);
+            Assert.Equal(sample.Moq, detail.Moq);
+            Assert.Equal(SourcingReadiness.Ready, detail.Readiness);
+            Assert.Empty(detail.Reasons);
+            Assert.Equal(sample.SupplierDays + sample.TransportDays, detail.TotalLeadTime);
+        }
+
+        var list = await _client.GetFromJsonAsync<JsonElement>(
+            $"/api/sourcing-options?evaluationDate={Date}&itemId={_item}&readiness=READY&page=1&pageSize=100");
+        Assert.Equal(20, list.GetProperty("totalCount").GetInt32());
+        Assert.All(list.GetProperty("items").EnumerateArray(), option =>
+        {
+            Assert.Equal(SourcingRouteScopes.Domestic, option.GetProperty("routeScope").GetString());
+            Assert.Equal(SourcingReadiness.Ready,
+                option.GetProperty("readiness").GetProperty("state").GetString());
+            Assert.Empty(option.GetProperty("readiness").GetProperty("reasonCodes").EnumerateArray());
+            Assert.Equal(JsonValueKind.Null, option.GetProperty("forwarderToShipmentDays").ValueKind);
+            Assert.Equal(JsonValueKind.Null, option.GetProperty("destinationCustomsDays").ValueKind);
+        });
+
+        Assert.Equal(20, _factory.AuditSink.Snapshot().Count(entry =>
+            entry.EntityType == "SourcingOption" && entry.Action == "CREATE" &&
+            created.Any(sample => sample.Option.Id == entry.EntityId)));
+    }
+
+    [Fact]
+    public async Task Domestic_edit_without_route_scope_preserves_domestic_semantics_for_older_clients()
+    {
+        var createdResponse = await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
+        {
+            itemId = _item,
+            supplierId = _supplier,
+            routeScope = SourcingRouteScopes.Domestic,
+            minimumOrderQuantity = 2000m,
+            shippingModeId = _shipping,
+            supplierLeadTimeDays = 5,
+            shippingPeriodDays = 1
+        });
+        var created = await Created(createdResponse);
+
+        var editedResponse = await _client.PutAsJsonAsync(Url(created.Id), new
+        {
+            minimumOrderQuantity = 2500m,
+            shippingModeId = _shipping,
+            supplierLeadTimeDays = 6,
+            shippingPeriodDays = 2,
+            expectedVersion = created.Version
+        });
+
+        Assert.Equal(HttpStatusCode.OK, editedResponse.StatusCode);
+        using var json = JsonDocument.Parse(await editedResponse.Content.ReadAsStringAsync());
+        Assert.Equal(SourcingRouteScopes.Domestic, json.RootElement.GetProperty("routeScope").GetString());
+        Assert.Equal(SourcingReadiness.Ready,
+            json.RootElement.GetProperty("readiness").GetProperty("state").GetString());
+        Assert.Empty(json.RootElement.GetProperty("readiness").GetProperty("reasonCodes").EnumerateArray());
+        Assert.Equal(8, json.RootElement.GetProperty("totalConfiguredLeadTimeDays").GetInt32());
     }
 
     [Fact]
@@ -526,11 +697,12 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             x.Contains("Bom", StringComparison.OrdinalIgnoreCase) || x.Contains("Ready", StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task<HttpResponseMessage> Create(decimal? moq = null, bool complete = false, Guid? itemId = null) =>
+    private async Task<HttpResponseMessage> Create(decimal? moq = null, bool complete = false, Guid? itemId = null,
+        Guid? supplierId = null) =>
         await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
         {
             itemId = itemId ?? _item,
-            supplierId = _supplier,
+            supplierId = supplierId ?? _supplier,
             minimumOrderQuantity = moq,
             shippingModeId = complete ? _shipping : (Guid?)null,
             incotermId = complete ? _incoterm : (Guid?)null,
@@ -602,9 +774,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             root.GetProperty("version").GetInt64(), root.GetProperty("evaluationDate").GetString()!,
             root.GetProperty("readiness").GetProperty("state").GetString()!,
             root.GetProperty("readiness").GetProperty("reasonCodes").EnumerateArray().Select(x => x.GetString()!).ToArray(),
-            root.GetProperty("currentPrice").ValueKind == JsonValueKind.Null ? null : root.GetProperty("currentPrice").GetProperty("unitPrice").GetDecimal(),
-            root.GetProperty("totalConfiguredLeadTimeDays").ValueKind == JsonValueKind.Null ? null : root.GetProperty("totalConfiguredLeadTimeDays").GetInt32(),
-            root.GetProperty("prices").GetArrayLength());
+            root.GetProperty("totalConfiguredLeadTimeDays").ValueKind == JsonValueKind.Null ? null : root.GetProperty("totalConfiguredLeadTimeDays").GetInt32());
     }
 
     private static async Task<string?> ProblemCode(HttpResponseMessage response)
@@ -687,7 +857,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
 
     private sealed record OptionDto(Guid Id, string Number, Guid ItemId, string ItemCode, Guid SupplierId, Guid BaseUnitId,
         decimal? Moq, Guid? ShippingModeId, bool Preferred, bool Active, long Version, string EvaluationDate,
-        string Readiness, IReadOnlyList<string> Reasons, decimal? CurrentPrice, int? TotalLeadTime, int PriceCount);
+        string Readiness, IReadOnlyList<string> Reasons, int? TotalLeadTime);
     private sealed class ColumnInfo
     {
         public string ColumnName { get; init; } = string.Empty;

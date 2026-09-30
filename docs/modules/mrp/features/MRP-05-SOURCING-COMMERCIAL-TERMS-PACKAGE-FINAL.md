@@ -6,6 +6,20 @@
 
 ---
 
+## Owner Correction — 2026-08-31 (LOCKED)
+
+این تصمیم صریح Owner بر هر عبارت متعارض درباره Price/Currency در ادامه این سند و Promptهای قدیمی آن مقدم است:
+
+- MRP-05 فقط مالک رابطه `Item–Supplier`، MOQ، Preferred، Route و Lead Time است.
+- Price و Currency در Sourcing ثبت، ویرایش، نمایش، جست‌وجو یا برای Readiness/Recommendation استفاده نمی‌شوند.
+- Price/Currency فقط در مرز تصمیم تجاری MRP-12 یا ایجاد دستی PO توسط کاربر مجاز وارد و در PO به‌صورت Snapshot تغییرناپذیر نگهداری می‌شوند.
+- رکوردهای موجود `procurement.sourcing_prices` بدون حذف یا بازنویسی، صرفاً آرشیو تاریخی و خارج از API/UI/منطق فعال باقی می‌مانند.
+- Cash Flow آینده از تعهدهای واقعی PO/Receipt می‌خواند؛ هیچ Cash Flow در MRP-05 پیاده‌سازی نمی‌شود.
+
+تمام بخش‌های قدیمی Price History در این Package صرفاً سابقه baseline هستند و الزام اجرایی فعال محسوب نمی‌شوند.
+
+---
+
 # A. Final Feature Specification — 05-SOURCING-COMMERCIAL-TERMS
 
 ## 1. Purpose

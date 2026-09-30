@@ -232,7 +232,7 @@ public sealed class PurchaseOrderLine
         int lineNumber,
         Guid itemId,
         Guid sourcingOptionId,
-        Guid sourcingPriceId,
+        Guid? sourcingPriceId,
         Guid itemBaseUnitId,
         decimal orderedQuantity,
         decimal unitPrice,
@@ -276,8 +276,8 @@ public sealed class PurchaseOrderLine
     public Item Item { get; private set; } = null!;
     public Guid SourcingOptionId { get; private set; }
     public SourcingOption SourcingOption { get; private set; } = null!;
-    public Guid SourcingPriceId { get; private set; }
-    public SourcingPrice SourcingPrice { get; private set; } = null!;
+    public Guid? SourcingPriceId { get; private set; }
+    public SourcingPrice? SourcingPrice { get; private set; }
     public Guid ItemBaseUnitId { get; private set; }
     public Unit ItemBaseUnit { get; private set; } = null!;
     public decimal OrderedQuantity { get; private set; }
@@ -301,7 +301,7 @@ public sealed class PurchaseOrderLine
     public void ReplaceDraftSnapshot(
         Guid itemId,
         Guid sourcingOptionId,
-        Guid sourcingPriceId,
+        Guid? sourcingPriceId,
         Guid itemBaseUnitId,
         decimal orderedQuantity,
         decimal unitPrice,

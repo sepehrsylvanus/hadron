@@ -43,6 +43,8 @@ public sealed class FullGoldenE2ETests : IClassFixture<FoundationApiFactory>
     {
         await using var db = await Db();
         await db.Database.MigrateAsync();
+        var warehouseResponsibleId = await IntegrationTestIdentity
+            .EnsureActiveWarehouseResponsible(db, "gd08");
         var calendar = _factory.Services.GetRequiredService<IPlanningCalendar>();
         var bounds = calendar.GetPeriodBounds(1405, 5);
         var asOfR1 = bounds.StartDate.AddDays(26);
@@ -81,16 +83,15 @@ public sealed class FullGoldenE2ETests : IClassFixture<FoundationApiFactory>
             null, 0, 0, 1, 1, 3);
         var source = new SourcingOption($"SRC-{Random.Shared.NextInt64(100000, 999999)}", component.Id,
             supplier.Id, unit.Id, 50m, shipping.Id, incoterm.Id, 1, 0, 0, 0);
-        var price = new SourcingPrice(source.Id, 7m, currency.Id, new DateOnly(2026, 1, 1), null);
         var period = new BusinessPeriod(1405, 5, bounds.StartDate, bounds.EndDate);
-        db.AddRange(supplier, productItem, product, part, partProfile, component, componentProfile, source, price, period);
+        db.AddRange(supplier, productItem, product, part, partProfile, component, componentProfile, source, period);
         await db.SaveChangesAsync();
 
         var productBom = new BomRevision($"BOM-GD08-P-{Guid.NewGuid():N}"[..28], productItem.Id, unit.Id, 1,
-            bounds.StartDate, bounds.EndDate, "GD08 product BOM");
+            "GD08 product BOM");
         var productEdge = new BomLine(productBom.Id, part.Id, unit.Id, 1m, 0m, 1);
         var partBom = new BomRevision($"BOM-GD08-A-{Guid.NewGuid():N}"[..28], part.Id, unit.Id, 1,
-            bounds.StartDate, bounds.EndDate, "GD08 part BOM");
+            "GD08 part BOM");
         var componentEdge = new BomLine(partBom.Id, component.Id, unit.Id, 2m, 0m, 1);
         db.AddRange(productBom, productEdge, partBom, componentEdge);
         await db.SaveChangesAsync();
@@ -99,7 +100,7 @@ public sealed class FullGoldenE2ETests : IClassFixture<FoundationApiFactory>
         await db.SaveChangesAsync();
 
         var warehouseCreate = await _client.PostAsJsonAsync("/api/inventory/warehouses",
-            new { nameFa = "انبار GD08", nameEn = "GD08 warehouse", notes = "Golden" });
+            new { nameFa = "انبار GD08", nameEn = "GD08 warehouse", addressFa = "موقعیت GD08", addressEn = "GD08 location", primaryResponsibleUserId = warehouseResponsibleId, notes = "Golden" });
         warehouseCreate.EnsureSuccessStatusCode();
         var warehouse = await Read(warehouseCreate);
         var warehouseId = warehouse.GetProperty("id").GetGuid();
@@ -166,7 +167,7 @@ public sealed class FullGoldenE2ETests : IClassFixture<FoundationApiFactory>
         var decisionResponse = await _client.PostAsJsonAsync(
             $"/api/order-planning/recommendations/{recommendation.Id}/decisions",
             new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, recommendation.DecisionVersion,
-                null, null, null, null, null));
+                null, null, null, null, null, 7m, currency.Id));
         decisionResponse.EnsureSuccessStatusCode();
         var decided = (await decisionResponse.Content.ReadFromJsonAsync<OrderRecommendationResponse>())!;
         var decision = Assert.Single(decided.Decisions);
@@ -296,18 +297,17 @@ public sealed class FullGoldenE2ETests : IClassFixture<FoundationApiFactory>
                 .Select(x => x.OrderedQuantity).SingleAsync());
         }
 
-        var analyticsResponse = await _client.GetAsync(
-            $"/api/v1/analytics/commercial-commitments?evaluationDate={day31:yyyy-MM-dd}" +
-            $"&search={draft.GetProperty("purchaseOrderNumber").GetString()}&page=1&pageSize=25");
-        analyticsResponse.EnsureSuccessStatusCode();
-        var analytics = await Read(analyticsResponse);
-        var commercial = Assert.Single(analytics.GetProperty("page").GetProperty("items").EnumerateArray());
-        Assert.Equal(50m, commercial.GetProperty("receivedQuantity").GetDecimal());
-        Assert.Equal(0m, commercial.GetProperty("openQuantity").GetDecimal());
-        Assert.Equal("RECEIVED", commercial.GetProperty("completionOutcome").GetString());
-        var poNumber = commercial.GetProperty("purchaseOrderNumber").GetString()!;
+        using var analyticsScope = _factory.Services.CreateScope();
+        var analyticsService = analyticsScope.ServiceProvider.GetRequiredService<AnalyticsService>();
+        var analytics = await analyticsService.Commercial(day31, null,
+            draft.GetProperty("purchaseOrderNumber").GetString(), 1, 25, CancellationToken.None);
+        var commercial = Assert.Single(analytics.Page.Items);
+        Assert.Equal(50m, commercial.ReceivedQuantity);
+        Assert.Equal(0m, commercial.OpenQuantity);
+        Assert.Equal("RECEIVED", commercial.CompletionOutcome);
+        var poNumber = commercial.PurchaseOrderNumber;
         var export = await _client.GetAsync(
-            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate={day31:yyyy-MM-dd}" +
+            $"/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate={day31:yyyy-MM-dd}" +
             $"&language=en&maximumRows=100&search={poNumber}");
         export.EnsureSuccessStatusCode();
         var xml = await Sheet(export);

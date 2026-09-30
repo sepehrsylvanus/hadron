@@ -6,6 +6,12 @@
 
 ---
 
+## Owner Storage Correction — Current / Certified Plan (2026-08-31)
+
+MRP-11 انتخاب Run نامحدود برای به‌روزرسانی‌های خودکار نمایش نمی‌دهد. منبع عملیاتی پیش‌فرض Slot `CURRENT` است و کاربر می‌تواند Slot `CERTIFIED` پایان روز گذشته یا Snapshot صریح `PUBLISHED` متصل به تصمیم کسب‌وکار را ببیند. `runId` همچنان authority نمایش هر Snapshot انتخاب‌شده است و صفحه هرگز داده زنده را با Snapshot ترکیب نمی‌کند. تاریخچه روزانه فقط با certificate سبک نگه‌داری می‌شود؛ Full Run قدیمیِ بدون lineage پس از جایگزینی حذف می‌شود. هر wording پایین‌تر درباره «تمام Runهای تکمیل‌شده» یا آرشیو نامحدود توسط این تصمیم supersede می‌شود.
+
+---
+
 # A. Final Feature Specification — 11-MATERIAL-PLANNING-UI
 
 ## 1. Purpose
@@ -1986,6 +1992,15 @@ Support approved:
 
 Do not edit source data inside Exception Center.
 Exception Center has no resolve/edit state. The user fixes the source module and executes a new MRP Run.
+
+A separate Planner Work Item may reference an immutable Exception for assignment and
+`OPEN`/`ACKNOWLEDGED` operational tracking. It never changes the source Exception. Work Item
+events are append-only, and saved Inbox views are private and server-side.
+
+A private What-If scenario may use one immutable official Run snapshot as its complete source and
+override only Forecast, Starting OnHand, and Firm Supply date/quantity. The calculated scenario is
+immutable and explicitly non-official. It has no direct promotion to an official MRP Run, Purchase
+Order, Inventory transaction or other business fact.
 
 FILTERS
 Implement approved filters:

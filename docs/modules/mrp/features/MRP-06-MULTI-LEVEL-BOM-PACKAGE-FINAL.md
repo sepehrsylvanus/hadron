@@ -6,6 +6,23 @@
 
 ---
 
+## Owner Correction — Current BOM Authority (2026-08-30)
+
+این تصمیم، تمام wording قدیمی Effectivity در ادامه این سند را supersede می‌کند:
+
+- BOM هیچ `EffectiveFrom` / `EffectiveTo` یا تاریخ کسب‌وکاری ندارد؛ تاریخ فقط Audit/تاریخچه است.
+- هر Parent حداکثر یک Revision جاری `APPROVED` دارد.
+- تأیید Revision جدید، Revision جاری قبلی را در همان تراکنش `OBSOLETE` و Revision جدید را `APPROVED` می‌کند.
+- Draft قابل ویرایش است؛ Approved/Obsolete و Lines آنها immutable هستند.
+- current BOM با Parent حل می‌شود، نه با business date.
+- MRP Run، BOM جاری زمان اجرای خود را snapshot می‌کند؛ Run تاریخی از BOM زنده بازسازی نمی‌شود.
+- Create/Edit/Copy/Approve/Obsolete/API/UI هیچ فیلد یا کنترل تاریخ BOM ندارد.
+- cycle validation روی گراف BOMهای جاری Released و candidate انجام می‌شود.
+
+هر بخش، Prompt یا Acceptance Criteria پایین‌تر که BOM را effective-dated، future-effective یا date-resolved معرفی می‌کند، legacy و غیرقابل اجرا است.
+
+---
+
 # A. Final Feature Specification — 06-MULTI-LEVEL-BOM
 
 ## 1. Purpose
@@ -18,7 +35,7 @@ BOM باید بتواند مشخص کند یک Parent Item برای تولید �
 
 - Multi-Level BOM
 - Revision / Versioning
-- Effective Dating
+- Current Approved Revision per Parent
 - Approval lifecycle
 - Base Output Quantity
 - Usage Quantity

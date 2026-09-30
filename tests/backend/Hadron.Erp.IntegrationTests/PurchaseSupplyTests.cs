@@ -271,7 +271,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             series.SetCurrent(forecast);
 
             var bom = new BomRevision($"BOM-GD08-{Guid.NewGuid():N}"[..28], productId, _unit, 1,
-                bounds.StartDate, bounds.EndDate, "GD-08 receipt feedback");
+                "GD-08 receipt feedback");
             var edge = new BomLine(bom.Id, _item, _unit, 1, 0, 1);
             setup.AddRange(bom, edge);
             await setup.SaveChangesAsync();
@@ -484,7 +484,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             line = new
             {
                 sourcingOptionId = _option,
-                sourcingPriceId = _price,
+                unitPrice = 3m,
                 orderedQuantity = 20m,
                 requestedReceiptDate = "2026-09-01",
                 notes = "forbidden"
@@ -498,6 +498,54 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             UPDATE procurement.purchase_order_lines SET "UnitPrice"={{99m}}
             WHERE "Id"={{line.GetProperty("id").GetGuid()}};
             """));
+    }
+
+    [Fact]
+    public async Task Expert_decision_conversion_accepts_domestic_source_with_non_applicable_lead_stages()
+    {
+        await using (var db = await Db())
+        {
+            var option = await db.SourcingOptions.SingleAsync(x => x.Id == _option);
+            option.Edit(SourcingRouteScopes.Domestic, option.MinimumOrderQuantity,
+                option.ShippingModeId, null, 2, null, 1, null);
+            await db.SaveChangesAsync();
+        }
+
+        var fixture = await AddExpertDecision();
+        var converted = await Post("/api/purchase-orders/convert-decisions",
+            new { decisionIds = new[] { fixture.DecisionId } });
+        var group = Assert.Single(converted.GetProperty("groups").EnumerateArray());
+        Assert.True(group.GetProperty("success").GetBoolean());
+
+        var order = await Get(group.GetProperty("purchaseOrderId").GetGuid());
+        var line = Assert.Single(order.GetProperty("lines").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, line.GetProperty("forwarderToShipmentDays").ValueKind);
+        Assert.Equal(JsonValueKind.Null, line.GetProperty("destinationCustomsDays").ValueKind);
+        Assert.Equal(2, line.GetProperty("supplierLeadTimeDays").GetInt32());
+        Assert.Equal(1, line.GetProperty("shippingPeriodDays").GetInt32());
+    }
+
+    [Fact]
+    public async Task Expert_decision_conversion_normalizes_MRP_precision_to_purchase_quantity_precision()
+    {
+        const decimal mrpQuantity = 21959.399999999999m;
+        var fixture = await AddExpertDecision(mrpQuantity);
+
+        var converted = await Post("/api/purchase-orders/convert-decisions",
+            new { decisionIds = new[] { fixture.DecisionId } });
+        var group = Assert.Single(converted.GetProperty("groups").EnumerateArray());
+        Assert.True(group.GetProperty("success").GetBoolean());
+
+        var order = await Get(group.GetProperty("purchaseOrderId").GetGuid());
+        var line = Assert.Single(order.GetProperty("lines").EnumerateArray());
+        Assert.Equal(21959.400000m, line.GetProperty("orderedQuantity").GetDecimal());
+        Assert.Equal(21959.400000m,
+            Assert.Single(line.GetProperty("schedules").EnumerateArray())
+                .GetProperty("allocatedQuantity").GetDecimal());
+
+        await using var db = await Db();
+        Assert.Equal(mrpQuantity, (await db.OrderRecommendationDecisions
+            .SingleAsync(x => x.Id == fixture.DecisionId)).FinalQty);
     }
 
     [Fact]
@@ -531,7 +579,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
     }
 
     [Fact]
-    public async Task Conversion_detects_price_drift_without_refreshing_or_creating_PO()
+    public async Task Conversion_uses_expert_commercial_snapshot_and_ignores_archived_sourcing_price_changes()
     {
         var fixture = await AddExpertDecision();
         await using (var db = await Db())
@@ -541,11 +589,10 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         }
         var result = await Post("/api/purchase-orders/convert-decisions", new { decisionIds = new[] { fixture.DecisionId } });
         var decision = result.GetProperty("groups")[0].GetProperty("decisions")[0];
-        Assert.False(decision.GetProperty("success").GetBoolean());
-        Assert.Equal("DECISION_RECONFIRMATION_REQUIRED", decision.GetProperty("code").GetString());
-        Assert.Contains("PRICE_CHANGED", decision.GetProperty("detailReasons").EnumerateArray().Select(x => x.GetString()));
+        Assert.True(decision.GetProperty("success").GetBoolean());
         await using var verify = await Db();
-        Assert.False(await verify.PurchaseOrderLines.AnyAsync(x => x.ExpertDecisionId == fixture.DecisionId));
+        var line = await verify.PurchaseOrderLines.SingleAsync(x => x.ExpertDecisionId == fixture.DecisionId);
+        Assert.Equal(3m, line.UnitPrice);
     }
 
     [Fact]
@@ -572,8 +619,11 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         Assert.Contains(history.EnumerateArray(), x => x.GetProperty("actualDate").GetString() == "2026-08-21");
         Assert.Contains(history.EnumerateArray(), x => x.GetProperty("actualDate").GetString() == "2026-08-22" &&
             x.GetProperty("supersedesMilestoneId").GetGuid() == original.GetProperty("id").GetGuid());
+        var tehranTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "Iran Standard Time" : "Asia/Tehran");
+        var futureDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tehranTimeZone).DateTime).AddDays(1);
         var future = await _client.PostAsJsonAsync($"/api/purchase-orders/{poId}/schedules/{scheduleId}/actual-milestones", new
-        { expectedPurchaseOrderVersion = corrected.GetProperty("version").GetInt64(), milestoneCode = "ARRIVED_DESTINATION", actualDate = "2026-08-26" });
+        { expectedPurchaseOrderVersion = corrected.GetProperty("version").GetInt64(), milestoneCode = "ARRIVED_DESTINATION", actualDate = futureDate.ToString("yyyy-MM-dd") });
         Assert.Equal(HttpStatusCode.Conflict, future.StatusCode);
         Assert.Equal("FUTURE_ACTUAL_MILESTONE_NOT_ALLOWED", await ProblemCode(future));
         var manualReceiptMilestone = await _client.PostAsJsonAsync($"/api/purchase-orders/{poId}/schedules/{scheduleId}/actual-milestones", new
@@ -603,7 +653,6 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         Assert.Equal(_item, line.GetProperty("item").GetProperty("id").GetGuid());
         Assert.StartsWith("PRT-", line.GetProperty("item").GetProperty("code").GetString());
         Assert.Equal(_option, line.GetProperty("sourcingOptionId").GetGuid());
-        Assert.Equal(_price, line.GetProperty("sourcingPriceId").GetGuid());
         Assert.Equal(_unit, line.GetProperty("itemBaseUnit").GetProperty("id").GetGuid());
         Assert.Equal(12.5m, line.GetProperty("orderedQuantity").GetDecimal());
         Assert.Equal(3m, line.GetProperty("unitPrice").GetDecimal());
@@ -672,6 +721,14 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         var id = draft.GetProperty("id").GetGuid();
         var lineId = draft.GetProperty("lines")[0].GetProperty("id").GetGuid();
         var version = draft.GetProperty("version").GetInt64();
+        await using (var archiveGuard = await Db())
+        {
+            var archivedPriceLink = await Assert.ThrowsAsync<PostgresException>(() =>
+                archiveGuard.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE procurement.purchase_order_lines SET \"SourcingPriceId\" = {_price} WHERE \"Id\" = {lineId}"));
+            Assert.Equal(PostgresErrorCodes.CheckViolation, archivedPriceLink.SqlState);
+            Assert.Contains("SOURCING_PRICE_IS_ARCHIVE_ONLY", archivedPriceLink.MessageText);
+        }
         var auditCount = _factory.AuditSink.Snapshot().Count;
         var stale = await _client.PutAsJsonAsync($"/api/purchase-orders/{id}/lines/{lineId}/schedules", new
         {
@@ -708,7 +765,9 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
     public async Task Concurrent_numbers_are_unique_and_grouping_mismatch_is_blocked()
     {
         var responses = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => CreateResponse()));
-        Assert.All(responses, x => Assert.Equal(HttpStatusCode.Created, x.StatusCode));
+        foreach (var response in responses)
+            Assert.True(response.StatusCode == HttpStatusCode.Created,
+                $"Expected 201 but received {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
         var numbers = new List<string>();
         foreach (var response in responses)
             numbers.Add((await Read(response)).GetProperty("purchaseOrderNumber").GetString()!);
@@ -725,8 +784,8 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             notes = (string?)null,
             lines = new object[]
             {
-                new { sourcingOptionId = _option, sourcingPriceId = _price, orderedQuantity = 12.5m, requestedReceiptDate = (string?)null, notes = (string?)null },
-                new { sourcingOptionId = other.Option, sourcingPriceId = other.Price, orderedQuantity = 12.5m, requestedReceiptDate = (string?)null, notes = (string?)null }
+                new { sourcingOptionId = _option, unitPrice = 3m, orderedQuantity = 12.5m, requestedReceiptDate = (string?)null, notes = (string?)null },
+                new { sourcingOptionId = other.Option, unitPrice = 3m, orderedQuantity = 12.5m, requestedReceiptDate = (string?)null, notes = (string?)null }
             }
         });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
@@ -850,7 +909,6 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         Assert.Equal("WAREHOUSE_RECEIPT", persisted.GetProperty("creditAnchor").GetString());
         Assert.Equal(_shipping, persisted.GetProperty("shippingMode").GetProperty("id").GetGuid());
         Assert.Equal(_incoterm, persisted.GetProperty("incoterm").GetProperty("id").GetGuid());
-        Assert.Equal(_price, line.GetProperty("sourcingPriceId").GetGuid());
         Assert.Equal(3m, line.GetProperty("unitPrice").GetDecimal());
         Assert.Equal(10m, line.GetProperty("minimumOrderQuantity").GetDecimal());
         Assert.Equal(new[] { 2, 1, 1, 0 }, new[]
@@ -1203,8 +1261,6 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             item.Edit(item.NameFa, item.NameEn, newUnit.Id, item.Notes);
             var option = await db.SourcingOptions.SingleAsync(x => x.Id == _option);
             option.Edit(11m, newShipping.Id, newIncoterm.Id, 9, 8, 7, 6);
-            var price = await db.SourcingPrices.SingleAsync(x => x.Id == _price);
-            price.Close(new DateOnly(2026, 8, 24));
             var supplier = await db.Suppliers.Include(x => x.PaymentProfile).SingleAsync(x => x.Id == _supplier);
             supplier.PaymentProfile.Set(supplier.PaymentProfile.PaymentTermId, 10m, 20m, 70m, 90, "ORDERED");
             await db.SaveChangesAsync();
@@ -1219,7 +1275,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         foreach (var expected in new[]
         {
             "READINESS_CHANGED", "BASE_UNIT_CHANGED", "MOQ_CHANGED", "SHIPPING_MODE_CHANGED",
-            "INCOTERM_CHANGED", "LEAD_TIME_CHANGED", "PAYMENT_TERMS_CHANGED", "PRICE_CHANGED"
+            "INCOTERM_CHANGED", "LEAD_TIME_CHANGED", "PAYMENT_TERMS_CHANGED"
         }) Assert.Contains(expected, reasons);
         await using var verify = await Db();
         Assert.False(await verify.PurchaseOrderLines.AnyAsync(x => x.ExpertDecisionId == fixture.DecisionId));
@@ -1274,7 +1330,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
               {{"DRAFT"}},{{1L}},{{DateTime.UtcNow}},{{DateTime.UtcNow}})
             """);
         await Assert.ThrowsAsync<PostgresException>(() => InsertReceipt(new DateOnly(2026, 8, 24)));
-        await Assert.ThrowsAsync<PostgresException>(() => InsertReceipt(new DateOnly(2026, 8, 26)));
+        await Assert.ThrowsAsync<PostgresException>(() => InsertReceipt(new DateOnly(2099, 1, 1)));
 
         var persisted = await db.PurchaseReceiptLines.AsNoTracking().SingleAsync(x => x.Id == receiptLineId);
         Assert.Equal(5m, persisted.Quantity);
@@ -1422,15 +1478,20 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
     }
 
     private async Task<HttpResponseMessage> CreateResponse(DateOnly? requestedReceipt = null, Guid? optionId = null,
-        Guid? priceId = null, decimal orderedQuantity = 12.5m, Guid? currencyId = null) =>
-        await _client.PostAsJsonAsync("/api/purchase-orders", new
+        Guid? priceId = null, decimal orderedQuantity = 12.5m, Guid? currencyId = null)
+    {
+        await using var db = await Db();
+        var unitPrice = await db.SourcingPrices.AsNoTracking()
+            .Where(x => x.Id == (priceId ?? _price)).Select(x => x.UnitPrice).SingleAsync();
+        return await _client.PostAsJsonAsync("/api/purchase-orders", new
         {
             supplierId = _supplier,
             currencyId = currencyId ?? _currency,
             notes = "foundation",
-            lines = new[] { new { sourcingOptionId = optionId ?? _option, sourcingPriceId = priceId ?? _price, orderedQuantity,
+            lines = new[] { new { sourcingOptionId = optionId ?? _option, unitPrice, orderedQuantity,
                 requestedReceiptDate = requestedReceipt?.ToString("yyyy-MM-dd"), notes = (string?)null } }
         });
+    }
 
     private async Task<(JsonElement Ordered, Guid WarehouseId)> OrderedWithWarehouse(decimal orderedQuantity = 12.5m,
         DateOnly? orderedDate = null, Guid? optionId = null, Guid? priceId = null, Guid? currencyId = null)
@@ -1443,7 +1504,8 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         }
         var response = await CreateResponse(optionId: optionId, priceId: priceId,
             orderedQuantity: orderedQuantity, currencyId: currencyId);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode); var draft = await Read(response); var poId = draft.GetProperty("id").GetGuid();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
+        var draft = await Read(response); var poId = draft.GetProperty("id").GetGuid();
         var approved = await Post($"/api/purchase-orders/{poId}/approve", new
         { expectedVersion = draft.GetProperty("version").GetInt64() });
         var ordered = await Post($"/api/purchase-orders/{poId}/mark-ordered", new
@@ -1467,12 +1529,13 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         return await Read(response);
     }
 
-    private async Task<(Guid DecisionId, Guid RecommendationId, Guid GenerationId, Guid RunId)> AddExpertDecision()
+    private async Task<(Guid DecisionId, Guid RecommendationId, Guid GenerationId, Guid RunId)> AddExpertDecision(
+        decimal recommendationQuantity = 12.5m)
     {
         await using var db = await Db();
         var option = await db.SourcingOptions.Include(x => x.Supplier).SingleAsync(x => x.Id == _option);
-        var price = await db.SourcingPrices.SingleAsync(x => x.Id == _price);
-        var currency = await db.Currencies.SingleAsync(x => x.Id == price.CurrencyId);
+        var currency = await db.Currencies.SingleAsync(x => x.Id == _currency);
+        const decimal unitPrice = 3m;
         var supplier = await db.Suppliers.Include(x => x.PaymentProfile).SingleAsync(x => x.Id == _supplier);
         var run = new MrpRun($"MRP-RUN-{Random.Shared.Next(100000, 999999)}", new DateOnly(2026, 8, 25),
             new DateOnly(2027, 8, 25), "MRP-10-v1", "test", DateTime.UtcNow);
@@ -1485,8 +1548,9 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             "قلم خرید", "Purchase Item", _unit, "PO-U", new DateOnly(2026, 9, 1), "BUY", 12.5m, 0,
             3, 5, 10, RecommendationStates.Ready, RecommendationTimingStates.OnTime,
             new DateOnly(2026, 8, 29), new DateOnly(2026, 9, 1), new DateOnly(2026, 8, 28),
-            new DateOnly(2026, 8, 30), 0, 10m, 12.5m, 12.5m, RecommendationPriorities.DueNow,
-            RecommendationNextActions.OrderNow, null, 37.5m, "", "PREFERRED", "{}", "MRP-12-v1");
+            new DateOnly(2026, 8, 30), 0, 10m, recommendationQuantity, recommendationQuantity,
+            RecommendationPriorities.DueNow, RecommendationNextActions.OrderNow, null,
+            recommendationQuantity * unitPrice, "", "PREFERRED", "{}", "MRP-12-v1");
         db.OrderRecommendations.Add(recommendation); await db.SaveChangesAsync(); recommendation.AdvanceDecisionVersion();
         var profile = supplier.PaymentProfile;
         var snapshot = JsonSerializer.Serialize(new
@@ -1507,10 +1571,11 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
             option.ForwarderToShipmentDays,
             option.ShippingPeriodDays,
             option.DestinationCustomsDays,
-            TotalLeadTimeDays = option.SupplierLeadTimeDays + option.ForwarderToShipmentDays +
-                option.ShippingPeriodDays + option.DestinationCustomsDays,
-            PriceId = price.Id,
-            price.UnitPrice,
+            TotalLeadTimeDays = (option.SupplierLeadTimeDays ?? 0) + (option.ForwarderToShipmentDays ?? 0) +
+                (option.ShippingPeriodDays ?? 0) + (option.DestinationCustomsDays ?? 0),
+            CommercialInputSource = "EXPERT_DECISION",
+            PriceId = (Guid?)null,
+            UnitPrice = unitPrice,
             CurrencyId = currency.Id,
             currency.Code,
             PaymentTermId = profile.PaymentTermId!.Value,
@@ -1523,8 +1588,8 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
         });
         var decision = new OrderRecommendationDecision(recommendation.Id, 1, ExpertDecisionTypes.Accept, null,
             new DateOnly(2026, 8, 25), DateTime.UtcNow, "test", null, option.Id, option.SourcingNumber,
-            supplier.Id, supplier.SupplierNumber, supplier.Name, 12.5m, new DateOnly(2026, 9, 1),
-            new DateOnly(2026, 8, 28), price.Id, price.UnitPrice, currency.Id, currency.Code,
+            supplier.Id, supplier.SupplierNumber, supplier.Name, recommendationQuantity, new DateOnly(2026, 9, 1),
+            new DateOnly(2026, 8, 28), null, unitPrice, currency.Id, currency.Code,
             option.MinimumOrderQuantity, option.SupplierLeadTimeDays + option.ForwarderToShipmentDays +
                 option.ShippingPeriodDays + option.DestinationCustomsDays, _unit, "", snapshot);
         db.OrderRecommendationDecisions.Add(decision); await db.SaveChangesAsync();
@@ -1535,7 +1600,7 @@ public sealed class PurchaseSupplyTests : IClassFixture<FoundationApiFactory>, I
     private async Task<JsonElement> Create(DateOnly? requestedReceipt = null, Guid? optionId = null, Guid? priceId = null)
     {
         var response = await CreateResponse(requestedReceipt, optionId, priceId);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
         return await Read(response);
     }
 

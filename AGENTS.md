@@ -173,6 +173,12 @@ Use:
 * Data Scope
 * Business Policies
 
+The canonical Identity, personnel-profile and permission authority is:
+
+`docs/PERMISSIONS.md`
+
+Every new ERP capability must register immutable permission definitions, protect its backend endpoints, declare permission-aware routes/actions, appear in the System Administrator matrix, and add authorization tests. Missing permission metadata must fail closed. UI hiding is never a substitute for backend authorization.
+
 ## Background Processing
 
 Use:
@@ -599,6 +605,8 @@ Data access may additionally be scoped by:
 Approval and Edit permissions must remain separate where appropriate.
 
 Support Maker-Checker / Segregation of Duties for sensitive processes.
+
+System accounts are administrator-created only; public registration and default credentials are forbidden. A System Administrator may grant complete System Administrator authority to another user, but the final active System Administrator must remain protected. Follow `docs/PERMISSIONS.md` rather than introducing feature-local Identity or authorization.
 
 ---
 

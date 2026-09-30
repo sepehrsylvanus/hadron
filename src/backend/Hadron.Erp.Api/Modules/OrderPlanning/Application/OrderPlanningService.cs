@@ -2,6 +2,7 @@ using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Mrp.Domain;
 using Hadron.Erp.Api.Modules.OrderPlanning.Domain;
 using Hadron.Erp.Api.Modules.Planning.Application;
+using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Sourcing.Application;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Platform.Audit;
@@ -229,6 +230,7 @@ public sealed class OrderPlanningService(
         decimal? finalQty = null;
         DateOnly? target = null;
         DateOnly? orderBy = null;
+        Currency? currency = null;
         var warnings = new List<string>();
         if (type == ExpertDecisionTypes.Accept)
         {
@@ -249,6 +251,15 @@ public sealed class OrderPlanningService(
             orderBy = target!.Value.AddDays(-source.TotalLeadTimeDays!.Value);
             if (decisionDate.AddDays(source.TotalLeadTimeDays.Value) > target)
                 warnings.Add("EXPERT_TARGET_INFEASIBLE");
+        }
+        if (type is ExpertDecisionTypes.Accept or ExpertDecisionTypes.Modify)
+        {
+            if (!request.UnitPrice.HasValue || request.UnitPrice < 0)
+                throw OrderPlanningValidationException.Single("unitPrice", "Unit Price greater than or equal to zero is required at the commercial decision boundary.");
+            if (!request.CurrencyId.HasValue)
+                throw OrderPlanningValidationException.Single("currencyId", "An active Currency is required at the commercial decision boundary.");
+            currency = await db.Currencies.AsNoTracking().SingleOrDefaultAsync(x => x.Id == request.CurrencyId && x.IsActive, ct)
+                ?? throw OrderPlanningValidationException.Single("currencyId", "An active Currency is required at the commercial decision boundary.");
         }
         recommendation.AdvanceDecisionVersion();
         var finalSourceSnapshot = source is null ? null : JsonSerializer.Serialize(new
@@ -277,14 +288,12 @@ public sealed class OrderPlanningService(
             source.ShippingPeriodDays,
             source.DestinationCustomsDays,
             source.TotalLeadTimeDays,
-            source.PriceId,
-            source.UnitPrice,
-            source.CurrencyId,
-            source.CurrencyCode,
-            source.CurrencyNameFa,
-            source.CurrencyNameEn,
-            source.PriceEffectiveFrom,
-            source.PriceEffectiveTo,
+            CommercialInputSource = "EXPERT_DECISION",
+            UnitPrice = request.UnitPrice,
+            CurrencyId = currency?.Id,
+            CurrencyCode = currency?.Code,
+            CurrencyNameFa = currency?.NameFa,
+            CurrencyNameEn = currency?.NameEn,
             source.PaymentTermId,
             source.PaymentTermCode,
             source.PaymentTermNameFa,
@@ -298,8 +307,8 @@ public sealed class OrderPlanningService(
         var decision = new OrderRecommendationDecision(recommendation.Id, recommendation.DecisionVersion, type,
             Clean(request.Reason), decisionDate, timeProvider.GetUtcNow().UtcDateTime, Actor(), request.ReviewDate,
             source?.SourcingOptionId, source?.SourcingNumber, source?.SupplierId, source?.SupplierNumber,
-            source?.SupplierNameFa, finalQty, target, orderBy, source?.PriceId, source?.UnitPrice,
-            source?.CurrencyId, source?.CurrencyCode, source?.MinimumOrderQuantity, source?.TotalLeadTimeDays,
+            source?.SupplierNameFa, finalQty, target, orderBy, null, request.UnitPrice,
+            currency?.Id, currency?.Code, source?.MinimumOrderQuantity, source?.TotalLeadTimeDays,
             source?.ItemBaseUnitId, string.Join(';', warnings), finalSourceSnapshot);
         db.OrderRecommendationDecisions.Add(decision);
         await db.SaveChangesAsync(ct);
@@ -348,8 +357,7 @@ public sealed class OrderPlanningService(
             var itemIds = applicable.Select(x => x.ItemId).Distinct().ToList();
             var options = await db.SourcingOptions.AsNoTracking().Where(x => itemIds.Contains(x.ItemId))
                 .Include(x => x.Item).Include(x => x.Supplier).ThenInclude(x => x.PaymentProfile).ThenInclude(x => x.PaymentTerm)
-                .Include(x => x.ShippingMode).Include(x => x.Incoterm)
-                .Include(x => x.Prices).ThenInclude(x => x.Currency).ToListAsync(ct);
+                .Include(x => x.ShippingMode).Include(x => x.Incoterm).ToListAsync(ct);
             var currentSupplyMethods = await db.MaterialItemProfiles.AsNoTracking().Where(x => itemIds.Contains(x.ItemId))
                 .ToDictionaryAsync(x => x.ItemId, x => x.SupplyMethod, ct);
             var timelineRows = await db.MrpRunDailyResults.AsNoTracking()
@@ -429,7 +437,7 @@ public sealed class OrderPlanningService(
                     RecommendationStates.Ready, timing, earliest, target, orderBy, size.DecisionHorizonDate,
                     Math.Max(earliest.DayNumber - needBy.DayNumber, 0), size.MinimumBaseline, size.BaseRecommendedQty,
                     size.SystemRecommendedQty, priority, next, selected.Id,
-                    size.SystemRecommendedQty * selected.UnitPrice!.Value, string.Join(';', reasons), selectionReason, trace,
+                    null, string.Join(';', reasons), selectionReason, trace,
                     OrderPlanningCalculator.AlgorithmVersion));
             }
             await faultInjector.AfterCandidateCapture(generation.Id, ct);
@@ -461,9 +469,7 @@ public sealed class OrderPlanningService(
     private static OrderRecommendationCandidate SnapshotCandidate(Guid generationId, SourcingOption option,
         DateOnly evaluationDate, DateOnly needBy, Guid runBaseUnitId, string? currentSupplyMethod)
     {
-        var currentPrice = option.Prices.SingleOrDefault(x => x.EffectiveFrom <= evaluationDate &&
-            (!x.EffectiveTo.HasValue || x.EffectiveTo >= evaluationDate));
-        var readiness = SourcingReadinessEvaluator.Evaluate(option, currentSupplyMethod, currentPrice, runBaseUnitId);
+        var readiness = SourcingReadinessEvaluator.Evaluate(option, currentSupplyMethod, runBaseUnitId);
         var lead = readiness.TotalLeadTimeDays;
         DateOnly? earliest = lead.HasValue ? evaluationDate.AddDays(lead.Value) : null;
         var payment = option.Supplier.PaymentProfile;
@@ -475,9 +481,7 @@ public sealed class OrderPlanningService(
             option.IncotermId, option.Incoterm?.Code, option.Incoterm?.NameFa, option.Incoterm?.NameEn,
             option.SupplierLeadTimeDays, option.ForwarderToShipmentDays, option.ShippingPeriodDays,
             option.DestinationCustomsDays, lead, earliest, earliest.HasValue && earliest <= needBy,
-            currentPrice?.Id, currentPrice?.UnitPrice, currentPrice?.CurrencyId, currentPrice?.Currency.Code,
-            currentPrice?.Currency.NameFa, currentPrice?.Currency.NameEn, currentPrice?.EffectiveFrom,
-            currentPrice?.EffectiveTo, payment.PaymentTermId, payment.PaymentTerm?.Code,
+            null, null, null, null, null, null, null, null, payment.PaymentTermId, payment.PaymentTerm?.Code,
             payment.PaymentTerm?.NameFa, payment.PaymentTerm?.NameEn, payment.AdvancePercent,
             payment.BeforeShipmentPercent, payment.CreditPercent, payment.CreditDays, payment.CreditAnchor);
     }
@@ -514,7 +518,7 @@ public sealed class OrderPlanningService(
             .SingleAsync(ct);
         var option = await db.SourcingOptions.AsNoTracking().Where(x => x.Id == sourcingOptionId && x.ItemId == itemId)
             .Include(x => x.Item).Include(x => x.Supplier).ThenInclude(x => x.PaymentProfile).ThenInclude(x => x.PaymentTerm)
-            .Include(x => x.ShippingMode).Include(x => x.Incoterm).Include(x => x.Prices).ThenInclude(x => x.Currency)
+            .Include(x => x.ShippingMode).Include(x => x.Incoterm)
             .SingleOrDefaultAsync(ct) ?? throw new OrderPlanningConflictException("SOURCE_REVALIDATION_REQUIRED", "Source no longer exists for this Item.");
         var currentSupplyMethod = await db.MaterialItemProfiles.AsNoTracking().Where(x => x.ItemId == itemId)
             .Select(x => x.SupplyMethod).SingleOrDefaultAsync(ct);
@@ -526,8 +530,7 @@ public sealed class OrderPlanningService(
     {
         var current = await CurrentSourceSnapshot(db, snapshot.GenerationId, snapshot.ItemId,
             snapshot.SourcingOptionId, date, date, ct);
-        if (!current.IsEligible || (compareSnapshot && (current.PriceId != snapshot.PriceId ||
-            current.UnitPrice != snapshot.UnitPrice || current.MinimumOrderQuantity != snapshot.MinimumOrderQuantity ||
+        if (!current.IsEligible || (compareSnapshot && (current.MinimumOrderQuantity != snapshot.MinimumOrderQuantity ||
             current.SupplierLeadTimeDays != snapshot.SupplierLeadTimeDays ||
             current.ForwarderToShipmentDays != snapshot.ForwarderToShipmentDays ||
             current.ShippingPeriodDays != snapshot.ShippingPeriodDays ||
@@ -563,6 +566,8 @@ public sealed class OrderPlanningService(
     }
 
     private static async Task<Guid?> LatestCompletedRunId(HadronDbContext db, CancellationToken ct) =>
+        await db.MrpPlanSlots.AsNoTracking().Where(x => x.SlotName == MrpPlanSlotNames.Current)
+            .Select(x => (Guid?)x.RunId).SingleOrDefaultAsync(ct) ??
         await db.MrpRuns.AsNoTracking().Where(x => x.Status == MrpRunStatuses.Completed ||
             x.Status == MrpRunStatuses.CompletedWithExceptions).OrderByDescending(x => x.CompletedAtUtc)
             .ThenByDescending(x => x.StartedAtUtc).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);

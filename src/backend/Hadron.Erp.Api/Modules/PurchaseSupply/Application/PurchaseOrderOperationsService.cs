@@ -133,10 +133,13 @@ public sealed class PurchaseOrderOperationsService(
         }
 
         var authoritativeRows = await LoadDecisions(db, decisionIds, ct);
-        var latestRunId = await db.MrpRuns.AsNoTracking()
-            .Where(x => x.Status == MrpRunStatuses.Completed || x.Status == MrpRunStatuses.CompletedWithExceptions)
-            .OrderByDescending(x => x.CompletedAtUtc).ThenByDescending(x => x.StartedAtUtc)
-            .Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+        var latestRunId = await db.MrpPlanSlots.AsNoTracking()
+            .Where(x => x.SlotName == MrpPlanSlotNames.Current)
+            .Select(x => (Guid?)x.RunId).SingleOrDefaultAsync(ct) ??
+            await db.MrpRuns.AsNoTracking()
+                .Where(x => x.Status == MrpRunStatuses.Completed || x.Status == MrpRunStatuses.CompletedWithExceptions)
+                .OrderByDescending(x => x.CompletedAtUtc).ThenByDescending(x => x.StartedAtUtc)
+                .Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
         var authoritativeCandidates = new List<ConversionCandidate>(candidates.Count);
         foreach (var candidate in candidates)
         {
@@ -166,9 +169,10 @@ public sealed class PurchaseOrderOperationsService(
         foreach (var candidate in authoritativeCandidates.OrderBy(x => x.Row.Recommendation.ItemCode))
         {
             var d = candidate.Row.Decision; var snapshot = candidate.Snapshot; lineNumber++;
+            var orderedQuantity = PurchaseQuantity(d.FinalQty!.Value);
             var line = new PurchaseOrderLine(order.Id, lineNumber, candidate.Row.Recommendation.ItemId,
-                snapshot.SourcingOptionId, snapshot.PriceId, snapshot.ItemBaseUnitId, d.FinalQty!.Value,
-                snapshot.UnitPrice, snapshot.MinimumOrderQuantity, snapshot.SupplierLeadTimeDays,
+                snapshot.SourcingOptionId, null, snapshot.ItemBaseUnitId, orderedQuantity,
+                d.FinalUnitPrice!.Value, snapshot.MinimumOrderQuantity, snapshot.SupplierLeadTimeDays,
                 snapshot.ForwarderToShipmentDays, snapshot.ShippingPeriodDays, snapshot.DestinationCustomsDays,
                 null, d.Id, d.RecommendationId, candidate.Row.Recommendation.GenerationId,
                 candidate.Row.Generation.RunId);
@@ -400,13 +404,12 @@ public sealed class PurchaseOrderOperationsService(
             .ThenInclude(x => x.PaymentProfile)
             .Include(x => x.ItemBaseUnit).Include(x => x.ShippingMode).Include(x => x.Incoterm)
             .SingleOrDefaultAsync(x => x.Id == s.SourcingOptionId, ct);
-        var price = await db.SourcingPrices.Include(x => x.Currency).SingleOrDefaultAsync(x => x.Id == s.PriceId, ct);
         var profile = await db.MaterialItemProfiles.SingleOrDefaultAsync(x => x.ItemId == candidate.Row.Recommendation.ItemId, ct);
         if (option is null || !option.IsActive || option.SupplierId != s.SupplierId || option.ItemId != candidate.Row.Recommendation.ItemId)
             reasons.Add("SOURCE_NOT_OPERATIONAL");
         else
         {
-            var readiness = SourcingReadinessEvaluator.Evaluate(option, profile?.SupplyMethod, price, s.ItemBaseUnitId);
+            var readiness = SourcingReadinessEvaluator.Evaluate(option, profile?.SupplyMethod, s.ItemBaseUnitId);
             if (readiness.State != SourcingReadiness.Ready) reasons.Add("READINESS_CHANGED");
             if (option.ItemBaseUnitId != s.ItemBaseUnitId || option.Item.BaseUnitId != s.ItemBaseUnitId) reasons.Add("BASE_UNIT_CHANGED");
             if (option.MinimumOrderQuantity != s.MinimumOrderQuantity) reasons.Add("MOQ_CHANGED");
@@ -423,9 +426,8 @@ public sealed class PurchaseOrderOperationsService(
                 payment.CreditAnchor != s.CreditAnchor)
                 reasons.Add("PAYMENT_TERMS_CHANGED");
         }
-        if (price is null || price.SourcingOptionId != s.SourcingOptionId || price.UnitPrice != s.UnitPrice ||
-            price.CurrencyId != s.CurrencyId || price.EffectiveFrom > TehranToday ||
-            (price.EffectiveTo.HasValue && price.EffectiveTo < TehranToday)) reasons.Add("PRICE_CHANGED");
+        if (!await db.Currencies.AsNoTracking().AnyAsync(x => x.Id == s.CurrencyId && x.IsActive, ct))
+            reasons.Add("CURRENCY_INACTIVE");
         if (reasons.Count > 0) throw new DecisionReconfirmationException(reasons.Distinct().ToList());
     }
 
@@ -435,7 +437,9 @@ public sealed class PurchaseOrderOperationsService(
         if (row.Decision.DecisionVersion != row.Recommendation.DecisionVersion) return "DECISION_NOT_CURRENT";
         if (row.Generation.Status != OrderPlanningGenerationStatuses.Completed || !row.Generation.IsCurrent) return "OUTDATED_RUN";
         if (row.Recommendation.State == RecommendationStates.Blocked) return "BLOCKED";
-        if (row.Decision.FinalSourceSnapshot is null || !row.Decision.FinalQty.HasValue || row.Decision.FinalQty <= 0) return "DECISION_SNAPSHOT_INCOMPLETE";
+        if (row.Decision.FinalSourceSnapshot is null || !row.Decision.FinalQty.HasValue || row.Decision.FinalQty <= 0 ||
+            !row.Decision.FinalUnitPrice.HasValue || row.Decision.FinalUnitPrice < 0 || !row.Decision.FinalCurrencyId.HasValue)
+            return "DECISION_SNAPSHOT_INCOMPLETE";
         return null;
     }
 
@@ -529,6 +533,8 @@ public sealed class PurchaseOrderOperationsService(
     { if (order.Status is PurchaseOrderStatuses.Draft or PurchaseOrderStatuses.Approved) throw Conflict("PO_NOT_ORDERED", "PO هنوز تعهد خارجی نیست."); }
     private static void EnsureVersion(long actual, long expected)
     { if (expected < 1 || actual != expected) throw Conflict("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
+    private static decimal PurchaseQuantity(decimal value) =>
+        decimal.Round(value, 6, MidpointRounding.AwayFromZero);
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static async Task<string> Next(HadronDbContext db, string sequence, string prefix, int digits, CancellationToken ct)
     {
@@ -567,8 +573,8 @@ public sealed class PurchaseOrderOperationsService(
     private sealed record DecisionSnapshot(DateOnly EvaluationDate, Guid SourcingOptionId, string SourcingNumber,
         Guid SupplierId, string SupplierNumber, string SupplierNameFa, string? SupplierNameEn,
         string ReadinessState, Guid ItemBaseUnitId, decimal MinimumOrderQuantity, Guid? ShippingModeId,
-        Guid? IncotermId, int SupplierLeadTimeDays, int ForwarderToShipmentDays, int ShippingPeriodDays,
-        int DestinationCustomsDays, int TotalLeadTimeDays, Guid PriceId, decimal UnitPrice, Guid CurrencyId,
+        Guid? IncotermId, int? SupplierLeadTimeDays, int? ForwarderToShipmentDays, int? ShippingPeriodDays,
+        int? DestinationCustomsDays, int TotalLeadTimeDays, Guid? PriceId, decimal UnitPrice, Guid CurrencyId,
         string CurrencyCode, Guid PaymentTermId, string PaymentTermCode, decimal AdvancePercent,
         decimal BeforeShipmentPercent, decimal CreditPercent, int? CreditDays, string? CreditAnchor);
 }

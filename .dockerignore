@@ -1,0 +1,36 @@
+.git
+.gitignore
+.codex
+.codex-build
+.codex-test
+.runtime
+.vite
+
+# Local configuration and secrets must never enter an image layer.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Build outputs and dependency caches.
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/coverage
+**/TestResults
+**/*.tsbuildinfo
+
+# Local operational data is supplied through volumes, never image layers.
+backups
+docker-data
+logs
+output
+temp
+tmp
+*.log
+
+# Documentation and tests are not required by the production images.
+docs
+tests
+scripts

@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Modules.ReferenceData.Application;
+using Hadron.Erp.Api.Platform.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Hadron.Erp.Api.Modules.ReferenceData.Api;
@@ -10,55 +11,74 @@ public static class ReferenceDataEndpoints
         var root = endpoints.MapGroup("/api/reference-data").WithTags("Reference Data");
 
         root.MapGet("/types", (ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.GetTypes(token)));
+            Execute(() => service.GetTypes(token)))
+            .RequirePermission(Permissions.ReferenceDataView);
 
         root.MapGet("/types/{typeCode}/values", (string typeCode, bool? includeInactive, string? search,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.GetValues(typeCode, includeInactive ?? false, search, token)));
+            Execute(() => service.GetValues(typeCode, includeInactive ?? false, search, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapGet("/values/{id:guid}", async (Guid id, ReferenceDataService service, CancellationToken token) =>
-            await ExecuteFound(() => service.GetValue(id, token)));
+            await ExecuteFound(() => service.GetValue(id, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapPost("/types/{typeCode}/values", (string typeCode, CreateReferenceValueRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            ExecuteCreated(() => service.CreateValue(typeCode, request, token), "/api/reference-data/values"));
+            ExecuteCreated(() => service.CreateValue(typeCode, request, token), "/api/reference-data/values"))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPut("/values/{id:guid}", (Guid id, UpdateReferenceValueRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.UpdateValue(id, request, token)));
+            Execute(() => service.UpdateValue(id, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/values/{id:guid}/deactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeValueState(id, false, request, token)));
+            Execute(() => service.ChangeValueState(id, false, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/values/{id:guid}/reactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeValueState(id, true, request, token)));
+            Execute(() => service.ChangeValueState(id, true, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
 
         root.MapGet("/currencies", (bool? includeInactive, string? search, ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.GetCurrencies(includeInactive ?? false, search, token)));
+            Execute(() => service.GetCurrencies(includeInactive ?? false, search, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapGet("/currencies/{id:guid}", async (Guid id, ReferenceDataService service, CancellationToken token) =>
-            await ExecuteFound(() => service.GetCurrency(id, token)));
+            await ExecuteFound(() => service.GetCurrency(id, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapPost("/currencies", (CreateCurrencyRequest request, ReferenceDataService service, CancellationToken token) =>
-            ExecuteCreated(() => service.CreateCurrency(request, token), "/api/reference-data/currencies"));
+            ExecuteCreated(() => service.CreateCurrency(request, token), "/api/reference-data/currencies"))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPut("/currencies/{id:guid}", (Guid id, UpdateCurrencyRequest request, ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.UpdateCurrency(id, request, token)));
+            Execute(() => service.UpdateCurrency(id, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/currencies/{id:guid}/deactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeCurrencyState(id, false, request, token)));
+            Execute(() => service.ChangeCurrencyState(id, false, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/currencies/{id:guid}/reactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeCurrencyState(id, true, request, token)));
+            Execute(() => service.ChangeCurrencyState(id, true, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
 
         root.MapGet("/units", (bool? includeInactive, string? search, ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.GetUnits(includeInactive ?? false, search, token)));
+            Execute(() => service.GetUnits(includeInactive ?? false, search, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapGet("/units/{id:guid}", async (Guid id, ReferenceDataService service, CancellationToken token) =>
-            await ExecuteFound(() => service.GetUnit(id, token)));
+            await ExecuteFound(() => service.GetUnit(id, token)))
+            .RequirePermission(Permissions.ReferenceDataView);
         root.MapPost("/units", (CreateUnitRequest request, ReferenceDataService service, CancellationToken token) =>
-            ExecuteCreated(() => service.CreateUnit(request, token), "/api/reference-data/units"));
+            ExecuteCreated(() => service.CreateUnit(request, token), "/api/reference-data/units"))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPut("/units/{id:guid}", (Guid id, UpdateUnitRequest request, ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.UpdateUnit(id, request, token)));
+            Execute(() => service.UpdateUnit(id, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/units/{id:guid}/deactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeUnitState(id, false, request, token)));
+            Execute(() => service.ChangeUnitState(id, false, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
         root.MapPost("/units/{id:guid}/reactivate", (Guid id, ChangeActiveStateRequest request,
                 ReferenceDataService service, CancellationToken token) =>
-            Execute(() => service.ChangeUnitState(id, true, request, token)));
+            Execute(() => service.ChangeUnitState(id, true, request, token)))
+            .RequirePermission(Permissions.ReferenceDataManage);
 
         return endpoints;
     }

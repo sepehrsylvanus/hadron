@@ -8,6 +8,20 @@ public static class MrpRunStatuses
     public const string Failed = "FAILED";
 }
 
+public static class MrpRunPurposes
+{
+    public const string Current = "CURRENT";
+    public const string Certified = "CERTIFIED";
+    public const string Published = "PUBLISHED";
+    public const string Legacy = "LEGACY";
+}
+
+public static class MrpPlanSlotNames
+{
+    public const string Current = "CURRENT";
+    public const string Certified = "CERTIFIED";
+}
+
 public static class MrpCompleteness
 {
     public const string Complete = "COMPLETE";
@@ -58,7 +72,7 @@ public sealed class MrpRun
     private MrpRun() { }
 
     public MrpRun(string runNumber, DateOnly asOfDate, DateOnly horizonEndDate, string engineVersion,
-        string? actorIdentifier, DateTime startedAtUtc)
+        string? actorIdentifier, DateTime startedAtUtc, string purpose = MrpRunPurposes.Published)
     {
         Id = Guid.NewGuid();
         RunNumber = runNumber;
@@ -66,10 +80,11 @@ public sealed class MrpRun
         HorizonEndDate = horizonEndDate;
         EngineVersion = engineVersion;
         ActorIdentifier = actorIdentifier;
+        Purpose = purpose;
         StartedAtUtc = startedAtUtc;
         Status = MrpRunStatuses.Running;
         Completeness = MrpCompleteness.Complete;
-        Assumptions = "CALENDAR_DAYS;INTERNAL_PROCESS_LEAD_TIME_DAYS=0;COMPANY_WIDE_INVENTORY_POOL";
+        Assumptions = "WORKING_DAY_MANUFACTURING_ROUTES;COMPANY_WIDE_INVENTORY_POOL";
     }
 
     public Guid Id { get; private set; }
@@ -81,6 +96,7 @@ public sealed class MrpRun
     public string Completeness { get; private set; } = string.Empty;
     public string Assumptions { get; private set; } = string.Empty;
     public string? ActorIdentifier { get; private set; }
+    public string Purpose { get; private set; } = MrpRunPurposes.Legacy;
     public DateTime StartedAtUtc { get; private set; }
     public DateTime? SnapshotCapturedAtUtc { get; private set; }
     public DateTime? CompletedAtUtc { get; private set; }
@@ -104,6 +120,81 @@ public sealed class MrpRun
         FailureMessage = message;
         CompletedAtUtc = timestampUtc;
     }
+}
+
+public sealed class MrpPlanSlot
+{
+    private MrpPlanSlot() { }
+
+    public MrpPlanSlot(string slotName, Guid runId, DateOnly businessDate,
+        DateTime sourceCutoffUtc, DateTime activatedAtUtc)
+    {
+        SlotName = slotName;
+        RunId = runId;
+        BusinessDate = businessDate;
+        SourceCutoffUtc = sourceCutoffUtc;
+        ActivatedAtUtc = activatedAtUtc;
+        Version = 1;
+    }
+
+    public string SlotName { get; private set; } = string.Empty;
+    public Guid RunId { get; private set; }
+    public DateOnly BusinessDate { get; private set; }
+    public DateTime SourceCutoffUtc { get; private set; }
+    public DateTime ActivatedAtUtc { get; private set; }
+    public int Version { get; private set; }
+
+    public void Replace(Guid runId, DateOnly businessDate, DateTime sourceCutoffUtc, DateTime activatedAtUtc)
+    {
+        RunId = runId;
+        BusinessDate = businessDate;
+        SourceCutoffUtc = sourceCutoffUtc;
+        ActivatedAtUtc = activatedAtUtc;
+        Version++;
+    }
+}
+
+public sealed class MrpDailyCertificate
+{
+    private MrpDailyCertificate() { }
+
+    public MrpDailyCertificate(DateOnly businessDate, Guid sourceRunId, string runNumber,
+        DateOnly asOfDate, DateOnly horizonEndDate, DateTime sourceCutoffUtc, DateTime certifiedAtUtc,
+        string engineVersion, string status, string completeness, int itemCount,
+        int dailyResultCount, int exceptionCount, string resultHash)
+    {
+        Id = Guid.NewGuid();
+        BusinessDate = businessDate;
+        SourceRunId = sourceRunId;
+        RunNumber = runNumber;
+        AsOfDate = asOfDate;
+        HorizonEndDate = horizonEndDate;
+        SourceCutoffUtc = sourceCutoffUtc;
+        CertifiedAtUtc = certifiedAtUtc;
+        EngineVersion = engineVersion;
+        Status = status;
+        Completeness = completeness;
+        ItemCount = itemCount;
+        DailyResultCount = dailyResultCount;
+        ExceptionCount = exceptionCount;
+        ResultHash = resultHash;
+    }
+
+    public Guid Id { get; private set; }
+    public DateOnly BusinessDate { get; private set; }
+    public Guid SourceRunId { get; private set; }
+    public string RunNumber { get; private set; } = string.Empty;
+    public DateOnly AsOfDate { get; private set; }
+    public DateOnly HorizonEndDate { get; private set; }
+    public DateTime SourceCutoffUtc { get; private set; }
+    public DateTime CertifiedAtUtc { get; private set; }
+    public string EngineVersion { get; private set; } = string.Empty;
+    public string Status { get; private set; } = string.Empty;
+    public string Completeness { get; private set; } = string.Empty;
+    public int ItemCount { get; private set; }
+    public int DailyResultCount { get; private set; }
+    public int ExceptionCount { get; private set; }
+    public string ResultHash { get; private set; } = string.Empty;
 }
 
 public sealed class MrpRunItemInput
@@ -298,6 +389,33 @@ public sealed class MrpRunRouteAvailabilityInput
     public bool ExternalReady { get; private set; }
 }
 
+public sealed class MrpRunManufacturingOperationInput
+{
+    private MrpRunManufacturingOperationInput() { }
+    public MrpRunManufacturingOperationInput(Guid runId, Guid routeId, string routeCode,
+        Guid itemId, Guid operationId, int sequence, Guid workCenterId, string workCenterCode,
+        int workingWeekMask, int preparationWorkingDays, int executionWorkingDays)
+    {
+        Id = Guid.NewGuid(); RunId = runId; RouteId = routeId; RouteCode = routeCode;
+        ItemId = itemId; OperationId = operationId; Sequence = sequence;
+        WorkCenterId = workCenterId; WorkCenterCode = workCenterCode;
+        WorkingWeekMask = workingWeekMask; PreparationWorkingDays = preparationWorkingDays;
+        ExecutionWorkingDays = executionWorkingDays;
+    }
+    public Guid Id { get; private set; }
+    public Guid RunId { get; private set; }
+    public Guid RouteId { get; private set; }
+    public string RouteCode { get; private set; } = string.Empty;
+    public Guid ItemId { get; private set; }
+    public Guid OperationId { get; private set; }
+    public int Sequence { get; private set; }
+    public Guid WorkCenterId { get; private set; }
+    public string WorkCenterCode { get; private set; } = string.Empty;
+    public int WorkingWeekMask { get; private set; }
+    public int PreparationWorkingDays { get; private set; }
+    public int ExecutionWorkingDays { get; private set; }
+}
+
 public sealed class MrpRunExternalSourceInput
 {
     private MrpRunExternalSourceInput() { }
@@ -448,11 +566,13 @@ public sealed class MrpRunException
 public sealed class MrpRunDemandTrace
 {
     private MrpRunDemandTrace() { }
-    public MrpRunDemandTrace(Guid runId, DateOnly date, Guid parentItemId, Guid childItemId,
+    public MrpRunDemandTrace(Guid runId, DateOnly date, DateOnly parentDemandDate,
+        Guid parentItemId, Guid childItemId,
         Guid? bomRevisionId, Guid? bomLineId, decimal parentNetRequirement, decimal baseRequirement,
         decimal scrapPercent, string scrapSource, decimal childGrossRequirement)
     {
-        Id = Guid.NewGuid(); RunId = runId; Date = date; ParentItemId = parentItemId; ChildItemId = childItemId;
+        Id = Guid.NewGuid(); RunId = runId; Date = date; ParentDemandDate = parentDemandDate;
+        ParentItemId = parentItemId; ChildItemId = childItemId;
         BomRevisionId = bomRevisionId; BomLineId = bomLineId; ParentNetRequirement = parentNetRequirement;
         BaseRequirement = baseRequirement; ScrapPercent = scrapPercent; ScrapSource = scrapSource;
         ChildGrossRequirement = childGrossRequirement;
@@ -460,6 +580,7 @@ public sealed class MrpRunDemandTrace
     public Guid Id { get; private set; }
     public Guid RunId { get; private set; }
     public DateOnly Date { get; private set; }
+    public DateOnly ParentDemandDate { get; private set; }
     public Guid ParentItemId { get; private set; }
     public Guid ChildItemId { get; private set; }
     public Guid? BomRevisionId { get; private set; }

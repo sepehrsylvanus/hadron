@@ -7,6 +7,17 @@
 
 ---
 
+## Owner Correction — 2026-08-31 (LOCKED)
+
+- Machine Recommendation هیچ Price/Currency را از Sourcing انتخاب یا محاسبه نمی‌کند و Estimated Value تجاری تولید نمی‌کند.
+- هنگام `ACCEPT` یا `MODIFY`، کاربر مجاز باید UnitPrice و Currency فعال را صریحاً ثبت کند.
+- این مقادیر بخشی از Expert Decision immutable snapshot هستند و تبدیل PO همان snapshot را بدون refresh/reprice استفاده می‌کند.
+- تغییر تجاری بعدی مستلزم Expert Decision جدید است؛ Cash Flow در این Package وجود ندارد.
+
+این اصلاح بر هر عبارت متعارض درباره «current Sourcing Price» در baseline قدیمی این سند مقدم است.
+
+---
+
 # A. Final Feature Specification — 12-ORDER-PLANNING
 
 ## 1. Purpose

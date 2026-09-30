@@ -4,7 +4,10 @@ import type { TFunction } from 'i18next'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DataTable, FilterBar, FormField, MessageStrip, PageHeader, Pagination, Section, StatusBadge, TableToolbar } from './ui'
 import { normalizeLanguage } from './i18n'
+import { formatOperationalNumber } from './i18n/numberFormatting'
 import { analyticsDisplayName, analyticsExportUrl } from './analyticsUi'
+import { useAuth } from './AuthContext'
+import { analyticsRoutes, canNavigate } from './workspaceNavigation'
 
 type Page<T> = { items: T[]; page: number; pageSize: number; totalCount: number; provenance: { dataCutoffUtc: string; source: string } }
 type LeadRow = { sourcingOptionId: string; sourcingNumber: string; version: number; itemCode: string; itemNameFa: string; itemNameEn?: string; supplierNumber: string; supplierNameFa: string; total?: Stats; stages: Stage[]; cleanCompletedCount: number; onTimePercent?: number }
@@ -18,10 +21,11 @@ type InventoryRow = { itemCode: string; itemNameFa: string; itemNameEn?: string;
 
 const pageSize = 25
 const isoToday = () => new Date().toISOString().slice(0, 10)
-const format = (value?: number) => value == null ? '—' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value)
+const format = (value?: number) => formatOperationalNumber(value)
 
 export default function AnalyticsPage({ view }: { view: 'lead-time' | 'forecast' | 'commercial' | 'inventory' | 'reports' }) {
   const { t, i18n } = useTranslation(); const language = normalizeLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const { has } = useAuth()
   const [params] = useSearchParams(); const navigate = useNavigate(); const location = useLocation()
   const page = Math.max(1, Number(params.get('page') ?? 1)); const search = params.get('search') ?? ''
   const evaluationDate = params.get('evaluationDate') ?? isoToday()
@@ -46,16 +50,13 @@ export default function AnalyticsPage({ view }: { view: 'lead-time' | 'forecast'
   return <main className="analytics-page">
     <PageHeader title={t('analytics.title')} subtitle={t('analytics.subtitle')} />
     <nav className="analytics-tabs" aria-label={t('analytics.title')}>
-      <Link className={view === 'lead-time' ? 'active' : ''} to="/mrp/analytics/lead-time">{t('analytics.leadTime')}</Link>
-      <Link className={view === 'forecast' ? 'active' : ''} to="/mrp/analytics/forecast-accuracy">{t('analytics.forecast')}</Link>
-      <Link className={view === 'commercial' ? 'active' : ''} to="/mrp/analytics/commercial">{t('analytics.commercial')}</Link>
-      <Link className={view === 'inventory' ? 'active' : ''} to="/mrp/analytics/inventory">{t('analytics.inventory')}</Link>
-      <Link className={view === 'reports' ? 'active' : ''} to="/mrp/analytics/reports">{t('analytics.reports')}</Link>
+      {analyticsRoutes.filter(route => canNavigate(route.path, has)).map(route =>
+        <Link key={route.path} className={view === route.view ? 'active' : ''} to={route.path}>{t(route.labelKey)}</Link>)}
     </nav>
     {view !== 'reports' && <FilterBar label={t('common.filterBar')}><FormField label={t('common.search')}><input value={search} onChange={event => setParams({ search: event.target.value, page: 1 })} /></FormField>{view !== 'forecast' && <FormField label={t('analytics.evaluationDate')}><input type="date" value={evaluationDate} onChange={event => setParams({ evaluationDate: event.target.value, page: 1 })} /></FormField>}</FilterBar>}
-    {exportReport && pageData && <div className="analytics-export-current"><a className="button button--secondary" href={exportUrl}>{t('analytics.excel')}</a></div>}
+    {exportReport && pageData && has('analytics.export') && <div className="analytics-export-current"><a className="button button--secondary" href={exportUrl}>{t('analytics.excel')}</a></div>}
     {error && <MessageStrip tone="critical">{t('common.error')}: {error}</MessageStrip>}
-    {view === 'lead-time' && <LeadTable data={payload as Page<LeadRow> | undefined} language={language} loading={loading} evaluationDate={evaluationDate} t={t} />}
+    {view === 'lead-time' && <LeadTable data={payload as Page<LeadRow> | undefined} language={language} loading={loading} evaluationDate={evaluationDate} canApply={has('procurement.sourcing_lead_time.apply')} t={t} />}
     {view === 'forecast' && <ForecastTable data={payload as ForecastResponse | undefined} language={language} loading={loading} t={t} />}
     {view === 'commercial' && <CommercialTable data={payload as CommercialResponse | undefined} loading={loading} t={t} />}
     {view === 'inventory' && <InventoryTable data={payload as Page<InventoryRow> | undefined} language={language} loading={loading} t={t} />}
@@ -65,8 +66,10 @@ export default function AnalyticsPage({ view }: { view: 'lead-time' | 'forecast'
   </main>
 }
 
-function LeadTable({ data, language, loading, evaluationDate, t }: { data?: Page<LeadRow>; language: string; loading: boolean; evaluationDate: string; t: TFunction }) {
-  return <Section title={t('analytics.leadTime')}><><TableToolbar title={t('analytics.sourcingStatistics')} count={data?.totalCount} /><DataTable headers={[t('sourcing.option'), t('sourcing.item'), t('sourcing.supplier'), t('analytics.sample'), 'P50', 'P80', 'P90', t('analytics.onTime'), t('common.actions')]} loading={loading} empty={!data?.items.length} filtered={false} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} noResultTitle={t('common.noResultsTitle')}><>{data?.items.map(x => <tr key={x.sourcingOptionId}><td>{x.sourcingNumber}</td><td><bdi>{x.itemCode}</bdi> — {analyticsDisplayName(x.itemNameFa, x.itemNameEn, language)}</td><td>{x.supplierNumber} — {x.supplierNameFa}</td><td>{x.total?.sampleCount ?? 0} ({x.total?.sampleWindow ?? '—'})</td><td>{format(x.total?.p50)}</td><td>{format(x.total?.p80)}</td><td>{format(x.total?.p90)}</td><td>{format(x.onTimePercent)}%</td><td><LeadApply row={x} evaluationDate={evaluationDate} t={t} /></td></tr>)}</></DataTable></></Section>
+function LeadTable({ data, language, loading, evaluationDate, canApply, t }: { data?: Page<LeadRow>; language: string; loading: boolean; evaluationDate: string; canApply: boolean; t: TFunction }) {
+  const headers = [t('sourcing.option'), t('sourcing.item'), t('sourcing.supplier'), t('analytics.sample'), 'P50', 'P80', 'P90', t('analytics.onTime')]
+  if (canApply) headers.push(t('common.actions'))
+  return <Section title={t('analytics.leadTime')}><><TableToolbar title={t('analytics.sourcingStatistics')} count={data?.totalCount} /><DataTable headers={headers} loading={loading} empty={!data?.items.length} filtered={false} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} noResultTitle={t('common.noResultsTitle')}><>{data?.items.map(x => <tr key={x.sourcingOptionId}><td>{x.sourcingNumber}</td><td><bdi>{x.itemCode}</bdi> — {analyticsDisplayName(x.itemNameFa, x.itemNameEn, language)}</td><td>{x.supplierNumber} — {x.supplierNameFa}</td><td>{x.total?.sampleCount ?? 0} ({x.total?.sampleWindow ?? '—'})</td><td>{format(x.total?.p50)}</td><td>{format(x.total?.p80)}</td><td>{format(x.total?.p90)}</td><td>{format(x.onTimePercent)}%</td>{canApply && <td><LeadApply row={x} evaluationDate={evaluationDate} t={t} /></td>}</tr>)}</></DataTable></></Section>
 }
 
 function LeadApply({ row, evaluationDate, t }: { row: LeadRow; evaluationDate: string; t: TFunction }) {

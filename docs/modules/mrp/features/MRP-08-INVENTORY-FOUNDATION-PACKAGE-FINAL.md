@@ -6,6 +6,29 @@
 
 ---
 
+## Owner-approved post-RC workspace extension — 2026-08-31
+
+این بخش مرجع تکمیلی و ناسخ هر عبارت قدیمی درباره قرارگیری Inventory زیر Navigation برنامه‌ریزی است:
+
+- Inventory یک workspace مستقل در Launchpad اصلی `Hadron ERP System` است؛ MRP فقط مصرف‌کننده read contract موجودی است.
+- Warehouse جدید دارای Official Code تولیدشده، نام، نشانی/موقعیت و مسئول اصلی فعال است. رکوردهای تاریخی قبلی بدون حدس یا backfill ساختگی حفظ می‌شوند.
+- انتقال داخلی جدید تک‌مرحله‌ای نیست. Aggregate انتقال با شماره تولیدشده و lifecycle زیر ثبت می‌شود:
+
+```text
+DRAFT
+→ DISPATCHED
+→ PARTIALLY_RECEIVED
+→ RECEIVED
+```
+
+- Dispatch به‌صورت atomic یک `ISSUE` در مبدأ ایجاد می‌کند. هر Receipt جزئی/نهایی به‌صورت atomic یک `RECEIPT` در مقصد ایجاد می‌کند. Receipt/Dispatch ثبت‌شده immutable است و اصلاح با reversal کنترل‌شده انجام می‌شود.
+- `In Transit = dispatched quantity - effective received quantity` است. این مقدار در company ownership باقی می‌ماند اما موجودی فیزیکی قابل‌استفاده نیست.
+- MRP فقط جمع موجودی فیزیکی Warehouseها را مصرف می‌کند؛ In Transit تا زمان Receipt وارد netting نمی‌شود.
+- دسترسی Warehouse یک Data Scope واقعی و Backend-enforced است. هر انتقال به دسترسی همزمان به مبدأ و مقصد نیاز دارد.
+- Logistics، route/carrier/shipment/customs و دسترسی لجستیک به برخی انبارها scope آینده و جداگانه‌اند و در این extension وارد نشده‌اند.
+
+---
+
 # A. Final Feature Specification — 08-INVENTORY-FOUNDATION
 
 ## 1. Purpose

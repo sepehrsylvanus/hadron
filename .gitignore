@@ -38,9 +38,12 @@ Thumbs.db
 docker-data/
 postgres-data/
 data/postgres/
+backups/manual-test-safety/
+backups/production/
 
 # Temporary files
 tmp/
 temp/
+.local-host/
+output/migration/
 *.tmp
-

@@ -1381,3 +1381,58 @@ English: "Myriad Pro", "Segoe UI", Arial, sans-serif
 The fallback is temporary and must remain centralized in design tokens so official assets can be adopted without redesigning the interface.
 
 Status: **Official Brand Font Asset Pending**.
+
+---
+
+# 55. Hadron Companion Character
+
+The approved character model sheet is stored at:
+
+`docs/brand/Hadron-Character-Model-Sheet.jpeg`
+
+The companion is a contextual support element. It must not become a permanent
+decoration competing with operational data.
+
+Approved ERP placements:
+
+- welcome/present pose on Login and the enterprise Launchpad;
+- thinking pose while a genuinely long-running calculation or report is active;
+- guide/point pose in first-use and empty states with one clear next action;
+- a restrained concerned/confused pose on recoverable full-page failures.
+
+The companion must not appear:
+
+- inside data-grid rows, BOM nodes or routine form fields;
+- on every success toast or validation warning;
+- in approval, financial, security or destructive-confirmation dialogs;
+- as an animated floating assistant over the application shell;
+- where it reduces information density or pushes operational content below the fold.
+
+Rendering rules:
+
+- preserve the supplied character identity, proportions, face, four-finger hands,
+  white outfit, red `H` chest mark and red shoelaces;
+- use one character and one pose per context;
+- keep the rendered footprint subordinate to the page title and primary action;
+- use neutral or transparent backgrounds compatible with Hadron surfaces;
+- generated character assets must be optimized and lazy-loaded when they are not
+  required for the first meaningful screen;
+- decorative instances use empty alt text and `aria-hidden="true"`; instructional
+  instances use concise localized alt text;
+- optional motion must be subtle, must not block interaction and must stop under
+  `prefers-reduced-motion: reduce`.
+
+Detailed interaction guidance lives in
+`docs/brand/HADRON-CHARACTER-UI-GUIDELINES.md`.
+
+Status: **ERP UI INTERPRETATION — approved by project owner on 2026-09-06**.
+
+## Collaboration sticker interpretation
+
+The approved transparent Hadron sticker set lives under `src/frontend/src/assets/brand/stickers/`. It is available only from the user message composer. Sticker codes remain stable data; localized labels and image assets are presentation.
+
+- preserve the character's black glossy face, white suit, red `H` and red laces;
+- show one character per sticker with a transparent background and no extra decorative frame;
+- keep stickers subordinate to the conversation and never place them in navigation or data tables;
+- provide localized accessible labels;
+- never use a sticker as an automatic success/error/approval/financial/security indicator.

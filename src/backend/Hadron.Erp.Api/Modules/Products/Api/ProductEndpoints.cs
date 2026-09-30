@@ -1,5 +1,6 @@
 using Hadron.Erp.Api.Modules.Products.Application;
 using Hadron.Erp.Api.Modules.Catalog.Application;
+using Hadron.Erp.Api.Platform.Security;
 
 namespace Hadron.Erp.Api.Modules.Products.Api;
 
@@ -10,19 +11,24 @@ public static class ProductEndpoints
         var root = endpoints.MapGroup("/api/products").WithTags("Products");
         root.MapGet("/", (string? search, bool? includeInactive, Guid? productCategoryId, Guid? businessUnitId,
             int? page, int? pageSize, ProductService service, CancellationToken token) =>
-            Execute(() => service.GetList(search, includeInactive ?? false, productCategoryId, businessUnitId, page ?? 1, pageSize ?? 25, token)));
+            Execute(() => service.GetList(search, includeInactive ?? false, productCategoryId, businessUnitId, page ?? 1, pageSize ?? 25, token)))
+            .RequirePermission(Permissions.ProductView);
         root.MapGet("/{id:guid}", async (Guid id, ProductService service, CancellationToken token) =>
         {
             var result = await service.Get(id, token); return result is null ? Results.NotFound() : Results.Ok(result);
-        });
+        }).RequirePermission(Permissions.ProductView);
         root.MapPost("/", (CreateProductRequest request, ProductService service, CancellationToken token) =>
-            ExecuteCreated(() => service.Create(request, token)));
+            ExecuteCreated(() => service.Create(request, token)))
+            .RequirePermission(Permissions.ProductManage);
         root.MapPut("/{id:guid}", (Guid id, UpdateProductRequest request, ProductService service, CancellationToken token) =>
-            Execute(() => service.Update(id, request, token)));
+            Execute(() => service.Update(id, request, token)))
+            .RequirePermission(Permissions.ProductManage);
         root.MapPost("/{id:guid}/deactivate", (Guid id, ChangeProductStateRequest request, ProductService service, CancellationToken token) =>
-            Execute(() => service.ChangeState(id, false, request, token)));
+            Execute(() => service.ChangeState(id, false, request, token)))
+            .RequirePermission(Permissions.ProductManage);
         root.MapPost("/{id:guid}/reactivate", (Guid id, ChangeProductStateRequest request, ProductService service, CancellationToken token) =>
-            Execute(() => service.ChangeState(id, true, request, token)));
+            Execute(() => service.ChangeState(id, true, request, token)))
+            .RequirePermission(Permissions.ProductManage);
         return endpoints;
     }
 
@@ -34,7 +40,7 @@ public static class ProductEndpoints
     {
         ProductValidationException validation => Results.ValidationProblem(validation.Errors),
         ItemBaseUnitChangeBlockedException blocked => Results.Problem(statusCode: 409, title: "Product conflict", detail: blocked.Message,
-            extensions: new Dictionary<string, object?> { ["code"] = "ITEM_BASE_UNIT_LOCKED_BY_INVENTORY" }),
+            extensions: new Dictionary<string, object?> { ["code"] = blocked.Code, ["details"] = blocked.Details }),
         ProductConflictException conflict => Results.Problem(statusCode: 409, title: "Product conflict", detail: conflict.Message,
             extensions: new Dictionary<string, object?> { ["code"] = conflict.Code, ["details"] = conflict.Details }),
         KeyNotFoundException => Results.NotFound(),

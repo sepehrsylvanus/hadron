@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Modules.OrderPlanning.Application;
+using Hadron.Erp.Api.Platform.Security;
 
 namespace Hadron.Erp.Api.Modules.OrderPlanning.Api;
 
@@ -8,25 +9,30 @@ public static class OrderPlanningEndpoints
     {
         var group = endpoints.MapGroup("/api/order-planning").WithTags("Order Planning");
         group.MapPost("/generations", (GenerateOrderPlanningRequest request, OrderPlanningService service, CancellationToken ct) =>
-            ExecuteCreated(() => service.Generate(request, ct)));
+            ExecuteCreated(() => service.Generate(request, ct)))
+            .RequirePermission(Permissions.OrderPlanningGenerate);
         group.MapGet("/generations", (Guid runId, OrderPlanningService service, CancellationToken ct) =>
-            Execute(() => service.Generations(runId, ct)));
+            Execute(() => service.Generations(runId, ct)))
+            .RequirePermission(Permissions.OrderPlanningView);
         group.MapGet("/runs", (string? search, int? page, int? pageSize,
             OrderPlanningService service, CancellationToken ct) =>
-            Execute(() => service.Runs(search, page ?? 1, pageSize ?? 25, ct)));
+            Execute(() => service.Runs(search, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.OrderPlanningView);
         group.MapGet("/recommendations", (Guid? runId, Guid? generationId, string? search,
             string? state, string? priority, string? decisionType, DateOnly? needByFrom, DateOnly? needByTo,
             string? sortBy, string? sortDirection, int? page, int? pageSize,
             OrderPlanningService service, CancellationToken ct) => Execute(() =>
                 service.List(runId, generationId, search, state, priority, decisionType, needByFrom, needByTo,
-                    sortBy, sortDirection, page ?? 1, pageSize ?? 25, ct)));
+                    sortBy, sortDirection, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.OrderPlanningView);
         group.MapGet("/recommendations/{id:guid}", async (Guid id, OrderPlanningService service, CancellationToken ct) =>
         {
             try { var value = await service.Get(id, ct); return value is null ? Results.NotFound() : Results.Ok(value); }
             catch (Exception exception) { return Problem(exception); }
-        });
+        }).RequirePermission(Permissions.OrderPlanningView);
         group.MapPost("/recommendations/{id:guid}/decisions", (Guid id, SaveExpertDecisionRequest request,
-            OrderPlanningService service, CancellationToken ct) => Execute(() => service.Decide(id, request, ct)));
+            OrderPlanningService service, CancellationToken ct) => Execute(() => service.Decide(id, request, ct)))
+            .RequirePermission(Permissions.OrderPlanningDecide);
         return endpoints;
     }
 

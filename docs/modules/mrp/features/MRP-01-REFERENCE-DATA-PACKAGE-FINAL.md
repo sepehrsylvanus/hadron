@@ -533,7 +533,7 @@ Seed باید:
 - v1 model hybrid است: allowlisted ReferenceType/ReferenceValue + dedicated Currency/Unit.
 - ReferenceType user-created نیست و dynamic schema/EAV ایجاد نمی‌کند.
 - Unit v1 فاقد DecimalPrecision و Unit Conversion است.
-- Code در creation تعیین و در ordinary Edit immutable است.
+- Code برای هشت `ReferenceValue` allowlisted هنگام Save در backend، با شمارنده مستقل هر `ReferenceType` و فرمت عددی حداقل سه‌رقمی (`001`, `002`, ...) تولید می‌شود؛ در Create input از کاربر دریافت نمی‌شود و در ordinary Edit immutable است. sequence/counter باید concurrency-safe باشد، با بیشترین کد عددی موجود به‌صورت forward-only همگام شود و هیچ کد موجودی را تغییر ندهد. `Currency.ISO Code` و `Unit.Code` به‌دلیل معنای استاندارد/عملیاتی خود همچنان ورودی صریح و immutable هستند.
 - Localized duplicate names identity نیستند و database uniqueness ندارند.
 - mutable Reference Data از Version bigint و structured 409 برای optimistic concurrency استفاده می‌کند.
 - seed baseline فقط approved deterministic ReferenceType definitions است.
@@ -695,7 +695,8 @@ Lifecycle:
 - Deactivate
 - Reactivate
 - no destructive delete for used values
-- Code assigned at creation and immutable in ordinary Edit; no normal Code rename API/UI
+- allowlisted generic ReferenceValue Code is generated server-side on Save from an independent per-ReferenceType concurrency-safe sequence, formatted with at least three digits, absent from the Create contract, displayed as disabled/automatic in the UI, and immutable afterward; existing Codes are preserved
+- Currency ISO Code and Unit Code remain explicit standard/operational inputs at Create and immutable in ordinary Edit; no normal Code rename API/UI
 - mutation requires expected Version, atomically increments Version, and stale Version returns structured HTTP 409 Conflict
 
 Currency:
@@ -871,7 +872,9 @@ Audit:
    - Add/Edit/Deactivate/Reactivate
    - no destructive removal of used values
    - Technical Code protection
-   - Code assigned at creation and immutable through ordinary Edit/API/UI
+   - generic ReferenceValue Code generated server-side on Save, independently per allowlisted ReferenceType, absent from client Create input and immutable through ordinary Edit/API/UI
+   - sequence initialization preserves every existing Code and advances beyond the maximum existing numeric Code without `MAX()+1` runtime generation
+   - Currency ISO Code and Unit Code remain explicit Create inputs and immutable afterward
    - system-controlled statuses protected
    - Shipping Mode != Incoterm
    - no Component Count list

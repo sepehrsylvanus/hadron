@@ -21,13 +21,14 @@ export function useListQuery(defaultPageSize = 25) {
   return { params, page, pageSize, value, flag, update }
 }
 
-export function useListReturn(defaultPath: string) {
+export function useListReturn(defaultPath: string, additionalPaths: string[] = []) {
   const location = useLocation()
   const from = new URLSearchParams(location.search).get('from')
   if (!from) return defaultPath
   try {
     const decoded = decodeURIComponent(from)
-    return decoded.startsWith(defaultPath) ? decoded : defaultPath
+    const allowed = [defaultPath, ...additionalPaths]
+    return allowed.some(path => decoded === path || decoded.startsWith(`${path}?`)) ? decoded : defaultPath
   } catch { return defaultPath }
 }
 

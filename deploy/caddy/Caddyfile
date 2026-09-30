@@ -1,0 +1,54 @@
+{
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$ERP_SITE_ADDRESS} {
+	encode zstd gzip
+
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy api:8080
+	}
+
+	# SignalR must terminate on the ASP.NET Core application.  Keeping this
+	# route beside /api also preserves WebSocket upgrade headers through Caddy.
+	@hubs path /hubs /hubs/*
+	handle @hubs {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), display-capture=(self), geolocation=(), microphone=(self)"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+{$LIVEKIT_SITE_ADDRESS} {
+	reverse_proxy livekit:7880
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -25,7 +25,7 @@ export function sourceNavigation(sourceModule: string, sourceReference?: string 
   const query = encodeURIComponent(reference)
   if (sourceModule === 'BOM') return `/mrp/engineering/bom?search=${query}`
   if (sourceModule === 'PURCHASE_SUPPLY') return `/mrp/supply/purchase-orders?search=${query}`
-  if (sourceModule === 'INVENTORY') return `/mrp/inventory/warehouses?search=${query}`
+  if (sourceModule === 'INVENTORY') return `/inventory/warehouses?search=${query}`
   return null
 }
 

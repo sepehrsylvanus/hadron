@@ -444,9 +444,9 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         Assert.Equal(-55m, recommendation.MinimumBaseline);
         Assert.Equal(55m, recommendation.BaseRecommendedQty);
         Assert.Equal(80m, recommendation.SystemRecommendedQty);
-        Assert.Equal(560m, recommendation.EstimatedValue);
-        Assert.Equal("CNY", recommendation.SelectedCandidate!.CurrencyCode);
-        Assert.Equal(7m, recommendation.SelectedCandidate.UnitPrice);
+        Assert.Null(recommendation.EstimatedValue);
+        Assert.Null(recommendation.SelectedCandidate!.CurrencyCode);
+        Assert.Null(recommendation.SelectedCandidate.UnitPrice);
         Assert.Equal(RecommendationPriorities.Upcoming, recommendation.Priority);
         Assert.Equal(RecommendationNextActions.OrderByDate, recommendation.NextAction);
         Assert.Equal("PREFERRED_ELIGIBLE_ON_TIME", recommendation.SourceSelectionReason);
@@ -455,7 +455,8 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
 
         using var acceptedResponse = await _client.PostAsJsonAsync(
             $"/api/order-planning/recommendations/{recommendation.Id}/decisions",
-            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null));
+            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null,
+                7m, source.CurrencyId));
         acceptedResponse.EnsureSuccessStatusCode();
         var accepted = await acceptedResponse.Content.ReadFromJsonAsync<OrderRecommendationResponse>();
         Assert.Equal(1, accepted!.DecisionVersion);
@@ -487,17 +488,11 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
             await change.SaveChangesAsync();
         }
 
-        using var staleSource = await _client.PostAsJsonAsync(
-            $"/api/order-planning/recommendations/{recommendation.Id}/decisions",
-            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 1, null, null, null, null, null));
-        Assert.Equal(HttpStatusCode.Conflict, staleSource.StatusCode);
-        var sourceProblem = await staleSource.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("SOURCE_REVALIDATION_REQUIRED", sourceProblem.GetProperty("code").GetString());
-
         var historical = await _client.GetFromJsonAsync<OrderRecommendationResponse>(
             $"/api/order-planning/recommendations/{recommendation.Id}");
-        Assert.Equal(7m, historical!.SelectedCandidate!.UnitPrice);
-        Assert.Equal(560m, historical.EstimatedValue);
+        Assert.Null(historical!.SelectedCandidate!.UnitPrice);
+        Assert.Null(historical.EstimatedValue);
+        Assert.Equal(7m, historical.Decisions.Single().FinalUnitPrice);
         Assert.Equal(1, historical.DecisionVersion);
 
         using var refreshResponse = await _client.PostAsJsonAsync("/api/order-planning/generations",
@@ -506,21 +501,18 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         var refresh = await refreshResponse.Content.ReadFromJsonAsync<OrderPlanningGenerationResponse>();
         var refreshedRecommendation = await GetOnlyRecommendation(fixture.RunId, refresh!.Id);
         Assert.Equal(2, refresh.GenerationSequence);
-        Assert.Equal(8m, refreshedRecommendation.SelectedCandidate!.UnitPrice);
-        Assert.Equal(640m, refreshedRecommendation.EstimatedValue);
+        Assert.Null(refreshedRecommendation.SelectedCandidate!.UnitPrice);
+        Assert.Null(refreshedRecommendation.EstimatedValue);
 
         Guid alternateOptionId;
         await using (var alternateDb = await Db())
         {
             var original = await alternateDb.SourcingOptions.AsNoTracking().SingleAsync(x => x.Id == source.OptionId);
-            var currencyId = await alternateDb.Currencies.Where(x => x.Code == "CNY").Select(x => x.Id).SingleAsync();
             var alternate = new SourcingOption("SRC-9002", original.ItemId, original.SupplierId,
                 original.ItemBaseUnitId, original.MinimumOrderQuantity, original.ShippingModeId, original.IncotermId,
                 original.SupplierLeadTimeDays, original.ForwarderToShipmentDays, original.ShippingPeriodDays,
                 original.DestinationCustomsDays);
             alternateDb.Add(alternate);
-            await alternateDb.SaveChangesAsync();
-            alternateDb.Add(new SourcingPrice(alternate.Id, 8, currencyId, today, null));
             await alternateDb.SaveChangesAsync();
             alternateOptionId = alternate.Id;
         }
@@ -528,7 +520,7 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         using var outdatedModify = await _client.PostAsJsonAsync(
             $"/api/order-planning/recommendations/{recommendation.Id}/decisions",
             new SaveExpertDecisionRequest(ExpertDecisionTypes.Modify, 1, "Use explicit current source",
-                null, source.OptionId, 80, fixture.NeedByDate));
+                null, source.OptionId, 80, fixture.NeedByDate, 8m, source.CurrencyId));
         Assert.Equal(HttpStatusCode.Conflict, outdatedModify.StatusCode);
         var outdatedProblem = await outdatedModify.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("OUTDATED_RUN", outdatedProblem.GetProperty("code").GetString());
@@ -538,14 +530,14 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
             using var invalidModify = await _client.PostAsJsonAsync(
                 $"/api/order-planning/recommendations/{refreshedRecommendation.Id}/decisions",
                 new SaveExpertDecisionRequest(ExpertDecisionTypes.Modify, 0, "Invalid quantity",
-                    null, alternateOptionId, invalidQty, today.AddDays(3)));
+                    null, alternateOptionId, invalidQty, today.AddDays(3), 8m, source.CurrencyId));
             Assert.Equal(HttpStatusCode.BadRequest, invalidModify.StatusCode);
         }
 
         using var modifiedResponse = await _client.PostAsJsonAsync(
             $"/api/order-planning/recommendations/{refreshedRecommendation.Id}/decisions",
             new SaveExpertDecisionRequest(ExpertDecisionTypes.Modify, 0, "Expedite despite feasibility",
-                null, alternateOptionId, 80, today.AddDays(1)));
+                null, alternateOptionId, 80, today.AddDays(1), 8m, source.CurrencyId));
         modifiedResponse.EnsureSuccessStatusCode();
         var modified = await modifiedResponse.Content.ReadFromJsonAsync<OrderRecommendationResponse>();
         Assert.Equal(8m, modified!.Decisions.Single().FinalUnitPrice);
@@ -590,8 +582,8 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         Assert.Equal(serverDay, recommendation.EvaluationDate);
         Assert.Equal(fixture.NeedByDate, recommendation.NeedByDate);
         Assert.True(recommendation.SelectedCandidate!.IsEligible);
-        Assert.Equal(7m, recommendation.SelectedCandidate.UnitPrice);
-        Assert.Equal(serverDay.AddDays(-1), recommendation.SelectedCandidate.PriceEffectiveFrom);
+        Assert.Null(recommendation.SelectedCandidate.UnitPrice);
+        Assert.Null(recommendation.SelectedCandidate.PriceEffectiveFrom);
     }
 
     [Fact]
@@ -610,9 +602,10 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
 
         foreach (var request in new[]
         {
-            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null),
+            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null,
+                7m, source.CurrencyId),
             new SaveExpertDecisionRequest(ExpertDecisionTypes.Modify, 0, "Different source", null,
-                source.OptionId, 80, oldRun.NeedByDate)
+                source.OptionId, 80, oldRun.NeedByDate, 7m, source.CurrencyId)
         })
         {
             using var blocked = await _client.PostAsJsonAsync(
@@ -634,8 +627,6 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
     [Theory]
     [InlineData("SOURCE_ACTIVE")]
     [InlineData("READINESS")]
-    [InlineData("PRICE")]
-    [InlineData("PRICE_EXPIRY")]
     [InlineData("MOQ")]
     [InlineData("LEAD_TIME")]
     [InlineData("BASE_UNIT")]
@@ -663,14 +654,6 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
                     var shipping = await db.ReferenceValues.SingleAsync(x => x.Id == option.ShippingModeId);
                     shipping.SetActive(false); shipping.AdvanceVersion(); shipping.Touch();
                     break;
-                case "PRICE":
-                    var currentPrice = await db.SourcingPrices.SingleAsync(x => x.Id == source.PriceId);
-                    currentPrice.Close(today.AddDays(-1));
-                    db.SourcingPrices.Add(new SourcingPrice(source.OptionId, 9, currentPrice.CurrencyId, today, null));
-                    break;
-                case "PRICE_EXPIRY":
-                    (await db.SourcingPrices.SingleAsync(x => x.Id == source.PriceId)).Close(today.AddDays(-1));
-                    break;
                 case "MOQ":
                     option.Edit(81, option.ShippingModeId, option.IncotermId, option.SupplierLeadTimeDays,
                         option.ForwarderToShipmentDays, option.ShippingPeriodDays, option.DestinationCustomsDays);
@@ -692,7 +675,8 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         var auditCount = _factory.AuditSink.Snapshot().Count;
         using var response = await _client.PostAsJsonAsync(
             $"/api/order-planning/recommendations/{recommendation.Id}/decisions",
-            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null));
+            new SaveExpertDecisionRequest(ExpertDecisionTypes.Accept, 0, null, null, null, null, null,
+                7m, source.CurrencyId));
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("SOURCE_REVALIDATION_REQUIRED", problem.GetProperty("code").GetString());
@@ -719,13 +703,11 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
             var option = await db.SourcingOptions
                 .Include(x => x.Item).Include(x => x.Supplier)
                 .Include(x => x.ShippingMode).Include(x => x.Incoterm)
-                .Include(x => x.Prices).ThenInclude(x => x.Currency)
                 .SingleAsync(x => x.Id == source.OptionId);
             option.Edit(option.MinimumOrderQuantity, option.ShippingModeId, option.IncotermId,
                 null, option.ForwarderToShipmentDays, option.ShippingPeriodDays, option.DestinationCustomsDays);
             await db.SaveChangesAsync();
-            canonical = SourcingReadinessEvaluator.Evaluate(option, SupplyMethods.Buy,
-                option.Prices.Single(), source.UnitId);
+            canonical = SourcingReadinessEvaluator.Evaluate(option, SupplyMethods.Buy, source.UnitId);
         }
         Assert.Equal(SourcingReadiness.IncompleteData, canonical.State);
         Assert.Equal(["SUPPLIER_LEAD_TIME_MISSING"], canonical.ReasonCodes);
@@ -923,7 +905,7 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
         var price = new SourcingPrice(option.Id, 7, currency.Id, today.AddDays(-1), null);
         db.AddRange(option, price);
         await db.SaveChangesAsync();
-        return new(item.Id, unit.Id, category.Id, option.Id, price.Id);
+        return new(item.Id, unit.Id, category.Id, option.Id, price.Id, currency.Id);
     }
 
     private static DateOnly TehranToday()
@@ -948,5 +930,6 @@ public sealed class OrderPlanningTests : IClassFixture<FoundationApiFactory>, IA
 
     private sealed record RunFixture(Guid RunId, Guid ItemId, Guid UnitId,
         DateOnly AsOfDate, DateOnly NeedByDate);
-    private sealed record SourceFixture(Guid ItemId, Guid UnitId, Guid CategoryId, Guid OptionId, Guid PriceId);
+    private sealed record SourceFixture(Guid ItemId, Guid UnitId, Guid CategoryId, Guid OptionId, Guid PriceId,
+        Guid CurrencyId);
 }

@@ -9,6 +9,7 @@ import { act, create, type ReactTestRenderer, type ReactTestRendererJSON } from 
 import { createServer, type ViteDevServer } from 'vite'
 import { businessDirection, formatBusinessDate } from './i18n/businessDate.ts'
 import { localizedName } from './i18n/localizedName.ts'
+import { formatOperationalNumber } from './i18n/numberFormatting.ts'
 import en from './i18n/locales/en.ts'
 import fa from './i18n/locales/fa.ts'
 import {
@@ -26,6 +27,15 @@ const materialPlanningPath = '/mrp/planning/material-planning'
 const latestRunId = '00000000-0000-0000-0000-000000000001'
 const historicalRunId = '00000000-0000-0000-0000-000000000002'
 const itemId = '00000000-0000-0000-0000-000000000101'
+const productId = '00000000-0000-0000-0000-000000000201'
+
+test('operational numbers use localized grouping and at most one fractional digit', () => {
+  assert.equal(formatOperationalNumber(71959.733333, 'en'), '71,959.7')
+  assert.equal(formatOperationalNumber(33.666667, 'en'), '33.7')
+  assert.equal(formatOperationalNumber(12, 'en'), '12')
+  assert.equal(formatOperationalNumber(null, 'en'), '—')
+  assert.equal(formatOperationalNumber(71959.733333, 'fa-IR'), '۷۱٬۹۵۹٫۷')
+})
 
 class MemoryStorage implements StorageLike {
   private readonly values = new Map<string, string>()
@@ -88,7 +98,7 @@ test('required presentation contracts enumerate every canonical visible field', 
 test('Exception source navigation is emitted only for sufficient immutable references and real routes', () => {
   assert.equal(sourceNavigation('BOM', 'BOM-001'), '/mrp/engineering/bom?search=BOM-001')
   assert.equal(sourceNavigation('PURCHASE_SUPPLY', 'PO-001'), '/mrp/supply/purchase-orders?search=PO-001')
-  assert.equal(sourceNavigation('INVENTORY', 'WH-0001'), '/mrp/inventory/warehouses?search=WH-0001')
+  assert.equal(sourceNavigation('INVENTORY', 'WH-0001'), '/inventory/warehouses?search=WH-0001')
   assert.equal(sourceNavigation('FORECAST', null), null)
   assert.equal(sourceNavigation('MRP', 'technical-only'), null)
 })
@@ -162,14 +172,88 @@ test('actual English page renders all Run Header Material Summary and Supply Tra
       'Material Planning', 'Run number', 'MRP-RUN-110001', 'As-of date', '24/08/2026',
       'Horizon end', '02/09/2026', 'Engine version', 'MRP-10-v1', 'Status', 'Completed',
       'Completeness', 'Complete', 'Completed at', 'Historical run',
-      'Starting on-hand', '125.5', 'Firm incoming', '30.25', 'Net requirement', '14.75',
+      'Starting on-hand', '125.5', 'Firm incoming', '30.3', 'Net requirement', '14.8',
       'Stockout date', '26/08/2026', 'Safety breach', '25/08/2026', 'Stock coverage',
-      'Firm coverage', 'Overdue firm', '7.5', 'Missing ETA firm', '4.25', 'Risk band', 'Critical',
+      'Firm coverage', 'Overdue firm', '7.5', 'Missing ETA firm', '4.3', 'Risk band', 'Critical',
       'نام ماده بدون انگلیسی',
       'Supply trace', 'PO-110001', 'PO line ID', 'line-110001', 'Delivery schedule ID',
       'schedule-110001', 'SUP-1101', 'Snapshot Supplier', 'Open quantity', '12.5',
       '28/08/2026', 'ON_TIME', 'applied', 'PO-110002', 'schedule-110002', 'excluded',
+      'Production and material operations dashboard', 'Forecast products', 'PRD-1101',
+      'Shared demand product', 'Consumed by products', 'Up to date',
+      'Open calculation exceptions', 'Why does this item need attention?',
+      'Reliable supply for PRT-1101 will no longer cover consumption on 26/08/2026.',
+      'This item is consumed by: PRD-1101 — Shared demand product.',
     ]) assert.ok(text.includes(expected), `Expected visible text: ${expected}`)
+
+    const runContextTable = renderer.root.findByProps({ 'aria-label': 'Historical run context' })
+    assert.equal(runContextTable.type, 'div')
+    assert.ok(runContextTable.findAllByType('strong').length >= 2)
+    assert.equal(renderer.root.findAll(node => node.props.className === 'mrp-run-technical-details').length, 1)
+    const detailTable = renderer.root.findByProps({ 'aria-label': 'Operational material detail' })
+    assert.equal(detailTable.type, 'table')
+    assert.equal(detailTable.findAllByType('thead')[0].findAllByType('th').length, 3)
+    assert.equal(detailTable.findAllByType('tbody')[0].findAllByType('tr').length, 8)
+    assert.ok(renderer.root.findAllByProps({ className: 'trace-report' }).length >= 6)
+  } finally {
+    if (renderer) await act(async () => renderer?.unmount())
+    restoreWindow()
+    restoreFetch()
+  }
+})
+
+test('advanced planning filters are progressively disclosed without losing the operational cockpit', async () => {
+  const restoreFetch = installMaterialPlanningFetch()
+  const restoreWindow = installWindow(new MemoryStorage())
+  const translation = await testI18n('en')
+  let renderer: ReactTestRenderer | undefined
+  try {
+    renderer = await renderPage(translation, 'en', [`${materialPlanningPath}?runId=${latestRunId}`], () => undefined)
+    const toggle = renderer.root.findAllByType('button').find(node => instanceText(node).includes('More filters'))
+    assert.ok(toggle, 'More filters action must remain visible')
+    assert.equal(toggle.props['aria-expanded'], false)
+    const dateInputsBefore = renderer.root.findAll(node => node.type === 'input' && node.props.type === 'date').length
+
+    await act(async () => toggle.props.onClick())
+    await flushEffects()
+
+    const expanded = renderer.root.findAllByType('button').find(node => instanceText(node).includes('Hide more filters'))
+    assert.ok(expanded)
+    assert.equal(expanded.props['aria-expanded'], true)
+    assert.equal(renderer.root.findAll(node => node.type === 'input' && node.props.type === 'date').length, dateInputsBefore + 2)
+    assert.ok(renderedText(renderer.toJSON()).includes('Production and material operations dashboard'))
+  } finally {
+    if (renderer) await act(async () => renderer?.unmount())
+    restoreWindow()
+    restoreFetch()
+  }
+})
+
+test('empty optional filters are omitted and one failed card does not replace the dashboard', async () => {
+  const requests: string[] = []
+  const restoreFetch = installMaterialPlanningFetch(requests, '/exceptions')
+  const restoreWindow = installWindow(new MemoryStorage())
+  const translation = await testI18n('fa-IR')
+  let renderer: ReactTestRenderer | undefined
+  try {
+    renderer = await renderPage(translation, 'fa-IR', [`${materialPlanningPath}?runId=${latestRunId}`], () => undefined)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 180)) })
+    await flushEffects()
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('داشبورد عملیاتی تولید و مواد'))
+    assert.ok(text.includes('PRD-1101'))
+    assert.ok(text.includes('بارگذاری مرکز استثناها در سرور انجام نشد.'))
+    assert.ok(!text.includes('An error occurred while processing your request'))
+    const summaryRequest = requests.find(value => value.includes('/summary?') && value.includes('pageSize=25'))
+    const exceptionRequest = requests.find(value => value.includes('/exceptions?'))
+    assert.ok(summaryRequest)
+    assert.ok(exceptionRequest)
+    for (const request of [summaryRequest, exceptionRequest]) {
+      assert.ok(!request.includes('categoryId='))
+      assert.ok(!request.includes('stockoutFrom='))
+      assert.ok(!request.includes('stockoutTo='))
+      assert.ok(!request.includes('date='))
+    }
   } finally {
     if (renderer) await act(async () => renderer?.unmount())
     restoreWindow()
@@ -188,12 +272,82 @@ test('actual Persian Material Planning page renders RTL labels Jalali dates and 
     const text = renderedText(renderer.toJSON())
     const localeRoot = renderer.root.findByProps({ 'data-material-planning-locale': 'fa-IR' })
     assert.equal(localeRoot.props.dir, 'rtl')
+    const runContextTable = renderer.root.findByProps({ 'aria-label': 'اطلاعات اجرای انتخاب‌شده' })
+    assert.equal(runContextTable.type, 'div')
+    assert.ok(runContextTable.findAllByType('strong').length >= 2)
     assert.ok(text.includes('جزئیات عملیاتی ماده'))
     assert.ok(text.includes('موجودی شروع'))
-    assert.ok(text.includes('تاریخ As-Of'))
+    assert.ok(text.includes('تاریخ مبنای محاسبه'))
     assert.ok(text.includes('۱۴۰۵/۰۶/۰۲'))
     assert.ok(text.includes('نام ماده Snapshot'))
     assert.ok(text.includes('نام ماده بدون انگلیسی'))
+  } finally {
+    if (renderer) await act(async () => renderer?.unmount())
+    restoreWindow()
+    restoreFetch()
+  }
+})
+
+test('Planner Inbox is server-paged, supports saved views and acknowledges without mutating Run exceptions', async () => {
+  const requests: string[] = []
+  const restoreFetch = installMaterialPlanningFetch(requests)
+  const restoreWindow = installWindow(new MemoryStorage())
+  const translation = await testI18n('en')
+  let renderer: ReactTestRenderer | undefined
+  try {
+    renderer = await renderPage(translation, 'en',
+      [`${materialPlanningPath}?runId=${latestRunId}&view=inbox&inboxPage=2`], () => undefined)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 180)) })
+    await flushEffects()
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('Planner inbox'))
+    assert.ok(text.includes('TEST_PLANNER_EXCEPTION'))
+    assert.ok(text.includes('Snapshot Planner'))
+    assert.ok(text.includes('My critical exceptions'))
+    assert.ok(requests.some(value => value.includes('/planner-inbox?') && value.includes('page=2')))
+    assert.ok(requests.some(value => value.includes('/planner-inbox?') && value.includes(`runId=${latestRunId}`)))
+    assert.ok(requests.every(value => !value.includes('assignedUserId=')))
+    assert.ok(requests.some(value => value.includes('/planner-assignees?') && value.includes('pageSize=25')))
+
+    const assigneeSearch = renderer.root.findByProps({ 'aria-label': 'Search assignable users' })
+    await act(async () => assigneeSearch.props.onChange({ target: { value: 'warehouse' } }))
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 180)) })
+    await flushEffects()
+    assert.ok(requests.some(value => value.includes('/planner-assignees?') && value.includes('search=warehouse') && value.includes('page=1')))
+
+    const acknowledge = renderer.root.findAllByType('button')
+      .find(node => instanceText(node).includes('Acknowledge'))
+    assert.ok(acknowledge)
+    await act(async () => acknowledge.props.onClick())
+    await flushEffects()
+    assert.ok(requests.includes('POST /api/material-planning/planner-work-items/work-item-1/acknowledge'))
+  } finally {
+    if (renderer) await act(async () => renderer?.unmount())
+    restoreWindow()
+    restoreFetch()
+  }
+})
+
+test('What-if comparison is visibly non-official, snapshot-based and keeps server paging reachable', async () => {
+  const requests: string[] = []
+  const restoreFetch = installMaterialPlanningFetch(requests)
+  const restoreWindow = installWindow(new MemoryStorage())
+  const translation = await testI18n('fa-IR')
+  let renderer: ReactTestRenderer | undefined
+  try {
+    renderer = await renderPage(translation, 'fa-IR',
+      [`${materialPlanningPath}?runId=${latestRunId}&view=whatif&scenarioId=scenario-1&scenarioResultPage=2`],
+      () => undefined)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 180)) })
+    await flushEffects()
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('سناریوی چه می‌شود اگر؟'))
+    assert.ok(text.includes('غیررسمی'))
+    assert.ok(text.includes('PRT-1101'))
+    assert.ok(text.includes('11'))
+    assert.ok(requests.some(value => value.includes('/what-if-scenarios/scenario-1/results?') && value.includes('page=2')))
+    assert.ok(requests.some(value => value.includes('/what-if/items?') && value.includes('pageSize=25')))
+    assert.ok(requests.some(value => value.includes('/what-if/firm-supplies?') && value.includes('pageSize=25')))
   } finally {
     if (renderer) await act(async () => renderer?.unmount())
     restoreWindow()
@@ -290,26 +444,79 @@ function renderedText(node: ReactTestRendererJSON | ReactTestRendererJSON[] | st
 function installWindow(storage: MemoryStorage) {
   const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, 'window')
   const previous = (globalThis as typeof globalThis & { window?: unknown }).window
+  const hadDocument = Object.prototype.hasOwnProperty.call(globalThis, 'document')
+  const previousDocument = (globalThis as typeof globalThis & { document?: unknown }).document
+  Object.defineProperty(globalThis, 'document', { configurable: true, writable: true,
+    value: { documentElement: { lang: '', dir: '' } } })
   Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: {
     localStorage: storage,
+    fetch: globalThis.fetch.bind(globalThis),
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => true,
     setTimeout: globalThis.setTimeout.bind(globalThis),
     clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
   } })
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   return () => {
     if (hadWindow) Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: previous })
     else delete (globalThis as typeof globalThis & { window?: unknown }).window
+    if (hadDocument) Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: previousDocument })
+    else delete (globalThis as typeof globalThis & { document?: unknown }).document
   }
 }
 
-function installMaterialPlanningFetch() {
+function installMaterialPlanningFetch(requests: string[] = [], failedPathSuffix?: string) {
   const previous = globalThis.fetch
-  globalThis.fetch = async input => {
+  globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
       'http://hadron.test')
     const path = url.pathname
+    const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+    requests.push(`${method.toUpperCase()} ${path}${url.search}`)
+    if (failedPathSuffix && path.endsWith(failedPathSuffix)) return new Response(JSON.stringify({
+      type: 'https://tools.ietf.org/html/rfc9110#section-15.6.1',
+      title: 'An error occurred while processing your request.',
+      status: 500,
+      traceId: 'trace-card-isolation',
+    }), { status: 500, headers: { 'content-type': 'application/problem+json' } })
+    if (path === '/api/material-planning/planner-inbox') return json({ items: [{ id: 'work-item-1', runId: latestRunId,
+      exceptionId: 'exception-1', runNumber: 'MRP-RUN-110002', itemId, itemCode: 'PRT-1101', date: '2026-08-26',
+      code: 'TEST_PLANNER_EXCEPTION', severity: 'WARNING', affectsDemand: true, message: 'Snapshot exception',
+      assignedUserId: 'user-1', assignedUserName: 'planner', assignedUserFullName: 'Snapshot Planner', status: 'OPEN',
+      updatedAtUtc: '2026-08-24T06:05:00Z', version: 1 }], page: 2, pageSize: 25, totalCount: 26 })
+    if (path === '/api/material-planning/planner-assignees') return json({ items: [
+      { id: 'user-1', userName: 'planner', fullName: 'Snapshot Planner' }], page: Number(url.searchParams.get('page') ?? 1), pageSize: 25, totalCount: 101 })
+    if (path === '/api/material-planning/saved-views') return json([
+      { id: 'view-1', name: 'My critical exceptions', filtersJson: '{"inboxStatus":"OPEN"}', updatedAtUtc: '2026-08-24T06:05:00Z', version: 1 }])
+    if (path.includes('/planner-work-items/') && method.toUpperCase() === 'POST') return json({})
+    if (path === '/api/material-planning/what-if-scenarios' && method.toUpperCase() === 'GET') return json({ items: [
+      { id: 'scenario-1', baseRunId: latestRunId, baseRunNumber: 'MRP-RUN-110002', name: 'سناریوی تست',
+        status: 'CALCULATED', completeness: 'COMPLETE', createdAtUtc: '2026-08-24T06:10:00Z', overrideCount: 3 }],
+      page: 1, pageSize: 25, totalCount: 1 })
+    if (path.endsWith('/what-if/items')) return json({ items: [
+      { id: productId, code: 'PRD-1101', nameFa: 'محصول', nameEn: 'Product', kind: 'PRODUCT' },
+      { id: itemId, code: 'PRT-1101', nameFa: 'ماده', nameEn: 'Material', kind: 'PART' }],
+      page: 1, pageSize: 25, totalCount: 102 })
+    if (path.endsWith('/what-if/firm-supplies')) return json({ items: [{ deliveryScheduleId: 'schedule-110001',
+      itemId, itemCode: 'PRT-1101', itemNameFa: 'ماده', itemNameEn: 'Material', purchaseOrderNumber: 'PO-110001',
+      openQty: 12.5, eta: '2026-08-28', etaStatus: 'ON_TIME' }], page: 1, pageSize: 25, totalCount: 101 })
+    if (path.endsWith('/what-if/forecast-periods')) return json([{ productId, businessPeriodId: 'period-1',
+      periodStartDate: '2026-08-25', periodEndDate: '2026-09-22', officialForecastQty: 10,
+      actualMtdQty: 0, allocationState: 'ALLOCATED' }])
+    if (path.endsWith('/what-if-scenarios/scenario-1/results')) return json({ items: [{ itemId,
+      itemCode: 'PRT-1101', nameFa: 'ماده', nameEn: 'Material', itemType: 'PART', officialStartingOnHand: 0,
+      scenarioStartingOnHand: 5, officialNetRequirement: 8, scenarioNetRequirement: 11,
+      netRequirementDelta: 3, officialStockoutDate: '2026-08-25', scenarioStockoutDate: '2026-08-26',
+      completeness: 'COMPLETE' }], page: 2, pageSize: 25, totalCount: 26 })
+    if (path === '/api/material-planning/refresh-status') return json({ status: 'UP_TO_DATE', latestRunId,
+      latestRunNumber: 'MRP-RUN-110002', latestAsOfDate: '2026-08-24', lastUpdatedAtUtc: '2026-08-24T06:05:00Z', pendingChangeCount: 0 })
     if (path === '/api/material-planning/runs') return json({ items: runList(), page: 1, pageSize: 25, totalCount: 2 })
     if (path.endsWith('/facets')) return json({ categories: [], supplyMethods: [] })
+    if (path.endsWith(`/products/${productId}/materials`)) return json({ items: summaryRows(), page: 1, pageSize: 25, totalCount: 2 })
+    if (path.endsWith('/products')) return json({ items: productRows(), page: 1, pageSize: 25, totalCount: 1 })
     if (path.endsWith('/summary')) return json({ items: summaryRows(), page: 1, pageSize: 25, totalCount: 2 })
     if (path.endsWith('/exceptions')) return json({ items: [], page: 1, pageSize: 25, totalCount: 0 })
     if (path.endsWith('/timeline')) return json(timeline())
@@ -349,12 +556,22 @@ function summaryRows() {
   ]
 }
 
+function productRows() {
+  return [{ product: { id: productId, code: 'PRD-1101', nameFa: 'محصول تقاضای مشترک', nameEn: 'Shared demand product',
+    itemType: 'PRODUCT', unitCode: 'EA', unitNameFa: 'عدد', unitNameEn: 'Each' }, plannedProductionQty: 1000,
+    materialCount: 2, attentionMaterialCount: 1, stockCoverageState: 'DATE', stockCoverageDate: '2026-08-25',
+    stockCoverageDays: 1, firmCoverageState: 'DATE', firmCoverageDate: '2026-08-27', firmCoverageDays: 3,
+    firstConstraintMaterial: summaryRows()[0].item, firstConstraintDate: '2026-08-26', riskBand: 'CRITICAL',
+    completeness: 'COMPLETE' }]
+}
+
 function timeline() {
   return { item: summaryRows()[0].item, grain: 'DAILY', safetyStockQty: 10, stockCoverageState: 'DATE',
     stockCoverageDate: '2026-08-25', stockCoverageDays: 1, firmCoverageState: 'DATE',
-    firmCoverageDate: '2026-08-27', firmCoverageDays: 3, buckets: [{ startDate: '2026-08-26',
+    firmCoverageDate: '2026-08-27', firmCoverageDays: 3, usedByProducts: [{ id: productId,
+      code: 'PRD-1101', nameFa: 'محصول تقاضای مشترک', nameEn: 'Shared demand product' }], buckets: [{ startDate: '2026-08-26',
       endDate: '2026-08-26', grossDemand: 5, firmIncoming: 2, netRequirement: 3, firmProjected: -1,
-      planningBalance: 10, completeness: 'COMPLETE', includesStockoutEvent: true,
+      planningBalance: 10, stockOnlyProjected: -5, coverageDays: 0, zone: 'CRITICAL', completeness: 'COMPLETE', includesStockoutEvent: true,
       includesSafetyBreachEvent: false }] }
 }
 

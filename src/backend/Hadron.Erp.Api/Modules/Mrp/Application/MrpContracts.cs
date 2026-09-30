@@ -2,6 +2,8 @@ namespace Hadron.Erp.Api.Modules.Mrp.Application;
 
 public sealed record CreateMrpRunRequest(DateOnly AsOfDate, DateOnly? HorizonEndDate,
     IReadOnlyList<MrpRouteDecisionInput>? RouteDecisions);
+public sealed record MrpRunDefaultsResponse(DateOnly AsOfDate, string AsOfJalaliDate,
+    DateOnly DefaultHorizonEndDate, string DefaultHorizonEndJalaliDate);
 public sealed record MrpRouteDecisionInput(Guid ItemId, string Route);
 public sealed record MrpRouteCandidate(Guid Id, string Code, string NameFa, string? NameEn);
 public sealed record MrpRouteCandidateListResponse(IReadOnlyList<MrpRouteCandidate> Items,
@@ -26,7 +28,8 @@ public sealed record MrpItemSummaryListResponse(IReadOnlyList<MrpItemSummaryResp
 public sealed record MrpDailyResultResponse(DateOnly Date, decimal GrossDemand, decimal FirmIncoming,
     decimal FirmProjected, decimal PlanningBeforeNeed, decimal NetRequirement, decimal PlanningBalance,
     bool IsRootProduct, string Completeness);
-public sealed record MrpTraceResponse(DateOnly Date, Guid ParentItemId, Guid ChildItemId,
+public sealed record MrpTraceResponse(DateOnly Date, DateOnly ParentDemandDate,
+    Guid ParentItemId, Guid ChildItemId,
     Guid? BomRevisionId, Guid? BomLineId, decimal ParentNetRequirement, decimal BaseRequirement,
     decimal ScrapPercent, string ScrapSource, decimal ChildGrossRequirement);
 public sealed record MrpItemTimelineResponse(MrpItemRef Item, IReadOnlyList<MrpDailyResultResponse> Daily,
@@ -58,6 +61,10 @@ public sealed record MrpRequirementTraceResponse(Guid RunId, MrpItemRef Item, Da
 public sealed record MrpExceptionResponse(Guid Id, Guid? ItemId, string? ItemCode, DateOnly? Date,
     string Code, string Severity, bool AffectsDemand, string Message, string? SourceReference);
 public sealed record MrpExceptionListResponse(IReadOnlyList<MrpExceptionResponse> Items,
+    int Page, int PageSize, int TotalCount);
+public sealed record MrpExceptionSummaryResponse(Guid? ItemId, string? ItemCode, string Code,
+    string Severity, bool AffectsDemand, string Message, DateOnly? FirstDate, DateOnly? LastDate, int Count);
+public sealed record MrpExceptionSummaryListResponse(IReadOnlyList<MrpExceptionSummaryResponse> Items,
     int Page, int PageSize, int TotalCount);
 
 public sealed class MrpValidationException(IReadOnlyDictionary<string, string[]> errors) : Exception

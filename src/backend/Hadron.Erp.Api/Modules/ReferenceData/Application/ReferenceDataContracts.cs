@@ -14,7 +14,7 @@ public sealed record UnitResponse(
     Guid Id, string Code, string NameFa, string NameEn, string? Symbol,
     bool IsActive, int SortOrder, long Version, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 
-public sealed record CreateReferenceValueRequest(string Code, string NameFa, string NameEn, int SortOrder);
+public sealed record CreateReferenceValueRequest(string NameFa, string NameEn, int SortOrder);
 public sealed record UpdateReferenceValueRequest(string NameFa, string NameEn, int SortOrder, long ExpectedVersion);
 public sealed record CreateCurrencyRequest(string IsoCode, string NameFa, string NameEn, string? Symbol, int DecimalPrecision);
 public sealed record UpdateCurrencyRequest(string NameFa, string NameEn, string? Symbol, int DecimalPrecision, long ExpectedVersion);

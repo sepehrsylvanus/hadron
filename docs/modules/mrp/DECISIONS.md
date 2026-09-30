@@ -42,14 +42,14 @@
 
 ## DEC-005 — Separate Sourcing Profile
 
-**Decision:** Supplier, Price, Currency, MOQ و Supplier-specific Lead Time فقط در Part/Component Master نگهداری نمی‌شوند؛ Sourcing Relationship مستقل وجود دارد.  
+**Decision:** رابطه مستقل Sourcing فقط مالک ارتباط `Item–Supplier`، MOQ، Preferred، مسیر و Lead Time تأمین است. قیمت و ارز نه در Part/Component Master و نه در Sourcing ثبت، نمایش، جست‌وجو یا برای Readiness استفاده نمی‌شوند.
 **Status:** LOCKED
 
 ---
 
 ## DEC-006 — Price and Currency History
 
-**Decision:** قیمت و Commercial Terms Versioned هستند و PO هنگام ایجاد Snapshot خود را حفظ می‌کند. Original Currency همیشه حفظ می‌شود.  
+**Decision:** `UnitPrice` و `Currency` ورودی صریح کاربر مجاز در مرز تصمیم تجاری MRP-12 یا ایجاد دستی PO هستند و PO از آن‌ها Snapshot تغییرناپذیر نگه می‌دارد. داده‌های قدیمی `SourcingPrice` فقط آرشیو تاریخی‌اند و در UI/API/Search/Readiness/Recommendation فعال استفاده نمی‌شوند. Cash Flow آینده فقط از تعهد تجاری واقعی PO/Receipt می‌خواند و در این مرحله پیاده‌سازی نمی‌شود. Original Currency همیشه حفظ می‌شود.
 **Status:** LOCKED
 
 ---
@@ -300,9 +300,9 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ---
 
-## DEC-039 — BOM Revision, Effectivity and Cycle Integrity
+## DEC-039 — Current BOM Revision and Cycle Integrity
 
-**Decision:** BOM recursive و multi-level است؛ Approved Revision immutable، effective-dated و برای Parent/Date یکتا است؛ Demand از Revision مؤثر همان Demand Date استفاده می‌کند؛ cycle در Approval ممنوع است.  
+**Decision:** BOM recursive و multi-level است و یک ساختار مهندسی جاری، نه یک Master تاریخ‌اثر‌دار، محسوب می‌شود. هر Parent حداکثر یک Revision جاری با وضعیت `APPROVED` دارد. تأیید Revision جدید، Revision جاری قبلی را در همان تراکنش `OBSOLETE` و Revision جدید را جاری می‌کند؛ محتوای Released immutable و cycle در Approval ممنوع است. تاریخ فقط در Audit/تاریخچه تغییرات ثبت می‌شود و در Create/Edit/Approve/Resolve یا رابط BOM ورودی کسب‌وکاری نیست. هر MRP Run، BOM جاری زمان اجرای خود را در Snapshot تغییرناپذیر نگه می‌دارد تا Run تاریخی drift نکند. این تصمیم تمام wording قدیمی EffectiveFrom/EffectiveTo و resolution-by-demand-date در MRP-06/MRP-10 را supersede می‌کند.
 **Status:** LOCKED  
 **Source Package:** MRP-06, MRP-10
 
@@ -335,7 +335,7 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 ## DEC-043 — MRP Run and Net-Before-Explode
 
-**Decision:** هر official execution یک immutable، versioned و traceable MRP Run در grain روزانه است. Item-level stock و dated Firm Supply قبل از explosion net می‌شوند و فقط Net MAKE/OUTSOURCE-BOM requirement به فرزندان منتقل می‌شود. برای NEW Run، resolved route واقعی در grain `Run + Item + DemandDate` با stateهای `EXTERNAL`, `INTERNAL_BOM`, `INCOMPLETE` و origin/reason قابل‌ردیابی persist می‌شود؛ MRP-12 حق ندارد route تاریخی را از Master Data جاری infer کند و Runهای legacy backfill زنده نمی‌شوند. این snapshot فرمول، NetRequirement یا Golden output را تغییر نمی‌دهد.
+**Decision:** موتور MRP دو Full Operational Dataset نگه می‌دارد: Slot `CURRENT` که پس از هر تغییر ورودی به‌صورت اتمیک با نتیجه کامل جدید جایگزین می‌شود، و Slot `CERTIFIED` که آخرین نتیجه حسابرسی‌شده پایان روز گذشته است. پایان هر روز یک `MrpDailyCertificate` سبک و immutable شامل BusinessDate، SourceCutoffUtc، شمارش‌های کنترلی و SHA-256 محتوای Snapshot ثبت می‌شود؛ Full Runهای عملیاتی قبلی پس از تعویض و در صورت نداشتن lineage کسب‌وکار حذف می‌شوند. Snapshotهای صریح متصل به Recommendation/Expert Decision/PO/Scenario یا Runهای `PUBLISHED` immutable و قابل‌ردیابی باقی می‌مانند. Item-level stock و dated Firm Supply قبل از explosion net می‌شوند و فقط Net MAKE/OUTSOURCE-BOM requirement به فرزندان منتقل می‌شود. resolved route واقعی در grain `Run + Item + DemandDate` با stateهای `EXTERNAL`, `INTERNAL_BOM`, `INCOMPLETE` persist می‌شود و هیچ historical view از Master Data زنده بازسازی نمی‌شود. این retention architecture فرمول، NetRequirement یا Golden output را تغییر نمی‌دهد.
 
 **Status:** LOCKED  
 **Source Package:** MRP-10
@@ -422,8 +422,6 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Status:** LOCKED
 **Source Package:** MRP-08
 
----
-
 ## DEC-054 — Purchase Supply Aggregate, Lifecycle and Firm ETA
 
 **Decision:** `PurchaseOrder.Version` تنها concurrency token کل PO aggregate است و Line/Schedule Version مستقل ندارند. `DRAFT` قابل ویرایش و refresh صریح snapshot است؛ `APPROVED` snapshot تجاری را قفل می‌کند، Firm نیست و Return-to-Draft به Reason نیاز دارد؛ `ORDERED` commitment خارجی، lock دائمی core commercial/qty/source، شروع Firm و زمان نهایی‌شدن Original Plan است. Lifecycle قابل command در MRP-09 فقط Draft/Approve/Return-to-Draft/Mark-Ordered است. هر Line از ابتدا یک default Schedule برای کل OrderedQty دارد و Planning فقط Schedule grain را مصرف می‌کند. Firm ETA برابر Latest Revised Planned `WAREHOUSE_RECEIPT`، سپس Original Planned `WAREHOUSE_RECEIPT` و سپس Missing است؛ Actual و `RequestedReceiptDate` fallback نیستند و Sourcing Master جاری هرگز fallback نیست. Received/Cancelled/Open از facts عملیاتی مشتق می‌شوند و counter قابل ویرایش ندارند.
@@ -477,3 +475,30 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 **Decision:** MRP-14 v1 از query-time backend read models با server aggregation/paging استفاده می‌کند؛ materialized analytics، scheduled background refresh و BI warehouse تا اثبات نیاز مجاز نیست. UI/export/integration یک backend contract مشترک دارند و frontend KPI/business recomputation ممنوع است. Inventory Analytics فقط physical position/movement، inactive-Warehouse warning و persisted MRP Risk/Coverage را پوشش می‌دهد؛ slow-moving، turnover، valuation، invented Days-on-Hand و generic excess خارج scope هستند. Currency اصلی حفظ و cross-currency grand total ممنوع است. Historical analytics cutoff/provenance صریح دارند؛ Run reports snapshot-only هستند. AI فقط read/explain است و `ApplyLeadTimeRecommendation` mutation صریح و Sourcing-owned باقی می‌ماند.
 **Status:** LOCKED
 **Source Package:** MRP-14
+
+---
+
+## DEC-061 — Standalone Inventory Workspace and Two-Step Internal Transfer
+
+**Decision:** Inventory یک فضای کاری مستقل در سطح `Hadron ERP System` است و زیرمنوی MRP نیست. Warehouse علاوه بر UUID و Official Code، نام، نشانی/موقعیت و مسئول اصلی فعال دارد. انتقال داخلی عادی یک عملیات دومرحله‌ای است: `DRAFT → DISPATCHED/PARTIALLY_RECEIVED → RECEIVED`؛ Dispatch اثر فیزیکی خروج از انبار مبدأ و Receiptهای جزئی/نهایی اثر ورود به مقصد را ثبت می‌کنند. کالای ارسال‌شده تا قبل از Receipt در `In Transit` است، در Company-Owned Total باقی می‌ماند ولی در usable physical stock و MRP company-wide pool قابل مصرف نیست. انتقال مستقیم تک‌مرحله‌ای فقط برای تاریخچه legacy قابل پذیرش است. Logistics یک workspace آینده و جداگانه است و در این تصمیم پیاده‌سازی نمی‌شود.
+
+**Status:** LOCKED
+**Source:** Owner Manual Testing — Inventory workspace approval, 2026-08-31
+
+---
+
+## DEC-062 — Domestic vs Import Sourcing Boundary
+
+**Decision:** هر Sourcing Option یک دامنه صریح `DOMESTIC` یا `IMPORT` دارد. `DOMESTIC` به معنی «خرید داخلی از Supplier» است و نباید با `MAKE` یا ساخت داخل کارخانه اشتباه شود. در خرید داخلی، Supplier، MOQ، زمان تأمین‌کننده، روش حمل داخلی و زمان حمل داخلی معتبرند؛ Incoterm، زمان Forwarder تا Shipment و زمان Customs متعلق به Import هستند و برای Domestic نه نمایش داده می‌شوند و نه توسط Backend پذیرفته می‌شوند. Price/Currency در Sourcing و آمادگی MRP ذخیره یا نمایش داده نمی‌شود و مالک آینده آن Cash Flow است. هر دو دامنه فقط برای اقلام دارای مسیر خارجی `BUY`، `OUTSOURCE` یا `HYBRID` تعریف می‌شوند.
+
+**Status:** LOCKED
+**Source:** Owner approval — Sourcing route simplification, 2026-09-05
+
+---
+
+## DEC-063 — Manufacturing Route, Work Center and Internal Lead Time
+
+**Decision:** BOM فقط ساختار مواد و ضریب مصرف را مالک است؛ محل و زمان ساخت در Manufacturing Route مستقل نگهداری می‌شود. هر Product یا قلم `MAKE/HYBRID` می‌تواند یک Route تأییدشده جاری و Revisionهای تاریخی داشته باشد. Route از عملیات مرتب تشکیل می‌شود و هر عملیات به یک Work Center متصل به Organizational Unit، تقویم هفتگی، زمان آماده‌سازی و زمان اجرا وابسته است. MRP v1 با زمان‌بندی پس‌رو، روزهای کاری و ظرفیت نامحدود، تاریخ نیاز Child را از تاریخ نیاز Parent عقب می‌برد و Route مؤثر را داخل Snapshot تغییرناپذیر اجرا ثبت می‌کند. نبود Route تأییدشده برای نیاز داخلی Exception مسدودکننده است؛ شروع محاسبه‌شده پیش از As-Of هشدار overdue ایجاد می‌کند. Finite-capacity scheduling، هم‌پوشانی عملیات و تقویم تعطیلات ویژه در این نسخه خارج Scope هستند. تأیید Route یا تغییر تقویم مؤثر Work Center باید Outbox به‌روزرسانی خودکار MRP ایجاد کند.
+
+**Status:** LOCKED
+**Source:** Owner approval — Internal MAKE preparation and department scheduling, 2026-09-05

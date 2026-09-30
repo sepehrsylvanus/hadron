@@ -5,6 +5,7 @@ using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Bom.Domain;
 using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.Planning.Application;
+using Hadron.Erp.Api.Modules.Planning.Domain;
 using Hadron.Erp.Api.Modules.Products.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         await using var db = await Db();
         await db.Database.MigrateAsync();
         TestDatabaseSafety.EnsureSafeDatabaseName(db.Database.GetDbConnection().Database);
-        await db.Database.ExecuteSqlRawAsync("TRUNCATE planning.period_lifecycle_events, planning.daily_actual_revisions, planning.daily_actuals, planning.forecast_revisions, planning.forecast_series, planning.business_periods RESTART IDENTITY CASCADE");
+        await db.Database.ExecuteSqlRawAsync("TRUNCATE planning.forecast_plan_entries, planning.forecast_plans, planning.period_lifecycle_events, planning.daily_actual_revisions, planning.daily_actuals, planning.forecast_revisions, planning.forecast_series, planning.business_periods RESTART IDENTITY CASCADE");
         await db.Database.ExecuteSqlRawAsync("TRUNCATE engineering.bom_lines, engineering.bom_revisions RESTART IDENTITY CASCADE");
         var unit = new Unit($"PLN-{Guid.NewGuid():N}"[..20], $"PLN-{Guid.NewGuid():N}"[..20],
             "واحد برنامه", "Planning unit", "u", 0);
@@ -52,7 +53,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
     {
         await using var db = await Db();
         TestDatabaseSafety.EnsureSafeDatabaseName(db.Database.GetDbConnection().Database);
-        await db.Database.ExecuteSqlRawAsync("TRUNCATE planning.period_lifecycle_events, planning.daily_actual_revisions, planning.daily_actuals, planning.forecast_revisions, planning.forecast_series, planning.business_periods RESTART IDENTITY CASCADE");
+        await db.Database.ExecuteSqlRawAsync("TRUNCATE planning.forecast_plan_entries, planning.forecast_plans, planning.period_lifecycle_events, planning.daily_actual_revisions, planning.daily_actuals, planning.forecast_revisions, planning.forecast_series, planning.business_periods RESTART IDENTITY CASCADE");
         await db.Database.ExecuteSqlRawAsync("TRUNCATE engineering.bom_lines, engineering.bom_revisions RESTART IDENTITY CASCADE");
         await db.Products.Where(x => _products.Contains(x.ItemId)).ExecuteDeleteAsync();
         await db.Items.Where(x => _products.Contains(x.Id)).ExecuteDeleteAsync();
@@ -81,11 +82,21 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Equal(29, normalEsfand.EndDate.DayNumber - normalEsfand.StartDate.DayNumber + 1);
         Assert.Equal((1405, 1), beforeMidnight.GetJalaliPeriod(farvardin.StartDate));
         Assert.Equal((1405, 1), beforeMidnight.GetJalaliPeriod(farvardin.EndDate));
+        var exactGregorian = beforeMidnight.GetGregorianDate(1405, 6, 8);
+        Assert.Equal(new DateOnly(2026, 8, 30), exactGregorian);
+        Assert.Equal((1405, 6, 8), beforeMidnight.GetJalaliDate(exactGregorian));
     }
 
     [Fact]
     public async Task Jalali_period_boundaries_are_server_generated_and_support_leap_Esfand()
     {
+        var exact = await _client.PostAsJsonAsync("/api/planning/resolve-jalali-date",
+            new ResolveJalaliDateRequest("۱۴۰۵۰۶۰۸"));
+        Assert.Equal(HttpStatusCode.OK, exact.StatusCode);
+        var resolved = (await exact.Content.ReadFromJsonAsync<ResolveJalaliDateResponse>())!;
+        Assert.Equal("14050608", resolved.JalaliDate);
+        Assert.Equal(new DateOnly(2026, 8, 30), resolved.GregorianDate);
+
         var leap = await CreatePeriod(1403, 12);
         var normal = await CreatePeriod(1404, 12);
         Assert.Equal(29, leap.EndDate.DayNumber - leap.StartDate.DayNumber);
@@ -97,6 +108,476 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         var duplicate = await _client.PostAsJsonAsync("/api/planning/periods", new { jalaliYear = 1403, jalaliMonth = 12 });
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.Equal("BUSINESS_PERIOD_EXISTS", await Code(duplicate));
+    }
+
+    [Fact]
+    public async Task Forecast_entry_grid_previews_without_writing_and_batch_save_is_atomic_and_revision_safe()
+    {
+        var firstProduct = await AddProduct("محصول جدول اول", "First grid product");
+        var secondProduct = await AddProduct("محصول جدول دوم", "Second grid product");
+        var rejectedProduct = await AddProduct("محصول rollback", "Rollback product");
+
+        var preview = await _client.GetFromJsonAsync<ForecastEntryGridDto>(
+            "/api/planning/forecast-entry-grid?periodCode=140509&page=1&pageSize=100");
+        Assert.NotNull(preview);
+        Assert.False(preview.Period.Exists);
+        Assert.Equal("140509", preview.Period.PeriodCode);
+        Assert.Equal(1405, preview.Period.JalaliYear);
+        Assert.Equal(9, preview.Period.JalaliMonth);
+        Assert.True(preview.Period.EndDate >= preview.Period.StartDate);
+        Assert.Contains(preview.Items, x => x.Product.Id == firstProduct && x.CurrentForecastQty is null);
+        await using (var previewDb = await Db())
+            Assert.False(await previewDb.BusinessPeriods.AnyAsync(x => x.JalaliYear == 1405 && x.JalaliMonth == 9));
+
+        var createdResponse = await _client.PostAsJsonAsync("/api/planning/forecast-entry-grid", new
+        {
+            periodCode = "140509",
+            reason = (string?)null,
+            entries = new object[]
+            {
+                new { productId = firstProduct, forecastQty = 10m, expectedVersion = (long?)null },
+                new { productId = secondProduct, forecastQty = 0m, expectedVersion = (long?)null }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, createdResponse.StatusCode);
+        var created = (await createdResponse.Content.ReadFromJsonAsync<ForecastBatchDto>())!;
+        Assert.Equal(2, created.CreatedCount);
+        Assert.Equal(0, created.RevisedCount);
+        Assert.Equal("OPEN", created.Period.Status);
+
+        var registered = await _client.GetFromJsonAsync<ForecastEntryGridDto>(
+            "/api/planning/forecast-entry-grid?periodCode=140509&page=1&pageSize=100");
+        var first = registered!.Items.Single(x => x.Product.Id == firstProduct);
+        Assert.Equal(10m, first.CurrentForecastQty);
+        Assert.Equal(1, first.CurrentRevisionNumber);
+
+        var noReason = await _client.PostAsJsonAsync("/api/planning/forecast-entry-grid", new
+        {
+            periodCode = "140509",
+            reason = (string?)null,
+            entries = new[] { new { productId = firstProduct, forecastQty = 12m, expectedVersion = first.SeriesVersion } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, noReason.StatusCode);
+        Assert.Single((await ForecastHistory(first.SeriesId!.Value)).Revisions);
+
+        var revisedResponse = await _client.PostAsJsonAsync("/api/planning/forecast-entry-grid", new
+        {
+            periodCode = "140509",
+            reason = "اصلاح برنامه ماهانه",
+            entries = new[] { new { productId = firstProduct, forecastQty = 12m, expectedVersion = first.SeriesVersion } }
+        });
+        Assert.Equal(HttpStatusCode.OK, revisedResponse.StatusCode);
+        var revised = (await revisedResponse.Content.ReadFromJsonAsync<ForecastBatchDto>())!;
+        Assert.Equal(1, revised.RevisedCount);
+        var history = await ForecastHistory(first.SeriesId.Value);
+        Assert.Equal([2, 1], history.Revisions.Select(x => x.RevisionNumber));
+        Assert.Equal("اصلاح برنامه ماهانه", history.Revisions[0].Reason);
+
+        var staleAtomic = await _client.PostAsJsonAsync("/api/planning/forecast-entry-grid", new
+        {
+            periodCode = "140509",
+            reason = "درخواست قدیمی",
+            entries = new object[]
+            {
+                new { productId = firstProduct, forecastQty = 15m, expectedVersion = first.SeriesVersion },
+                new { productId = rejectedProduct, forecastQty = 8m, expectedVersion = (long?)null }
+            }
+        });
+        Assert.Equal(HttpStatusCode.Conflict, staleAtomic.StatusCode);
+        Assert.Equal("STALE_VERSION", await Code(staleAtomic));
+        await using var db = await Db();
+        Assert.False(await db.ForecastSeries.AnyAsync(x => x.ProductId == rejectedProduct));
+        Assert.Equal(2, await db.ForecastRevisions.CountAsync(x => x.ForecastSeriesId == first.SeriesId));
+    }
+
+    [Fact]
+    public async Task Named_forecast_plan_builds_inclusive_month_matrix_and_handles_same_or_conflicting_values_explicitly()
+    {
+        var firstProduct = await AddProduct("محصول برنامه اول", "First plan product");
+        var secondProduct = await AddProduct("محصول برنامه دوم", "Second plan product");
+
+        var productOptions = await _client.GetFromJsonAsync<ForecastProductListDto>(
+            "/api/planning/forecast-products?search=plan%20product&page=1&pageSize=20");
+        Assert.NotNull(productOptions);
+        Assert.Equal(2, productOptions.TotalCount);
+        Assert.All(productOptions.Items, item => Assert.True(item.IsActive));
+
+        var previewResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans/preview", new
+        {
+            name = "برنامه بهار ۱۴۰۵",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050301",
+            productIds = new[] { firstProduct, secondProduct }
+        });
+        previewResponse.EnsureSuccessStatusCode();
+        var preview = (await previewResponse.Content.ReadFromJsonAsync<ForecastPlanPreviewDto>())!;
+        Assert.Equal(["140501", "140502", "140503"], preview.Months.Select(x => x.PeriodCode));
+        Assert.Equal(6, preview.Cells.Length);
+        Assert.All(preview.Cells, cell => Assert.Null(cell.CurrentForecastQty));
+        Assert.True(preview.StartDate < preview.EndDate);
+        await using (var previewDb = await Db())
+        {
+            Assert.Empty(await previewDb.BusinessPeriods.ToListAsync());
+            Assert.Empty(await previewDb.ForecastPlans.ToListAsync());
+        }
+
+        var initialEntries = preview.Months.SelectMany((month, monthIndex) => preview.Products.Select((product, productIndex) => new
+        {
+            productId = product.Id,
+            periodCode = month.PeriodCode,
+            forecastQty = decimal.Parse($"{productIndex + 1}{monthIndex + 1}0"),
+            expectedVersion = (long?)null
+        })).ToArray();
+        var createResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = preview.Name,
+            startJalaliDate = preview.StartJalaliDate,
+            endJalaliDate = preview.EndJalaliDate,
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = initialEntries
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = (await createResponse.Content.ReadFromJsonAsync<ForecastPlanSaveDto>())!;
+        Assert.Equal(6, created.CreatedCount);
+        Assert.Equal(0, created.RevisedCount);
+        Assert.Equal(0, created.UnchangedCount);
+        Assert.Equal(6, created.EntryCount);
+
+        var registeredPreviewResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans/preview", new
+        {
+            name = "برنامه بدون تغییر",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050301",
+            productIds = new[] { firstProduct, secondProduct }
+        });
+        registeredPreviewResponse.EnsureSuccessStatusCode();
+        var registered = (await registeredPreviewResponse.Content.ReadFromJsonAsync<ForecastPlanPreviewDto>())!;
+        var registeredMap = registered.Cells.ToDictionary(x => (x.ProductId, x.PeriodCode));
+        var sameEntries = initialEntries.Select(entry => new
+        {
+            entry.productId,
+            entry.periodCode,
+            entry.forecastQty,
+            expectedVersion = registeredMap[(entry.productId, entry.periodCode)].SeriesVersion
+        }).ToArray();
+        var sameResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "برنامه بدون تغییر",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050301",
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = sameEntries
+        });
+        Assert.Equal(HttpStatusCode.Created, sameResponse.StatusCode);
+        var same = (await sameResponse.Content.ReadFromJsonAsync<ForecastPlanSaveDto>())!;
+        Assert.Equal(6, same.UnchangedCount);
+        Assert.Equal(0, same.CreatedCount);
+        Assert.Equal(0, same.RevisedCount);
+
+        var changedEntries = sameEntries.Select(entry => new
+        {
+            entry.productId,
+            entry.periodCode,
+            forecastQty = entry.productId == firstProduct && entry.periodCode == "140501"
+                ? entry.forecastQty + 7m : entry.forecastQty,
+            entry.expectedVersion
+        }).ToArray();
+        var changedValue = changedEntries.Single(x => x.productId == firstProduct && x.periodCode == "140501")
+            .forecastQty;
+        var conflictResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "برنامه اصلاحی",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050301",
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = changedEntries
+        });
+        Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);
+        Assert.Equal("FORECAST_VALUE_CONFLICT", await Code(conflictResponse));
+        using (var conflictJson = JsonDocument.Parse(await conflictResponse.Content.ReadAsStringAsync()))
+        {
+            var conflict = Assert.Single(conflictJson.RootElement.GetProperty("details").EnumerateArray());
+            Assert.Equal(firstProduct, conflict.GetProperty("productId").GetGuid());
+            Assert.Equal("140501", conflict.GetProperty("periodCode").GetString());
+            Assert.Equal(changedValue, conflict.GetProperty("proposedQty").GetDecimal());
+            Assert.True(conflict.GetProperty("seriesVersion").GetInt64() >= 1);
+        }
+        await using (var conflictDb = await Db())
+        {
+            Assert.Equal(2, await conflictDb.ForecastPlans.CountAsync());
+            Assert.Equal(6, await conflictDb.ForecastRevisions.CountAsync());
+        }
+
+        var confirmedResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "برنامه اصلاحی",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050301",
+            reason = "اصلاح پیش‌بینی پس از اخطار",
+            confirmDifferences = true,
+            entries = changedEntries
+        });
+        Assert.Equal(HttpStatusCode.Created, confirmedResponse.StatusCode);
+        var confirmed = (await confirmedResponse.Content.ReadFromJsonAsync<ForecastPlanSaveDto>())!;
+        Assert.Equal(1, confirmed.RevisedCount);
+        Assert.Equal(5, confirmed.UnchangedCount);
+        await using var db = await Db();
+        Assert.Equal(3, await db.ForecastPlans.CountAsync());
+        Assert.Equal(18, await db.ForecastPlanEntries.CountAsync());
+        Assert.Equal(7, await db.ForecastRevisions.CountAsync());
+        var confirmedEntry = await db.ForecastPlanEntries.SingleAsync(x => x.ForecastPlanId == confirmed.PlanId &&
+            x.ProductId == firstProduct && x.BusinessPeriod.JalaliYear == 1405 && x.BusinessPeriod.JalaliMonth == 1);
+        Assert.Equal(changedValue, confirmedEntry.ForecastQty);
+        Assert.Equal(changedValue,
+            (await db.ForecastRevisions.SingleAsync(x => x.Id == confirmedEntry.ForecastRevisionId)).ForecastQty);
+    }
+
+    [Fact]
+    public async Task Named_forecast_plan_rejects_invalid_range_incomplete_matrix_and_direct_history_mutation()
+    {
+        var product = await AddProduct("محصول حفاظت برنامه", "Protected plan product");
+        var invalidDay = await _client.PostAsJsonAsync("/api/planning/forecast-plans/preview", new
+        {
+            name = "بازه نامعتبر",
+            startJalaliDate = "14050102",
+            endJalaliDate = "14050201",
+            productIds = new[] { product }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidDay.StatusCode);
+
+        var incomplete = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "ماتریس ناقص",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050201",
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = new[] { new { productId = product, periodCode = "140501", forecastQty = 1m, expectedVersion = (long?)null } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, incomplete.StatusCode);
+        await using (var noWriteDb = await Db())
+            Assert.Empty(await noWriteDb.ForecastPlans.ToListAsync());
+
+        var savedResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "برنامه حفاظت‌شده",
+            startJalaliDate = "14050101",
+            endJalaliDate = "14050101",
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = new[] { new { productId = product, periodCode = "140501", forecastQty = 1m, expectedVersion = (long?)null } }
+        });
+        savedResponse.EnsureSuccessStatusCode();
+        var saved = (await savedResponse.Content.ReadFromJsonAsync<ForecastPlanSaveDto>())!;
+        await using var db = await Db();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var exception = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE planning.forecast_plan_entries SET \"ForecastQty\" = 2 WHERE \"ForecastPlanId\" = {saved.PlanId}"));
+        Assert.Contains("FORECAST_PLAN_HISTORY_IMMUTABLE", exception.MessageText);
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Saved_forecast_plan_is_listed_opened_and_corrected_with_append_only_history()
+    {
+        var product = await AddProduct("محصول برنامه قابل ویرایش", "Editable plan product");
+        var createResponse = await _client.PostAsJsonAsync("/api/planning/forecast-plans", new
+        {
+            name = "برنامه قابل ویرایش ۱۴۰۵",
+            startJalaliDate = "14050401",
+            endJalaliDate = "14050401",
+            reason = (string?)null,
+            confirmDifferences = false,
+            entries = new[]
+            {
+                new { productId = product, periodCode = "140504", forecastQty = 10m,
+                    expectedVersion = (long?)null }
+            }
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = (await createResponse.Content.ReadFromJsonAsync<ForecastPlanSaveDto>())!;
+
+        var periodBounds = new PlanningCalendar(TimeProvider.System).GetPeriodBounds(1405, 4);
+        var firstActualResponse = await _client.PostAsJsonAsync("/api/planning/actuals", new
+        {
+            productId = product,
+            productionDate = periodBounds.StartDate,
+            actualQty = 3m
+        });
+        Assert.Equal(HttpStatusCode.Created, firstActualResponse.StatusCode);
+        var firstActual = (await firstActualResponse.Content.ReadFromJsonAsync<ActualDto>())!;
+        var correctedActualResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/actuals/{firstActual.Id}/corrections", new
+            {
+                actualQty = 5m,
+                reason = "اصلاح تولید واقعی روزانه",
+                expectedVersion = firstActual.Version
+            });
+        correctedActualResponse.EnsureSuccessStatusCode();
+        var secondActualResponse = await _client.PostAsJsonAsync("/api/planning/actuals", new
+        {
+            productId = product,
+            productionDate = periodBounds.StartDate.AddDays(1),
+            actualQty = 4m
+        });
+        Assert.Equal(HttpStatusCode.Created, secondActualResponse.StatusCode);
+
+        var plans = await _client.GetFromJsonAsync<ForecastPlanListDto>(
+            "/api/planning/forecast-plans?search=Editable%20plan%20product&page=1&pageSize=25");
+        Assert.NotNull(plans);
+        var plan = Assert.Single(plans.Items);
+        Assert.Equal(created.PlanId, plan.Id);
+        Assert.Equal("برنامه قابل ویرایش ۱۴۰۵", plan.Name);
+        Assert.Equal(1, plan.ProductCount);
+        Assert.Equal(1, plan.MonthCount);
+        Assert.Equal(1, plan.EntryCount);
+
+        var detail = await _client.GetFromJsonAsync<ForecastPlanDetailDto>(
+            $"/api/planning/forecast-plans/{created.PlanId}?page=1&pageSize=20");
+        Assert.NotNull(detail);
+        Assert.Equal("140504", Assert.Single(detail.Months).PeriodCode);
+        Assert.Equal(product, Assert.Single(detail.Products).Id);
+        var original = Assert.Single(detail.Cells);
+        Assert.Equal(10m, original.OriginalForecastQty);
+        Assert.Equal(10m, original.ForecastQty);
+        Assert.Equal(1, original.PlanRevisionNumber);
+        Assert.True(original.IsOfficialCurrent);
+        Assert.Equal(9m, original.MonthlyActualQty);
+        Assert.Equal(2, original.DailyActualEntryCount);
+        Assert.Equal([10m], original.History.Select(x => x.ForecastQty));
+
+        var correctedResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/forecast-plans/{created.PlanId}/entries/{original.EntryId}/corrections", new
+            {
+                forecastQty = 12m,
+                reason = "اصلاح مقدار ماهانه",
+                expectedSeriesVersion = original.SeriesVersion,
+                expectedPlanRevisionNumber = original.PlanRevisionNumber,
+                confirmDifference = false
+            });
+        Assert.Equal(HttpStatusCode.OK, correctedResponse.StatusCode);
+        var corrected = (await correctedResponse.Content.ReadFromJsonAsync<ForecastPlanCorrectionDto>())!;
+        Assert.Equal(12m, corrected.ForecastQty);
+        Assert.Equal(2, corrected.PlanRevisionNumber);
+        Assert.True(corrected.ForecastRevisionCreated);
+        Assert.Equal("اصلاح مقدار ماهانه", corrected.History.Reason);
+
+        var revisedDetail = await _client.GetFromJsonAsync<ForecastPlanDetailDto>(
+            $"/api/planning/forecast-plans/{created.PlanId}?page=1&pageSize=20");
+        var revised = Assert.Single(revisedDetail!.Cells);
+        Assert.Equal(10m, revised.OriginalForecastQty);
+        Assert.Equal(12m, revised.ForecastQty);
+        Assert.Equal(2, revised.PlanRevisionNumber);
+        Assert.True(revised.IsOfficialCurrent);
+        Assert.Equal(9m, revised.MonthlyActualQty);
+        Assert.Equal(2, revised.DailyActualEntryCount);
+        Assert.Equal([1, 2], revised.History.Select(x => x.RevisionNumber));
+        Assert.Equal([10m, 12m], revised.History.Select(x => x.ForecastQty));
+
+        var staleResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/forecast-plans/{created.PlanId}/entries/{original.EntryId}/corrections", new
+            {
+                forecastQty = 13m,
+                reason = "درخواست قدیمی",
+                expectedSeriesVersion = corrected.SeriesVersion,
+                expectedPlanRevisionNumber = 1,
+                confirmDifference = false
+            });
+        Assert.Equal(HttpStatusCode.Conflict, staleResponse.StatusCode);
+        Assert.Equal("STALE_VERSION", await Code(staleResponse));
+
+        Guid seriesId;
+        await using (var seriesDb = await Db())
+        {
+            seriesId = await seriesDb.ForecastPlanEntries.Where(x => x.Id == original.EntryId)
+                .Select(x => x.ForecastRevision.ForecastSeriesId).SingleAsync();
+        }
+        var externalRevisionResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/forecast/{seriesId}/revisions", new
+            {
+                forecastQty = 13m,
+                reason = "اصلاح خارج از برنامه ذخیره‌شده",
+                expectedVersion = corrected.SeriesVersion
+            });
+        externalRevisionResponse.EnsureSuccessStatusCode();
+        var externalRevision = (await externalRevisionResponse.Content.ReadFromJsonAsync<ForecastMutationDto>())!;
+
+        var conflictResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/forecast-plans/{created.PlanId}/entries/{original.EntryId}/corrections", new
+            {
+                forecastQty = 14m,
+                reason = "اصلاح با آگاهی از Forecast جدید",
+                expectedSeriesVersion = externalRevision.Version,
+                expectedPlanRevisionNumber = 2,
+                confirmDifference = false
+            });
+        Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);
+        Assert.Equal("FORECAST_VALUE_CONFLICT", await Code(conflictResponse));
+        using (var conflictJson = JsonDocument.Parse(await conflictResponse.Content.ReadAsStringAsync()))
+        {
+            var conflict = Assert.Single(conflictJson.RootElement.GetProperty("details").EnumerateArray());
+            Assert.Equal(12m, conflict.GetProperty("planForecastQty").GetDecimal());
+            Assert.Equal(13m, conflict.GetProperty("officialForecastQty").GetDecimal());
+            Assert.Equal(14m, conflict.GetProperty("proposedQty").GetDecimal());
+        }
+
+        var confirmedResponse = await _client.PostAsJsonAsync(
+            $"/api/planning/forecast-plans/{created.PlanId}/entries/{original.EntryId}/corrections", new
+            {
+                forecastQty = 14m,
+                reason = "اصلاح با آگاهی از Forecast جدید",
+                expectedSeriesVersion = externalRevision.Version,
+                expectedPlanRevisionNumber = 2,
+                confirmDifference = true
+            });
+        confirmedResponse.EnsureSuccessStatusCode();
+        var confirmed = (await confirmedResponse.Content.ReadFromJsonAsync<ForecastPlanCorrectionDto>())!;
+        Assert.Equal(3, confirmed.PlanRevisionNumber);
+        Assert.Equal(14m, confirmed.ForecastQty);
+
+        await using var db = await Db();
+        var storedOriginal = await db.ForecastPlanEntries.SingleAsync(x => x.Id == original.EntryId);
+        Assert.Equal(10m, storedOriginal.ForecastQty);
+        var storedCorrections = await db.ForecastPlanEntryCorrections
+            .Where(x => x.ForecastPlanEntryId == original.EntryId)
+            .OrderBy(x => x.RevisionNumber).ToListAsync();
+        Assert.Equal([12m, 14m], storedCorrections.Select(x => x.ForecastQty));
+        Assert.Equal([2, 3], storedCorrections.Select(x => x.RevisionNumber));
+        Assert.Equal("اصلاح مقدار ماهانه", storedCorrections[0].Reason);
+        var storedCorrection = storedCorrections[0];
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var immutable = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE planning.forecast_plan_entry_corrections SET \"ForecastQty\" = 99 WHERE \"Id\" = {storedCorrection.Id}"));
+        Assert.Contains("FORECAST_PLAN_HISTORY_IMMUTABLE", immutable.MessageText);
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Forecast_batch_rejects_a_corrupt_overlapping_business_period_without_partial_data()
+    {
+        var product = await AddProduct("محصول هم‌پوشانی", "Overlap product");
+        var calendar = new PlanningCalendar(TimeProvider.System);
+        var target = calendar.GetPeriodBounds(1405, 10);
+        await using (var db = await Db())
+        {
+            db.BusinessPeriods.Add(new BusinessPeriod(1500, 1, target.StartDate, target.EndDate));
+            await db.SaveChangesAsync();
+        }
+        var response = await _client.PostAsJsonAsync("/api/planning/forecast-entry-grid", new
+        {
+            periodCode = "140510",
+            reason = (string?)null,
+            entries = new[] { new { productId = product, forecastQty = 10m, expectedVersion = (long?)null } }
+        });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("BUSINESS_PERIOD_DATE_OVERLAP", await Code(response));
+        await using var verify = await Db();
+        Assert.False(await verify.BusinessPeriods.AnyAsync(x => x.JalaliYear == 1405 && x.JalaliMonth == 10));
+        Assert.False(await verify.ForecastSeries.AnyAsync(x => x.ProductId == product));
     }
 
     [Fact]
@@ -196,6 +677,39 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         Assert.Equal(businessDate.TehranBusinessDate.AddDays(1), row.EligibleAllocationStart);
         Assert.Equal(forecast.SeriesId, row.SeriesId);
         Assert.False(await ResponseContains(planning, "dailyAllocations"));
+    }
+
+    [Fact]
+    public async Task Daily_actual_date_creates_its_missing_jalali_period_and_is_listed_without_period_filter()
+    {
+        var product = await AddProduct("تولید بدون انتخاب دوره", "Period-free actual entry");
+        var businessDate = await _client.GetFromJsonAsync<BusinessDateDto>("/api/planning/business-date");
+        await using (var before = await Db())
+            Assert.False(await before.BusinessPeriods.AnyAsync(x => x.JalaliYear == businessDate!.JalaliYear &&
+                x.JalaliMonth == businessDate.JalaliMonth));
+
+        var response = await _client.PostAsJsonAsync("/api/planning/actuals", new
+        {
+            productId = product,
+            productionDate = businessDate!.TehranBusinessDate,
+            actualQty = 12.5m
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = (await response.Content.ReadFromJsonAsync<ActualDto>())!;
+        Assert.Equal(businessDate.JalaliYear, created.Period.JalaliYear);
+        Assert.Equal(businessDate.JalaliMonth, created.Period.JalaliMonth);
+        Assert.Equal("OPEN", created.Period.Status);
+        Assert.InRange(businessDate.TehranBusinessDate, created.Period.StartDate, created.Period.EndDate);
+        Assert.Equal(12.5m, created.CurrentRevision.ActualQty);
+
+        var list = await _client.GetFromJsonAsync<ActualListDto>("/api/planning/actuals?page=1&pageSize=25");
+        Assert.Contains(list!.Items, x => x.Id == created.Id && x.Product.Id == product);
+        await using (var after = await Db())
+            Assert.Equal(1, await after.BusinessPeriods.CountAsync(x => x.JalaliYear == businessDate.JalaliYear &&
+                x.JalaliMonth == businessDate.JalaliMonth));
+        Assert.Contains(_factory.AuditSink.Snapshot(), x => x.EntityType == "BusinessPeriod" &&
+            x.EntityId == created.Period.Id && x.Action == "CREATE");
     }
 
     [Fact]
@@ -362,7 +876,8 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
             .OrderBy(x => x.OccurredAtUtc).ToListAsync();
         Assert.Equal(["CLOSED", "OPEN", "CLOSED"], events.Select(x => x.ToStatus));
         Assert.Equal("اصلاح", events[1].Reason);
-        Assert.All(events, x => Assert.Null(x.ActorIdentifier));
+        Assert.All(events, x => Assert.Equal(
+            "00000000-0000-0000-0000-000000000001", x.ActorIdentifier));
         Assert.Single((await ForecastHistory(forecast.SeriesId)).Revisions);
     }
 
@@ -375,7 +890,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         var beforeBom = await Planning(period.Id, period.StartDate.AddDays(-1));
         Assert.Equal("MISSING_BOM", beforeBom.Items.Single(x => x.Product.Id == product).BomReadiness.State);
 
-        await AddApprovedBom(product, period.StartDate, period.EndDate);
+        await AddApprovedBom(product);
         var future = await Planning(period.Id, period.StartDate.AddDays(-1));
         var futureReady = future.Items.Single(x => x.Product.Id == product).BomReadiness;
         Assert.Equal("READY", futureReady.State);
@@ -387,7 +902,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
     }
 
     [Fact]
-    public async Task Bom_readiness_reports_partial_inactive_and_unit_drift_without_using_pre_AsOf_dates()
+    public async Task Bom_readiness_uses_current_bom_and_reports_inactive_and_unit_drift()
     {
         var partialProduct = await AddProduct("پوشش ناقص", "Partial coverage");
         var inactiveProduct = await AddProduct("فرزند غیرفعال", "Inactive child");
@@ -396,12 +911,12 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         var currentProduct = await AddProduct("پنجره جاری", "Current window");
         var period = await CreatePeriod(1406, 4);
 
-        await AddApprovedBom(partialProduct, period.StartDate, period.StartDate.AddDays(5));
-        var inactiveBom = await AddApprovedBom(inactiveProduct, period.StartDate, period.EndDate);
-        var driftBom = await AddApprovedBom(driftProduct, period.StartDate, period.EndDate);
-        await AddApprovedBom(parentDriftProduct, period.StartDate, period.EndDate);
+        await AddApprovedBom(partialProduct);
+        var inactiveBom = await AddApprovedBom(inactiveProduct);
+        var driftBom = await AddApprovedBom(driftProduct);
+        await AddApprovedBom(parentDriftProduct);
         var asOf = period.StartDate.AddDays(10);
-        await AddApprovedBom(currentProduct, asOf.AddDays(1), period.EndDate);
+        await AddApprovedBom(currentProduct);
 
         await using (var db = await Db())
         {
@@ -415,7 +930,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         await ChangeProductUnit(parentDriftProduct);
 
         var future = await Planning(period.Id, period.StartDate.AddDays(-1));
-        Assert.Equal("PARTIAL_PERIOD_BOM_COVERAGE",
+        Assert.Equal("READY",
             future.Items.Single(x => x.Product.Id == partialProduct).BomReadiness.State);
         var inactive = future.Items.Single(x => x.Product.Id == inactiveProduct).BomReadiness;
         Assert.Equal("BLOCKED", inactive.State);
@@ -523,12 +1038,12 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
         return item.Id;
     }
 
-    private async Task<(Guid RevisionId, Guid ChildId)> AddApprovedBom(Guid productId, DateOnly from, DateOnly to)
+    private async Task<(Guid RevisionId, Guid ChildId)> AddApprovedBom(Guid productId)
     {
         var childId = await AddNonProduct();
         await using var db = await Db();
         var revision = new BomRevision($"BOM-{Random.Shared.NextInt64(1_000_000, 9_999_999)}",
-            productId, _unit, 1, from, to, null);
+            productId, _unit, 1, null);
         db.BomRevisions.Add(revision);
         await db.SaveChangesAsync();
         db.BomLines.Add(new BomLine(revision.Id, childId, _unit, 1, null, 0));
@@ -643,6 +1158,47 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
     private sealed record ForecastMutationDto(Guid SeriesId, Guid ProductId, Guid BusinessPeriodId,
         UnitDto ProductBaseUnit, ForecastRevisionDto CurrentRevision, long Version);
     private sealed record ForecastHistoryDto(Guid SeriesId, ForecastRevisionDto[] Revisions);
+    private sealed record ForecastEntryPeriodDto(string PeriodCode, int JalaliYear, int JalaliMonth,
+        DateOnly StartDate, DateOnly EndDate, Guid? BusinessPeriodId, string Status, long? Version,
+        bool Exists);
+    private sealed record ForecastEntryRowDto(ProductDto Product, Guid? SeriesId,
+        int? CurrentRevisionNumber, decimal? CurrentForecastQty, long? SeriesVersion);
+    private sealed record ForecastEntryGridDto(ForecastEntryPeriodDto Period,
+        ForecastEntryRowDto[] Items, int TotalCount);
+    private sealed record ForecastBatchDto(PeriodDto Period, int CreatedCount, int RevisedCount,
+        int UnchangedCount);
+    private sealed record ForecastProductListDto(ProductDto[] Items, int Page, int PageSize,
+        int TotalCount);
+    private sealed record ForecastPlanMonthDto(string PeriodCode, int JalaliYear, int JalaliMonth,
+        DateOnly StartDate, DateOnly EndDate, Guid? BusinessPeriodId, string Status);
+    private sealed record ForecastPlanCellDto(Guid ProductId, string PeriodCode,
+        decimal? CurrentForecastQty, int? CurrentRevisionNumber, long? SeriesVersion);
+    private sealed record ForecastPlanPreviewDto(string Name, string StartJalaliDate,
+        string EndJalaliDate, DateOnly StartDate, DateOnly EndDate,
+        ForecastPlanMonthDto[] Months, ProductDto[] Products, ForecastPlanCellDto[] Cells);
+    private sealed record ForecastPlanSaveDto(Guid PlanId, string Name, DateOnly StartDate,
+        DateOnly EndDate, int CreatedCount, int RevisedCount, int UnchangedCount, int EntryCount);
+    private sealed record ForecastPlanSummaryDto(Guid Id, string Name, string StartJalaliDate,
+        string EndJalaliDate, DateOnly StartDate, DateOnly EndDate, int ProductCount,
+        int MonthCount, int EntryCount, string? ActorIdentifier, DateTime CreatedAtUtc);
+    private sealed record ForecastPlanListDto(ForecastPlanSummaryDto[] Items, int Page,
+        int PageSize, int TotalCount);
+    private sealed record ForecastPlanHistoryDto(int RevisionNumber, decimal ForecastQty,
+        string? Reason, string? ActorIdentifier, DateTime CreatedAtUtc);
+    private sealed record ForecastPlanDetailCellDto(Guid EntryId, Guid ProductId,
+        string PeriodCode, decimal OriginalForecastQty, decimal ForecastQty,
+        int PlanRevisionNumber, Guid ForecastRevisionId, int ForecastRevisionNumber,
+        long SeriesVersion, decimal OfficialCurrentForecastQty,
+        int OfficialCurrentRevisionNumber, bool IsOfficialCurrent, decimal MonthlyActualQty,
+        int DailyActualEntryCount,
+        ForecastPlanHistoryDto[] History);
+    private sealed record ForecastPlanDetailDto(ForecastPlanSummaryDto Plan,
+        ForecastPlanMonthDto[] Months, ProductDto[] Products, ForecastPlanDetailCellDto[] Cells,
+        int Page, int PageSize, int TotalProducts);
+    private sealed record ForecastPlanCorrectionDto(Guid PlanId, Guid EntryId,
+        decimal ForecastQty, int PlanRevisionNumber, Guid ForecastRevisionId,
+        int ForecastRevisionNumber, long SeriesVersion, bool ForecastRevisionCreated,
+        ForecastPlanHistoryDto History);
     private sealed record BomReadinessDto(string State, string[] ReasonCodes, DateOnly? EvaluationStart,
         DateOnly? EvaluationEnd);
     private sealed record PlanningRowDto(ProductDto Product, Guid? SeriesId, decimal? ForecastQty,
@@ -654,6 +1210,7 @@ public sealed class PlanningTests : IClassFixture<FoundationApiFactory>, IAsyncL
     private sealed record ActualRevisionDto(Guid Id, int RevisionNumber, decimal ActualQty, string? Reason);
     private sealed record ActualDto(Guid Id, ProductDto Product, PeriodDto Period, DateOnly ProductionDate,
         UnitDto Unit, ActualRevisionDto CurrentRevision, long Version);
+    private sealed record ActualListDto(ActualDto[] Items, int Page, int PageSize, int TotalCount);
     private sealed record ActualHistoryDto(ActualDto Actual, ActualRevisionDto[] Revisions);
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

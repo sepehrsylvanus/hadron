@@ -28,9 +28,8 @@ public sealed class BomOperationalReadinessQuery(IDbContextFactory<HadronDbConte
         var revisions = await db.BomRevisions.AsNoTracking()
             .Include(x => x.ParentItem)
             .Include(x => x.Lines).ThenInclude(x => x.ChildItem)
-            .Where(x => ids.Contains(x.ParentItemId) && x.Status == BomStatuses.Approved &&
-                x.EffectiveFrom <= to && (!x.EffectiveTo.HasValue || x.EffectiveTo >= from))
-            .OrderBy(x => x.EffectiveFrom)
+            .Where(x => ids.Contains(x.ParentItemId) && x.Status == BomStatuses.Approved)
+            .OrderBy(x => x.ParentItemId)
             .ToListAsync(ct);
 
         return ids.ToDictionary(parentId => parentId, parentId =>
@@ -53,11 +52,7 @@ public sealed class BomOperationalReadinessQuery(IDbContextFactory<HadronDbConte
                         blockers.Add("INVALID_ITEM_RELATIONSHIP");
                 }
 
-                if (revision.EffectiveFrom.HasValue)
-                {
-                    intervals.Add(new(revision.EffectiveFrom.Value,
-                        revision.EffectiveTo ?? DateOnly.MaxValue));
-                }
+                intervals.Add(new(from, to));
             }
 
             return new BomOperationalCoverage(intervals, blockers.Order().ToArray());

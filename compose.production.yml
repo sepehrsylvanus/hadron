@@ -1,0 +1,252 @@
+name: hadron-erp-production
+
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+  AllowedHosts: ${ERP_ALLOWED_HOSTS:?ERP_ALLOWED_HOSTS is required}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+  POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+  MINIO_PROFILE_BUCKET: ${MINIO_PROFILE_BUCKET:-hadron-profile-photos}
+  MINIO_COLLABORATION_BUCKET: ${MINIO_COLLABORATION_BUCKET:-hadron-collaboration-files}
+  LIVEKIT_URL: ${LIVEKIT_URL:?LIVEKIT_URL is required}
+  LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY is required}
+  LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET is required}
+  IDENTITY_BOOTSTRAP_TOKEN: ${IDENTITY_BOOTSTRAP_TOKEN:?IDENTITY_BOOTSTRAP_TOKEN is required}
+  DATA_PROTECTION_KEYS_PATH: ${DATA_PROTECTION_KEYS_PATH:-/home/hadron/.aspnet/DataProtection-Keys}
+  Database__IncludeErrorDetail: "false"
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - hadron-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - data
+    logging: *default-logging
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+    volumes:
+      - hadron-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - data
+    logging: *default-logging
+
+  data-protection-init:
+    image: busybox:1.37.0
+    user: "0:0"
+    command:
+      - sh
+      - -ec
+      - mkdir -p /keys && chown -R 10001:10001 /keys && chmod 0700 /keys
+    volumes:
+      - hadron-data-protection-keys:/keys
+    network_mode: none
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    image: ${API_IMAGE:-hadron-erp-api:local}
+    build:
+      context: .
+      dockerfile: src/backend/Hadron.Erp.Api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    environment: *api-environment
+    volumes:
+      - type: volume
+        source: hadron-data-protection-keys
+        target: ${DATA_PROTECTION_KEYS_PATH:-/home/hadron/.aspnet/DataProtection-Keys}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      data-protection-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - application
+      - data
+    logging: *default-logging
+
+  web:
+    image: ${WEB_IMAGE:-hadron-erp-web:local}
+    build:
+      context: .
+      dockerfile: src/frontend/Dockerfile
+      target: runtime
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+      - /var/cache/nginx:size=32m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/healthz | grep -q '^ok$'"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    networks:
+      - application
+    logging: *default-logging
+
+  livekit:
+    image: livekit/livekit-server:v1.9.6
+    restart: unless-stopped
+    init: true
+    command: --bind 0.0.0.0
+    cap_drop:
+      - ALL
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?LIVEKIT_API_KEY is required}: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET is required}"
+      NODE_IP: ${LIVEKIT_NODE_IP:?LIVEKIT_NODE_IP is required}
+      UDP_PORT: "${LIVEKIT_UDP_PORT_RANGE_START:-50000}-${LIVEKIT_UDP_PORT_RANGE_END:-50100}"
+    ports:
+      - "${LIVEKIT_RTC_TCP_PORT:-7881}:7881"
+      - "${LIVEKIT_UDP_PORT_RANGE_START:-50000}-${LIVEKIT_UDP_PORT_RANGE_END:-50100}:${LIVEKIT_UDP_PORT_RANGE_START:-50000}-${LIVEKIT_UDP_PORT_RANGE_END:-50100}/udp"
+    networks:
+      - application
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      ERP_SITE_ADDRESS: ${ERP_SITE_ADDRESS:?ERP_SITE_ADDRESS is required}
+      LIVEKIT_SITE_ADDRESS: ${LIVEKIT_SITE_ADDRESS:?LIVEKIT_SITE_ADDRESS is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - hadron-caddy-data:/data
+      - hadron-caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+    networks:
+      - application
+    logging: *default-logging
+
+  # This service exists only for an explicit, operator-controlled migration.
+  # It is never started by the normal production `up` command.
+  migrate:
+    profiles: ["maintenance"]
+    image: ${API_IMAGE:-hadron-erp-api:local}-migrations
+    build:
+      context: .
+      dockerfile: src/backend/Hadron.Erp.Api/Dockerfile
+      target: migration-runtime
+    environment: *api-environment
+    volumes:
+      - type: volume
+        source: hadron-data-protection-keys
+        target: ${DATA_PROTECTION_KEYS_PATH:-/home/hadron/.aspnet/DataProtection-Keys}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      data-protection-init:
+        condition: service_completed_successfully
+    networks:
+      - data
+    cap_drop:
+      - ALL
+    logging: *default-logging
+
+  # The backup/restore scripts are the only supported caller of this profile.
+  # The host bind path is explicit and Data Protection keys stay on a volume.
+  maintenance-tools:
+    profiles: ["maintenance"]
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      MINIO_BACKUP_BUCKETS: ${MINIO_BACKUP_BUCKETS:-hadron-profile-photos,hadron-collaboration-files}
+    volumes:
+      - type: bind
+        source: ${BACKUP_HOST_PATH:-./backups/production}
+        target: /backup
+      - hadron-data-protection-keys:/data-protection
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - data
+    logging: *default-logging
+
+networks:
+  application:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+
+volumes:
+  hadron-postgres-data:
+  hadron-minio-data:
+  hadron-data-protection-keys:
+  hadron-caddy-data:
+  hadron-caddy-config:

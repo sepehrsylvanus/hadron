@@ -20,6 +20,7 @@ internal sealed class MrpRunConfiguration : IEntityTypeConfiguration<MrpRun>
             t.HasCheckConstraint("ck_mrp_runs_horizon", "\"HorizonEndDate\" >= \"AsOfDate\"");
             t.HasCheckConstraint("ck_mrp_runs_status", "\"Status\" IN ('RUNNING','COMPLETED','COMPLETED_WITH_EXCEPTIONS','FAILED')");
             t.HasCheckConstraint("ck_mrp_runs_completeness", "\"Completeness\" IN ('COMPLETE','COMPLETE_WITH_WARNINGS','INCOMPLETE')");
+            t.HasCheckConstraint("ck_mrp_runs_purpose", "\"Purpose\" IN ('CURRENT','CERTIFIED','PUBLISHED','LEGACY')");
         });
         b.HasKey(x => x.Id);
         b.Property(x => x.RunNumber).HasMaxLength(40).IsRequired();
@@ -28,10 +29,41 @@ internal sealed class MrpRunConfiguration : IEntityTypeConfiguration<MrpRun>
         b.Property(x => x.Completeness).HasMaxLength(40).IsRequired();
         b.Property(x => x.Assumptions).HasMaxLength(1000).IsRequired();
         b.Property(x => x.ActorIdentifier).HasMaxLength(200);
+        b.Property(x => x.Purpose).HasMaxLength(20).IsRequired();
         b.Property(x => x.FailureCode).HasMaxLength(100);
         b.Property(x => x.FailureMessage).HasMaxLength(2000);
         b.HasIndex(x => x.RunNumber).IsUnique();
         b.HasIndex(x => new { x.AsOfDate, x.StartedAtUtc });
+    }
+}
+
+internal sealed class MrpPlanSlotConfiguration : IEntityTypeConfiguration<MrpPlanSlot>
+{
+    public void Configure(EntityTypeBuilder<MrpPlanSlot> b)
+    {
+        b.ToTable("mrp_plan_slots", "planning", t =>
+            t.HasCheckConstraint("ck_mrp_plan_slots_name", "\"SlotName\" IN ('CURRENT','CERTIFIED')"));
+        b.HasKey(x => x.SlotName);
+        b.Property(x => x.SlotName).HasMaxLength(20);
+        b.Property(x => x.Version).IsConcurrencyToken();
+        b.HasIndex(x => x.RunId);
+        b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class MrpDailyCertificateConfiguration : IEntityTypeConfiguration<MrpDailyCertificate>
+{
+    public void Configure(EntityTypeBuilder<MrpDailyCertificate> b)
+    {
+        b.ToTable("mrp_daily_certificates", "planning");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.RunNumber).HasMaxLength(40).IsRequired();
+        b.Property(x => x.EngineVersion).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Status).HasMaxLength(40).IsRequired();
+        b.Property(x => x.Completeness).HasMaxLength(40).IsRequired();
+        b.Property(x => x.ResultHash).HasMaxLength(64).IsFixedLength().IsRequired();
+        b.HasIndex(x => x.BusinessDate).IsUnique();
+        b.HasIndex(x => x.CertifiedAtUtc);
     }
 }
 
@@ -137,6 +169,25 @@ internal sealed class MrpRunExternalSourceInputConfiguration : IEntityTypeConfig
         b.ToTable("mrp_run_external_source_inputs", "planning"); b.HasKey(x => x.Id);
         b.HasIndex(x => new { x.RunId, x.ItemId });
         b.HasIndex(x => new { x.RunId, x.SourcingOptionId, x.PriceId }).IsUnique();
+        b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class MrpRunManufacturingOperationInputConfiguration
+    : IEntityTypeConfiguration<MrpRunManufacturingOperationInput>
+{
+    public void Configure(EntityTypeBuilder<MrpRunManufacturingOperationInput> b)
+    {
+        b.ToTable("mrp_run_manufacturing_operation_inputs", "planning", table =>
+        {
+            table.HasCheckConstraint("ck_mrp_manufacturing_operation_week", "\"WorkingWeekMask\" BETWEEN 1 AND 127");
+            table.HasCheckConstraint("ck_mrp_manufacturing_operation_days", "\"PreparationWorkingDays\" >= 0 AND \"ExecutionWorkingDays\" >= 0 AND (\"PreparationWorkingDays\" + \"ExecutionWorkingDays\") > 0");
+        });
+        b.HasKey(x => x.Id);
+        b.Property(x => x.RouteCode).HasMaxLength(32).IsRequired();
+        b.Property(x => x.WorkCenterCode).HasMaxLength(32).IsRequired();
+        b.HasIndex(x => new { x.RunId, x.ItemId, x.Sequence }).IsUnique();
+        b.HasIndex(x => new { x.RunId, x.RouteId, x.OperationId }).IsUnique();
         b.HasOne<MrpRun>().WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Restrict);
     }
 }

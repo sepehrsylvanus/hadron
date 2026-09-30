@@ -24,23 +24,101 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
             modelBuilder.HasSequence("bom_revision_number_seq", "engineering");
 
+            modelBuilder.HasSequence("business_unit_value_code_seq", "reference_data");
+
+            modelBuilder.HasSequence("component_category_value_code_seq", "reference_data");
+
             modelBuilder.HasSequence("component_number_seq", "catalog");
+
+            modelBuilder.HasSequence("country_value_code_seq", "reference_data");
+
+            modelBuilder.HasSequence("incoterm_value_code_seq", "reference_data");
+
+            modelBuilder.HasSequence("inventory_transfer_number_seq", "inventory");
+
+            modelBuilder.HasSequence("manufacturing_route_number_seq", "production");
+
+            modelBuilder.HasSequence("material_cost_book_number_seq", "cash_flow");
 
             modelBuilder.HasSequence("mrp_run_number_seq", "planning");
 
+            modelBuilder.HasSequence("official_letter_number_seq", "collaboration");
+
+            modelBuilder.HasSequence("part_category_value_code_seq", "reference_data");
+
             modelBuilder.HasSequence("part_number_seq", "catalog");
 
+            modelBuilder.HasSequence("payment_term_value_code_seq", "reference_data");
+
+            modelBuilder.HasSequence("product_category_value_code_seq", "reference_data");
+
             modelBuilder.HasSequence("product_number_seq", "catalog");
+
+            modelBuilder.HasSequence("production_order_number_seq", "production");
+
+            modelBuilder.HasSequence("production_work_center_number_seq", "production");
 
             modelBuilder.HasSequence("purchase_order_number_seq", "procurement");
 
             modelBuilder.HasSequence("purchase_receipt_number_seq", "procurement");
 
+            modelBuilder.HasSequence("shipping_mode_value_code_seq", "reference_data");
+
             modelBuilder.HasSequence("sourcing_option_number_seq", "procurement");
 
             modelBuilder.HasSequence("supplier_number_seq", "procurement");
 
+            modelBuilder.HasSequence("trade_project_number_seq", "trading");
+
+            modelBuilder.HasSequence("trade_reference_value_number_seq", "trading");
+
+            modelBuilder.HasSequence("trade_shipment_number_seq", "trading");
+
             modelBuilder.HasSequence("warehouse_number_seq", "inventory");
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomItemApplicability", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChildItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ParentItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildItemId", "IsActive");
+
+                    b.HasIndex("ParentItemId", "ChildItemId")
+                        .IsUnique();
+
+                    b.HasIndex("ParentItemId", "IsActive");
+
+                    b.ToTable("bom_item_applicabilities", "engineering", t =>
+                        {
+                            t.HasCheckConstraint("ck_bom_item_applicabilities_version", "\"Version\" >= 1");
+                        });
+                });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", b =>
                 {
@@ -122,11 +200,13 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<DateOnly?>("EffectiveFrom")
-                        .HasColumnType("date");
+                    b.Property<DateOnly?>("LegacyEffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("EffectiveFrom");
 
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date");
+                    b.Property<DateOnly?>("LegacyEffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("EffectiveTo");
 
                     b.Property<DateTime?>("ObsoletedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -170,22 +250,525 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.HasIndex("ParentBaseUnitId");
 
+                    b.HasIndex("ParentItemId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_bom_revisions_one_approved_parent")
+                        .HasFilter("\"Status\" = 'APPROVED'");
+
                     b.HasIndex("RevisionCode")
                         .IsUnique();
 
-                    b.HasIndex("ParentItemId", "Status", "EffectiveFrom", "EffectiveTo");
+                    b.HasIndex("ParentItemId", "Status");
 
                     b.ToTable("bom_revisions", "engineering", t =>
                         {
                             t.HasCheckConstraint("ck_bom_revisions_base_output", "\"BaseOutputQty\" > 0");
 
-                            t.HasCheckConstraint("ck_bom_revisions_dates", "\"EffectiveTo\" IS NULL OR \"EffectiveFrom\" IS NULL OR \"EffectiveTo\" >= \"EffectiveFrom\"");
-
-                            t.HasCheckConstraint("ck_bom_revisions_released_from", "\"Status\" = 'DRAFT' OR \"EffectiveFrom\" IS NOT NULL");
-
                             t.HasCheckConstraint("ck_bom_revisions_status", "\"Status\" IN ('DRAFT','APPROVED','OBSOLETE')");
 
                             t.HasCheckConstraint("ck_bom_revisions_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBook", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BookNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookNumber")
+                        .IsUnique();
+
+                    b.ToTable("material_cost_books", "cash_flow");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("CurrencyDecimalPrecision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencyNameEn")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("CurrencyNameFa")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ItemBaseUnitCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemBaseUnitNameEn")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ItemBaseUnitNameFa")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemNameEn")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("ItemNameFa")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<Guid>("MaterialCostBookRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("OriginalPriceAmount")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("PriceBasisQuantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<string>("PriceUnitCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("PriceUnitFactorToBase")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("PriceUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PriceUnitNameEn")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("PriceUnitNameFa")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("SourceReference")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("SupplierNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("ItemBaseUnitId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("PriceUnitId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("MaterialCostBookRevisionId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("material_cost_book_lines", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_material_cost_book_lines_basis", "\"PriceBasisQuantity\" > 0");
+
+                            t.HasCheckConstraint("ck_material_cost_book_lines_currency_precision", "\"CurrencyDecimalPrecision\" BETWEEN 0 AND 12");
+
+                            t.HasCheckConstraint("ck_material_cost_book_lines_factor", "\"PriceUnitFactorToBase\" > 0");
+
+                            t.HasCheckConstraint("ck_material_cost_book_lines_price", "\"OriginalPriceAmount\" > 0");
+
+                            t.HasCheckConstraint("ck_material_cost_book_lines_supplier_snapshot", "(\"SupplierId\" IS NULL AND \"SupplierNumber\" IS NULL AND \"SupplierName\" IS NULL) OR (\"SupplierId\" IS NOT NULL AND NULLIF(BTRIM(\"SupplierNumber\"), '') IS NOT NULL AND NULLIF(BTRIM(\"SupplierName\"), '') IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookOperationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("MaterialCostBookRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("ResultVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaterialCostBookRevisionId");
+
+                    b.HasIndex("OperationType", "ClientRequestId")
+                        .IsUnique();
+
+                    b.ToTable("material_cost_book_operation_receipts", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_material_cost_book_operation_receipts_type", "\"OperationType\" IN ('UPDATE_DRAFT','UPSERT_LINE','REMOVE_LINE','PUBLISH')");
+
+                            t.HasCheckConstraint("ck_material_cost_book_operation_receipts_version", "\"ResultVersion\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangeReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("MaterialCostBookId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("PublishReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PublishedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("SupersedesRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("UpdatedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("MaterialCostBookId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'DRAFT'");
+
+                    b.HasIndex("SupersedesRevisionId")
+                        .IsUnique()
+                        .HasFilter("\"SupersedesRevisionId\" IS NOT NULL");
+
+                    b.HasIndex("MaterialCostBookId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "EffectiveDate", "Revision");
+
+                    b.ToTable("material_cost_book_revisions", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_material_cost_book_revisions_not_self_superseding", "\"SupersedesRevisionId\" IS NULL OR \"SupersedesRevisionId\" <> \"Id\"");
+
+                            t.HasCheckConstraint("ck_material_cost_book_revisions_publish_state", "(\"Status\" = 'DRAFT' AND \"PublishedAtUtc\" IS NULL AND \"PublishReason\" IS NULL) OR (\"Status\" = 'PUBLISHED' AND \"PublishedAtUtc\" IS NOT NULL AND NULLIF(BTRIM(\"PublishReason\"), '') IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_material_cost_book_revisions_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_material_cost_book_revisions_status", "\"Status\" IN ('DRAFT','PUBLISHED')");
+
+                            t.HasCheckConstraint("ck_material_cost_book_revisions_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxOperationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RateSetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("ResultVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RateSetId");
+
+                    b.HasIndex("OperationType", "ClientRequestId")
+                        .IsUnique();
+
+                    b.ToTable("reporting_fx_operation_receipts", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_reporting_fx_operation_receipts_type", "\"OperationType\" IN ('UPDATE_DRAFT','PUBLISH')");
+
+                            t.HasCheckConstraint("ck_reporting_fx_operation_receipts_version", "\"ResultVersion\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RateSetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("UnitsPerUsd")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("RateSetId", "CurrencyId")
+                        .IsUnique();
+
+                    b.ToTable("reporting_fx_rates", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_reporting_fx_rates_positive", "\"UnitsPerUsd\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BaseCurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangeReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PublishReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PublishedByIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("SupersedesRateSetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("SupersedesRateSetId")
+                        .IsUnique()
+                        .HasFilter("\"SupersedesRateSetId\" IS NOT NULL");
+
+                    b.HasIndex("BaseCurrencyId", "EffectiveDate")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'DRAFT'");
+
+                    b.HasIndex("BaseCurrencyId", "EffectiveDate", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("BaseCurrencyId", "Status", "EffectiveDate", "Revision");
+
+                    b.ToTable("reporting_fx_rate_sets", "cash_flow", t =>
+                        {
+                            t.HasCheckConstraint("ck_reporting_fx_rate_sets_not_self_superseding", "\"SupersedesRateSetId\" IS NULL OR \"SupersedesRateSetId\" <> \"Id\"");
+
+                            t.HasCheckConstraint("ck_reporting_fx_rate_sets_publish_state", "(\"Status\" = 'DRAFT' AND \"PublishedAtUtc\" IS NULL AND \"PublishReason\" IS NULL) OR (\"Status\" = 'PUBLISHED' AND \"PublishedAtUtc\" IS NOT NULL AND \"PublishReason\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_reporting_fx_rate_sets_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_reporting_fx_rate_sets_status", "\"Status\" IN ('DRAFT','PUBLISHED')");
+
+                            t.HasCheckConstraint("ck_reporting_fx_rate_sets_version", "\"Version\" >= 1");
                         });
                 });
 
@@ -311,6 +894,1208 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.CallSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HostDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("HostUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("RoomName")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("VideoEnabled")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_call_sessions_one_active_per_conversation")
+                        .HasFilter("\"Status\" = 'ACTIVE'");
+
+                    b.HasIndex("RoomName")
+                        .IsUnique();
+
+                    b.HasIndex("ConversationId", "Status");
+
+                    b.ToTable("call_sessions", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_call_sessions_status", "\"Status\" IN ('ACTIVE','ENDED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.CollaborationAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<Guid?>("OfficialLetterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UploadedByDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ValidationStatus")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique();
+
+                    b.HasIndex("OfficialLetterId");
+
+                    b.ToTable("attachments", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_collaboration_attachments_owner", "num_nonnulls(\"MessageId\", \"OfficialLetterId\") = 1");
+
+                            t.HasCheckConstraint("ck_collaboration_attachments_size", "\"Size\" > 0 AND \"Size\" <= 26214400");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPrivate")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Type", "IsArchived");
+
+                    b.ToTable("conversations", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_conversations_type", "\"Type\" IN ('CHANNEL','DIRECT')");
+
+                            t.HasCheckConstraint("ck_conversations_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMember", b =>
+                {
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("JoinedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastReadAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("ConversationId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("conversation_members", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_conversation_members_role", "\"Role\" IN ('OWNER','MEMBER')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EditedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("OfficialLetterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ReplyToMessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StickerCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OfficialLetterId");
+
+                    b.HasIndex("ConversationId", "CreatedAtUtc");
+
+                    b.ToTable("messages", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_messages_content", "\"DeletedAtUtc\" IS NOT NULL OR \"Body\" IS NOT NULL OR \"StickerCode\" IS NOT NULL OR \"OfficialLetterId\" IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_messages_type", "\"Type\" IN ('TEXT','STICKER','SYSTEM','LETTER_REFERENCE','CALL_EVENT')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingAttendanceInterval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ConnectedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DisconnectedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MeetingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParticipantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_meeting_attendance_one_open_interval")
+                        .HasFilter("\"DisconnectedAtUtc\" IS NULL");
+
+                    b.HasIndex("MeetingSessionId", "ParticipantId", "ConnectedAtUtc");
+
+                    b.ToTable("meeting_attendance_intervals", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_meeting_attendance_interval", "\"DisconnectedAtUtc\" IS NULL OR \"DisconnectedAtUtc\" >= \"ConnectedAtUtc\"");
+
+                            t.HasCheckConstraint("ck_meeting_attendance_source", "\"Source\" IN ('CLIENT','PROVIDER')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("MeetingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingSessionId", "OccurredAtUtc");
+
+                    b.ToTable("meeting_events", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_meeting_events_source", "\"Source\" IN ('UI','CLIENT','PROVIDER')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingGuestAccessTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MeetingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("MeetingSessionId");
+
+                    b.HasIndex("ParticipantId")
+                        .IsUnique();
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("meeting_guest_access_tickets", "collaboration");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingGuestInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MeetingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RedeemedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParticipantId")
+                        .IsUnique();
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("MeetingSessionId", "ExpiresAtUtc");
+
+                    b.ToTable("meeting_guest_invites", "collaboration");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdmissionStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("AdmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeniedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("MeetingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_meeting_participants_one_host")
+                        .HasFilter("\"Role\" = 'HOST'");
+
+                    b.HasIndex("MeetingSessionId", "AdmissionStatus");
+
+                    b.HasIndex("MeetingSessionId", "UserId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL");
+
+                    b.ToTable("meeting_participants", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_meeting_participants_admission", "\"AdmissionStatus\" IN ('INVITED','WAITING','ADMITTED','DENIED','REVOKED')");
+
+                            t.HasCheckConstraint("ck_meeting_participants_identity", "(\"Role\" = 'EXTERNAL_GUEST' AND \"UserId\" IS NULL) OR (\"Role\" <> 'EXTERNAL_GUEST' AND \"UserId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_meeting_participants_role", "\"Role\" IN ('HOST','COHOST','PRESENTER','ATTENDEE','EXTERNAL_GUEST')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AttendeeCamera")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AttendeeMicrophone")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AttendeeScreenShare")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ChatEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EphemeralWhiteboardEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("FileSharingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GuestCamera")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GuestMicrophone")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GuestScreenShare")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("RecordingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RoomName")
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<DateTime?>("ScheduledEndAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ScheduledStartAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId")
+                        .IsUnique();
+
+                    b.HasIndex("RoomName")
+                        .IsUnique()
+                        .HasFilter("\"RoomName\" IS NOT NULL");
+
+                    b.HasIndex("ConversationId", "Status");
+
+                    b.HasIndex("Status", "ScheduledStartAtUtc");
+
+                    b.ToTable("meeting_sessions", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_meeting_sessions_recording_disabled", "\"RecordingEnabled\" = FALSE");
+
+                            t.HasCheckConstraint("ck_meeting_sessions_schedule", "(\"ScheduledStartAtUtc\" IS NULL AND \"ScheduledEndAtUtc\" IS NULL) OR (\"ScheduledStartAtUtc\" IS NOT NULL AND \"ScheduledEndAtUtc\" IS NOT NULL AND \"ScheduledEndAtUtc\" > \"ScheduledStartAtUtc\")");
+
+                            t.HasCheckConstraint("ck_meeting_sessions_status", "\"Status\" IN ('SCHEDULED','LIVE','ENDED','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "UserId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("message_reactions", "collaboration");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcknowledgedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(40000)
+                        .HasColumnType("character varying(40000)");
+
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("IssuedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SenderDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.ToTable("official_letters", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_official_letters_classification", "\"Classification\" IN ('NORMAL','CONFIDENTIAL','HIGHLY_CONFIDENTIAL')");
+
+                            t.HasCheckConstraint("ck_official_letters_status", "\"Status\" IN ('DRAFT','ISSUED','ACKNOWLEDGED','CLOSED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetterEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OfficialLetterId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OfficialLetterId", "OccurredAtUtc");
+
+                    b.ToTable("official_letter_events", "collaboration");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetterRecipient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OfficialLetterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("OfficialLetterId", "UserId", "Type")
+                        .IsUnique();
+
+                    b.ToTable("official_letter_recipients", "collaboration", t =>
+                        {
+                            t.HasCheckConstraint("ck_official_letter_recipients_type", "\"Type\" IN ('TO','CC')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DescriptionEn")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("DescriptionFa")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("IsSystemRole")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.ToTable("roles", "identity");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("AccessVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("OrganizationalUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ProfilePhotoContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProfilePhotoObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ProfilePhotoSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("ProfilePhotoSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("OrganizationalUnitId");
+
+                    b.ToTable("users", "identity", t =>
+                        {
+                            t.HasCheckConstraint("ck_identity_users_activation_profile", "NOT \"IsActive\" OR (\"ProfilePhotoObjectKey\" IS NOT NULL AND \"ProfilePhotoContentType\" IS NOT NULL AND \"ProfilePhotoSize\" > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.OrganizationalUnit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("organizational_units", "organization");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.SecurityAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("TargetUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("TargetUserId");
+
+                    b.ToTable("security_audit_events", "identity");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserDataScope", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ScopeValue")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("\"ScopeType\" = 'ALL'");
+
+                    b.HasIndex("UserId", "ScopeType", "ScopeValue")
+                        .IsUnique();
+
+                    b.ToTable("user_data_scopes", "identity", t =>
+                        {
+                            t.HasCheckConstraint("ck_identity_user_data_scope_v1", "(\"ScopeType\" = 'ALL' AND \"ScopeValue\" IS NULL) OR (\"ScopeType\" = 'WAREHOUSE' AND \"ScopeValue\" ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserPermissionOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Effect")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PermissionCode")
+                        .IsUnique();
+
+                    b.ToTable("user_permission_overrides", "identity", t =>
+                        {
+                            t.HasCheckConstraint("ck_identity_user_permission_effect", "\"Effect\" IN ('GRANT','DENY')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "RevokedAtUtc");
+
+                    b.ToTable("user_sessions", "identity");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryItemUnitConversion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("FactorToBase")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TransactionUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaseUnitId");
+
+                    b.HasIndex("TransactionUnitId");
+
+                    b.HasIndex("ItemId", "TransactionUnitId")
+                        .IsUnique();
+
+                    b.ToTable("item_unit_conversions", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_item_unit_different", "\"TransactionUnitId\" <> \"BaseUnitId\"");
+
+                            t.HasCheckConstraint("ck_inventory_item_unit_factor", "\"FactorToBase\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_item_unit_version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryLedgerEffect", b =>
                 {
                     b.Property<DateOnly>("EffectiveDate")
@@ -347,6 +2132,10 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<decimal>("ConversionFactorToBase")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -357,6 +2146,10 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.Property<DateOnly>("EffectiveDate")
                         .HasColumnType("date");
+
+                    b.Property<decimal>("EnteredQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
 
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
@@ -384,6 +2177,9 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<Guid>("TransactionUnitId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UnitId")
                         .HasColumnType("uuid");
 
@@ -399,6 +2195,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasFilter("\"OriginalTransactionId\" IS NOT NULL");
 
                     b.HasIndex("SourceDocumentId");
+
+                    b.HasIndex("TransactionUnitId");
 
                     b.HasIndex("UnitId");
 
@@ -416,6 +2214,12 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.ToTable("transactions", "inventory", t =>
                         {
+                            t.HasCheckConstraint("ck_inventory_conversion_factor", "\"ConversionFactorToBase\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_conversion_math", "ROUND(\"EnteredQuantity\" * \"ConversionFactorToBase\", 6) = \"Quantity\"");
+
+                            t.HasCheckConstraint("ck_inventory_entered_quantity", "\"EnteredQuantity\" > 0");
+
                             t.HasCheckConstraint("ck_inventory_original_shape", "(\"TransactionType\" = 'REVERSAL') = (\"OriginalTransactionId\" IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_inventory_quantity", "\"Quantity\" > 0");
@@ -424,11 +2228,186 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                             t.HasCheckConstraint("ck_inventory_source_pair", "(\"SourceDocumentType\" IS NULL) = (\"SourceDocumentId\" IS NULL)");
 
-                            t.HasCheckConstraint("ck_inventory_source_type", "\"SourceDocumentType\" IS NULL OR \"SourceDocumentType\" IN ('PURCHASE_RECEIPT','PRODUCTION_ISSUE','LEGACY_IMPORT')");
+                            t.HasCheckConstraint("ck_inventory_source_type", "\"SourceDocumentType\" IS NULL OR \"SourceDocumentType\" IN ('PURCHASE_RECEIPT','PRODUCTION_ISSUE','PRODUCTION_RECEIPT','INTERNAL_TRANSFER_DISPATCH','INTERNAL_TRANSFER_RECEIPT','LEGACY_IMPORT')");
 
                             t.HasCheckConstraint("ck_inventory_transaction_type", "\"TransactionType\" IN ('OPENING','RECEIPT','ISSUE','ADJ_IN','ADJ_OUT','TRANSFER','REVERSAL')");
 
                             t.HasCheckConstraint("ck_inventory_transfer_shape", "(\"TransactionType\" = 'TRANSFER' AND \"DestinationWarehouseId\" IS NOT NULL AND \"DestinationWarehouseId\" <> \"WarehouseId\") OR (\"TransactionType\" <> 'TRANSFER' AND \"TransactionType\" <> 'REVERSAL' AND \"DestinationWarehouseId\" IS NULL) OR (\"TransactionType\" = 'REVERSAL')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ConversionFactorToBase")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DispatchTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("EnteredRequestedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("RequestedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("SourceWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TransactionUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("DestinationWarehouseId");
+
+                    b.HasIndex("DispatchTransactionId");
+
+                    b.HasIndex("TransactionUnitId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("ItemId", "CreatedAtUtc");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex("SourceWarehouseId", "DestinationWarehouseId", "CreatedAtUtc");
+
+                    b.ToTable("transfers", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_transfer_cancel", "(\"CancelledAtUtc\" IS NULL) = (\"CancellationReason\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_conversion_factor", "\"ConversionFactorToBase\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_conversion_math", "ROUND(\"EnteredRequestedQuantity\" * \"ConversionFactorToBase\", 6) = \"RequestedQuantity\"");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_entered_quantity", "\"EnteredRequestedQuantity\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_number", "\"BusinessNumber\" ~ '^ITR-[0-9]{6,}$'");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_quantity", "\"RequestedQuantity\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_status", "\"Status\" IN ('DRAFT','DISPATCHED','PARTIALLY_RECEIVED','RECEIVED','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_version", "\"Version\" >= 1");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_warehouses", "\"SourceWarehouseId\" <> \"DestinationWarehouseId\"");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransferReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("ConversionFactorToBase")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("EnteredQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid?>("InventoryTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("TransactionUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TransferId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryTransactionId")
+                        .IsUnique()
+                        .HasFilter("\"InventoryTransactionId\" IS NOT NULL");
+
+                    b.HasIndex("TransactionUnitId");
+
+                    b.HasIndex("TransferId", "EffectiveDate");
+
+                    b.ToTable("transfer_receipts", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_transfer_receipt_conversion_factor", "\"ConversionFactorToBase\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_receipt_conversion_math", "ROUND(\"EnteredQuantity\" * \"ConversionFactorToBase\", 6) = \"Quantity\"");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_receipt_entered_quantity", "\"EnteredQuantity\" > 0");
+
+                            t.HasCheckConstraint("ck_inventory_transfer_receipt_quantity", "\"Quantity\" > 0");
                         });
                 });
 
@@ -437,6 +2416,14 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AddressEn")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("AddressFa")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("BusinessNumber")
                         .IsRequired()
@@ -447,6 +2434,9 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IncludeInMrpAvailable")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -464,6 +2454,9 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid?>("PrimaryResponsibleUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -473,10 +2466,17 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
+                    b.Property<string>("WarehouseType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessNumber")
                         .IsUnique();
+
+                    b.HasIndex("PrimaryResponsibleUserId");
 
                     b.HasIndex("IsActive", "BusinessNumber");
 
@@ -484,7 +2484,182 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_warehouses_business_number_format", "\"BusinessNumber\" ~ '^WH-[0-9]{4,}$'");
 
+                            t.HasCheckConstraint("ck_warehouses_mrp_availability", "\"IncludeInMrpAvailable\" = (\"WarehouseType\" <> 'PRODUCTION_STAGING')");
+
+                            t.HasCheckConstraint("ck_warehouses_type", "\"WarehouseType\" IN ('STORAGE','PRODUCTION_STAGING','FINISHED_GOODS')");
+
                             t.HasCheckConstraint("ck_warehouses_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpDailyCertificate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CertifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("DailyResultCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EngineVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ExceptionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("HorizonEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ItemCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ResultHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("RunNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("SourceCutoffUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SourceRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate")
+                        .IsUnique();
+
+                    b.HasIndex("CertifiedAtUtc");
+
+                    b.ToTable("mrp_daily_certificates", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpPlanSlot", b =>
+                {
+                    b.Property<string>("SlotName")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("ActivatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("SourceCutoffUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("SlotName");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("mrp_plan_slots", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_plan_slots_name", "\"SlotName\" IN ('CURRENT','CERTIFIED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRefreshOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("SourceEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceEntityTypes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("Status", "AvailableAtUtc");
+
+                    b.ToTable("mrp_refresh_outbox", "planning", t =>
+                        {
+                            t.HasCheckConstraint("CK_mrp_refresh_outbox_attempt_count", "\"AttemptCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_mrp_refresh_outbox_status", "\"Status\" IN ('PENDING','PROCESSING','COMPLETED','FAILED')");
                         });
                 });
 
@@ -530,6 +2705,11 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Property<DateOnly>("HorizonEndDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("RunNumber")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -560,6 +2740,8 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                             t.HasCheckConstraint("ck_mrp_runs_horizon", "\"HorizonEndDate\" >= \"AsOfDate\"");
 
                             t.HasCheckConstraint("ck_mrp_runs_number", "\"RunNumber\" ~ '^MRP-RUN-[0-9]{6,}$'");
+
+                            t.HasCheckConstraint("ck_mrp_runs_purpose", "\"Purpose\" IN ('CURRENT','CERTIFIED','PUBLISHED','LEGACY')");
 
                             t.HasCheckConstraint("ck_mrp_runs_status", "\"Status\" IN ('RUNNING','COMPLETED','COMPLETED_WITH_EXCEPTIONS','FAILED')");
                         });
@@ -704,6 +2886,9 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("ParentDemandDate")
                         .HasColumnType("date");
 
                     b.Property<Guid>("ParentItemId")
@@ -1234,6 +3419,65 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.ToTable("mrp_run_item_summaries", "planning");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunManufacturingOperationInput", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ExecutionWorkingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PreparationWorkingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RouteCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("WorkCenterCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("WorkCenterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("WorkingWeekMask")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "ItemId", "Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("RunId", "RouteId", "OperationId")
+                        .IsUnique();
+
+                    b.ToTable("mrp_run_manufacturing_operation_inputs", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_mrp_manufacturing_operation_days", "\"PreparationWorkingDays\" >= 0 AND \"ExecutionWorkingDays\" >= 0 AND (\"PreparationWorkingDays\" + \"ExecutionWorkingDays\") > 0");
+
+                            t.HasCheckConstraint("ck_mrp_manufacturing_operation_week", "\"WorkingWeekMask\" BETWEEN 1 AND 127");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunResolvedRouteResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1334,6 +3578,415 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.ToTable("mrp_run_route_decisions", "planning", t =>
                         {
                             t.HasCheckConstraint("ck_mrp_run_route_decision", "\"Route\" IN ('BOM','EXTERNAL')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerSavedView", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FiltersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("OwnerIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerIdentifier", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("planner_saved_views", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerWorkItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcknowledgedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AcknowledgedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ExceptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcknowledgedByUserId");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("ExceptionId")
+                        .IsUnique();
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("Status", "AssignedUserId", "UpdatedAtUtc");
+
+                    b.ToTable("planner_work_items", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_planner_work_item_status", "\"Status\" IN ('OPEN','ACKNOWLEDGED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerWorkItemEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("WorkItemId", "OccurredAtUtc");
+
+                    b.ToTable("planner_work_item_events", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfDailyResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("FirmIncoming")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("FirmProjected")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("GrossDemand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<bool>("IsRootProduct")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("NetRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("PlanningBalance")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("PlanningBeforeNeed")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "ItemId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("what_if_daily_results", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfException", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AffectsDemand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SourceReference")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "ItemId", "Date");
+
+                    b.ToTable("what_if_exceptions", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_what_if_exception_severity", "\"Severity\" IN ('ERROR','WARNING','INFO')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfFirmSupplyOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DeliveryScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("Eta")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("OpenQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "DeliveryScheduleId")
+                        .IsUnique();
+
+                    b.ToTable("what_if_firm_supply_overrides", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfForecastOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "ProductId", "BusinessPeriodId")
+                        .IsUnique();
+
+                    b.ToTable("what_if_forecast_overrides", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfInventoryOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("OnHandQty")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("what_if_inventory_overrides", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfItemSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("SafetyBreachDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("StartingOnHand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<DateOnly?>("StockoutDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("TotalFirmIncoming")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("TotalGrossDemand")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.Property<decimal>("TotalNetRequirement")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScenarioId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("what_if_item_summaries", "planning");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BaseRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Completeness")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("OwnerIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaseRunId");
+
+                    b.HasIndex("OwnerIdentifier", "CreatedAtUtc");
+
+                    b.ToTable("what_if_scenarios", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_what_if_scenario_status", "\"Status\" = 'CALCULATED'");
                         });
                 });
 
@@ -1995,6 +4648,158 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("EndJalaliMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EndJalaliYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("StartJalaliMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartJalaliYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("StartDate", "EndDate");
+
+                    b.ToTable("forecast_plans", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_forecast_plans_dates", "\"EndDate\" >= \"StartDate\"");
+
+                            t.HasCheckConstraint("ck_forecast_plans_end_month", "\"EndJalaliMonth\" BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("ck_forecast_plans_name", "btrim(\"Name\") <> ''");
+
+                            t.HasCheckConstraint("ck_forecast_plans_start_month", "\"StartJalaliMonth\" BETWEEN 1 AND 12");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("ForecastPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ForecastQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("ForecastRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessPeriodId");
+
+                    b.HasIndex("ForecastRevisionId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ForecastPlanId", "ProductId", "BusinessPeriodId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_forecast_plan_entry_plan_product_period");
+
+                    b.ToTable("forecast_plan_entries", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_forecast_plan_entries_qty", "\"ForecastQty\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntryCorrection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("ForecastPlanEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ForecastQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("ForecastRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRevisionId");
+
+                    b.HasIndex("ForecastPlanEntryId", "RevisionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_forecast_plan_entry_correction_revision");
+
+                    b.ToTable("forecast_plan_entry_corrections", "planning", t =>
+                        {
+                            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_number", "\"RevisionNumber\" >= 2");
+
+                            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_qty", "\"ForecastQty\" >= 0");
+
+                            t.HasCheckConstraint("ck_forecast_plan_entry_corrections_reason", "btrim(\"Reason\") <> ''");
+                        });
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2127,6 +4932,521 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.ToTable("period_lifecycle_events", "planning", t =>
                         {
                             t.HasCheckConstraint("ck_period_lifecycle_events_transition", "(\"FromStatus\" = 'OPEN' AND \"ToStatus\" = 'CLOSED') OR (\"FromStatus\" = 'CLOSED' AND \"ToStatus\" = 'OPEN')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRoute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ItemBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("ObsoletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_manufacturing_route_current_item")
+                        .HasFilter("\"Status\" = 'APPROVED'");
+
+                    b.HasIndex("ItemId", "RevisionNumber")
+                        .IsUnique();
+
+                    b.ToTable("manufacturing_routes", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_manufacturing_route_number", "\"BusinessNumber\" ~ '^RTE-[0-9]{4,}$'");
+
+                            t.HasCheckConstraint("ck_manufacturing_route_revision", "\"RevisionNumber\" >= 1");
+
+                            t.HasCheckConstraint("ck_manufacturing_route_status", "\"Status\" IN ('DRAFT','APPROVED','OBSOLETE')");
+
+                            t.HasCheckConstraint("ck_manufacturing_route_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRouteOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExecutionWorkingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("PreparationWorkingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkCenterId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkCenterId");
+
+                    b.HasIndex("RouteId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("manufacturing_route_operations", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_manufacturing_route_operation_days", "\"PreparationWorkingDays\" >= 0 AND \"ExecutionWorkingDays\" >= 0 AND (\"PreparationWorkingDays\" + \"ExecutionWorkingDays\") > 0");
+
+                            t.HasCheckConstraint("ck_manufacturing_route_operation_sequence", "\"Sequence\" >= 10");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionMaterialStaging", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BaseQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InventoryTransferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductionOrderMaterialId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryTransferId")
+                        .IsUnique();
+
+                    b.HasIndex("ProductionOrderMaterialId");
+
+                    b.ToTable("material_stagings", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_staging_quantity", "\"BaseQuantity\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("BomRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ForecastRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ForecastSeriesId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("PlannedEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("PlannedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateOnly>("PlannedStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ProductBaseUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ReportedGoodQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<decimal>("ReportedRejectedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BomRevisionId");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("DestinationWarehouseId");
+
+                    b.HasIndex("ForecastRevisionId");
+
+                    b.HasIndex("ForecastSeriesId");
+
+                    b.HasIndex("ProductBaseUnitId");
+
+                    b.HasIndex("ProductId", "PlannedStartDate");
+
+                    b.HasIndex("Status", "PlannedStartDate");
+
+                    b.ToTable("orders", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_order_dates", "\"PlannedStartDate\" <= \"PlannedEndDate\"");
+
+                            t.HasCheckConstraint("ck_production_order_number", "\"BusinessNumber\" ~ '^MO-[0-9]{6,}$'");
+
+                            t.HasCheckConstraint("ck_production_order_quantity", "\"PlannedQuantity\" > 0 AND \"ReportedGoodQuantity\" >= 0 AND \"ReportedRejectedQuantity\" >= 0");
+
+                            t.HasCheckConstraint("ck_production_order_release_bom", "(\"Status\" IN ('DRAFT','APPROVED')) = (\"BomRevisionId\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_production_order_status", "\"Status\" IN ('DRAFT','APPROVED','RELEASED','IN_PROGRESS','COMPLETED','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_production_order_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderLifecycleEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionOrderId", "OccurredAtUtc");
+
+                    b.ToTable("order_lifecycle_events", "production");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderMaterial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BaseOutputQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<Guid>("BomLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RequiredQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("UsageQty")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BomLineId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("ProductionOrderId", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("order_materials", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_material_quantity", "\"RequiredQuantity\" > 0 AND \"UsageQty\" > 0 AND \"BaseOutputQty\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DailyActualId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DailyActualRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FinishedGoodsTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("GoodQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("ProductionDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RejectedQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DailyActualId");
+
+                    b.HasIndex("DailyActualRevisionId");
+
+                    b.HasIndex("DestinationWarehouseId");
+
+                    b.HasIndex("FinishedGoodsTransactionId")
+                        .IsUnique();
+
+                    b.HasIndex("ProductionOrderId", "ProductionDate");
+
+                    b.ToTable("reports", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_report_quantity", "\"GoodQuantity\" > 0 AND \"RejectedQuantity\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionReportMaterial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ActualQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InventoryTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductionOrderMaterialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductionReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("StandardQuantity")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("VarianceReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryTransactionId")
+                        .IsUnique();
+
+                    b.HasIndex("ProductionOrderMaterialId");
+
+                    b.HasIndex("ProductionReportId", "ProductionOrderMaterialId")
+                        .IsUnique();
+
+                    b.ToTable("report_materials", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_report_material_quantity", "\"StandardQuantity\" > 0 AND \"ActualQuantity\" > 0");
+
+                            t.HasCheckConstraint("ck_production_report_material_variance", "\"StandardQuantity\" = \"ActualQuantity\" OR NULLIF(BTRIM(\"VarianceReason\"), '') IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionWorkCenter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BusinessNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OrganizationalUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("WorkingWeekMask")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessNumber")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationalUnitId", "IsActive");
+
+                    b.ToTable("work_centers", "production", t =>
+                        {
+                            t.HasCheckConstraint("ck_production_work_center_number", "\"BusinessNumber\" ~ '^WC-[0-9]{4,}$'");
+
+                            t.HasCheckConstraint("ck_production_work_center_version", "\"Version\" >= 1");
+
+                            t.HasCheckConstraint("ck_production_work_center_week", "\"WorkingWeekMask\" BETWEEN 1 AND 127");
                         });
                 });
 
@@ -2586,7 +5906,7 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Property<Guid>("SourcingOptionId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("SourcingPriceId")
+                    b.Property<Guid?>("SourcingPriceId")
                         .HasColumnType("uuid");
 
                     b.Property<int?>("SupplierLeadTimeDays")
@@ -3218,6 +6538,11 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .HasPrecision(18, 6)
                         .HasColumnType("numeric(18,6)");
 
+                    b.Property<string>("RouteScope")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<Guid?>("ShippingModeId")
                         .HasColumnType("uuid");
 
@@ -3266,11 +6591,15 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.ToTable("sourcing_options", "procurement", t =>
                         {
+                            t.HasCheckConstraint("ck_sourcing_options_domestic_fields", "\"RouteScope\" <> 'DOMESTIC' OR (\"IncotermId\" IS NULL AND \"ForwarderToShipmentDays\" IS NULL AND \"DestinationCustomsDays\" IS NULL)");
+
                             t.HasCheckConstraint("ck_sourcing_options_lead_times", "(\"SupplierLeadTimeDays\" IS NULL OR \"SupplierLeadTimeDays\" >= 0) AND (\"ForwarderToShipmentDays\" IS NULL OR \"ForwarderToShipmentDays\" >= 0) AND (\"ShippingPeriodDays\" IS NULL OR \"ShippingPeriodDays\" >= 0) AND (\"DestinationCustomsDays\" IS NULL OR \"DestinationCustomsDays\" >= 0)");
 
                             t.HasCheckConstraint("ck_sourcing_options_moq", "\"MinimumOrderQuantity\" IS NULL OR \"MinimumOrderQuantity\" >= 0");
 
                             t.HasCheckConstraint("ck_sourcing_options_preferred_active", "NOT \"IsPreferred\" OR \"IsActive\"");
+
+                            t.HasCheckConstraint("ck_sourcing_options_route_scope", "\"RouteScope\" IN ('DOMESTIC','IMPORT')");
 
                             t.HasCheckConstraint("ck_sourcing_options_version", "\"Version\" >= 1");
                         });
@@ -3539,6 +6868,1014 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrentJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("PreviousJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntityType", "EntityId", "OccurredAtUtc");
+
+                    b.ToTable("audit_events", "trading");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeCost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.Property<string>("CostType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CurrencyCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencyNameEnSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CurrencyNameFaSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsVoided")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ScopeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeType", "ScopeId");
+
+                    b.HasIndex("ProjectId", "CurrencyCodeSnapshot", "IsVoided", "EffectiveDate");
+
+                    b.ToTable("costs", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_cost_amount", "\"Amount\" > 0");
+
+                            t.HasCheckConstraint("ck_trade_cost_scope", "\"ScopeType\" IN ('PROJECT','SHIPMENT','SHIPMENT_LEG','CUSTOMS')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeCustomsClearance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClearanceNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("ClearanceType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CustomsOfficeCodeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("CustomsOfficeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CustomsOfficeNameEnSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CustomsOfficeNameFaSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("DeclarationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly?>("ReleaseDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClearanceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ShipmentId", "Status");
+
+                    b.ToTable("customs_clearances", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_customs_dates", "\"ReleaseDate\" IS NULL OR \"DeclarationDate\" IS NULL OR \"ReleaseDate\" >= \"DeclarationDate\"");
+
+                            t.HasCheckConstraint("ck_trade_customs_status", "\"Status\" IN ('NOT_STARTED','DOCUMENTS_PENDING','IN_PROGRESS','PARTIAL','COMPLETE','BLOCKED','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_trade_customs_type", "\"ClearanceType\" IN ('DEFINITIVE','TEMPORARY','TRANSIT','RETURN')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeFxAllocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("AllocationDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.Property<string>("BankCodeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("BankId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BankNameEnSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BankNameFaSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CurrencyCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencyNameEnSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CurrencyNameFaSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DealStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("OrderRegistrationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReceiptStatus")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly>("RequestDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderRegistrationId");
+
+                    b.HasIndex("ProjectId", "DealStatus", "RequestDate");
+
+                    b.ToTable("fx_allocations", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_fx_amount", "\"Amount\" > 0");
+
+                            t.HasCheckConstraint("ck_trade_fx_dates", "\"AllocationDate\" IS NULL OR \"AllocationDate\" >= \"RequestDate\"");
+
+                            t.HasCheckConstraint("ck_trade_fx_deal", "\"DealStatus\" IN ('NOT_STARTED','IN_QUEUE','PRIORITY_CONFIRMED','ALLOCATED','DEAL_DONE','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_trade_fx_process", "\"ProcessType\" IN ('REQUEST','ALLOCATION','DEAL','RECEIPT','CORRECTION')");
+
+                            t.HasCheckConstraint("ck_trade_fx_receipt", "\"ReceiptStatus\" IN ('NOT_RECEIVED','PARTIAL','COMPLETE','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeOrderRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CurrencyCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencyNameEnSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CurrencyNameFaSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RegisteredAmount")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.Property<DateOnly>("RegistrationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RegistrationNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RegistrationNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "Status");
+
+                    b.ToTable("order_registrations", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_order_amount", "\"RegisteredAmount\" > 0");
+
+                            t.HasCheckConstraint("ck_trade_order_status", "\"Status\" IN ('DRAFT','SUBMITTED','ACTIVE','SUSPENDED','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CustomerCodeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CustomerNameEnSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CustomerNameFaSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ProjectNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierNameSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SupplierNumberSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly?>("TargetDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("TitleEn")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("TitleFa")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ProjectNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("Status", "Priority", "TargetDate");
+
+                    b.ToTable("projects", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_project_priority", "\"Priority\" IN ('LOW','NORMAL','HIGH','CRITICAL')");
+
+                            t.HasCheckConstraint("ck_trade_project_status", "\"Status\" IN ('DRAFT','ACTIVE','WAITING_ORDER','FX_PROCESS','READY_TO_SHIP','IN_TRANSIT','IN_CUSTOMS','CLEARED','DELIVERED','CLOSED','CANCELLED')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeProjectShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllocationMethod")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<decimal>("AllocationValue")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShipmentId");
+
+                    b.HasIndex("ProjectId", "ShipmentId")
+                        .IsUnique();
+
+                    b.ToTable("project_shipments", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_link_method", "\"AllocationMethod\" IN ('GOODS_VALUE','CBM','WEIGHT','COUNT','MANUAL_PERCENT','EQUAL')");
+
+                            t.HasCheckConstraint("ck_trade_link_value", "\"AllocationValue\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeReferenceValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NameFa")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id")
+                        .HasName("PK_reference_values1");
+
+                    b.HasIndex("ReferenceType", "Code")
+                        .IsUnique();
+
+                    b.HasIndex("ReferenceType", "IsActive", "SortOrder");
+
+                    b.ToTable("reference_values", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_reference_type", "\"ReferenceType\" IN ('CUSTOMER','BUSINESS_CARD','BANK','FORWARDER','CARRIER','DESTINATION','INSURANCE_COMPANY','INSPECTION_COMPANY','CUSTOMS_OFFICE','CUSTOMS_BROKER')");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeReportNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "CreatedAtUtc");
+
+                    b.ToTable("report_notes", "trading");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualArrival")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ActualDeparture")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("EstimatedArrival")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EstimatedDeparture")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ForwarderCodeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("ForwarderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ForwarderNameEnSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ForwarderNameFaSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal?>("GrossWeight")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ShipmentNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TransportMode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("VolumeCbm")
+                        .HasPrecision(24, 6)
+                        .HasColumnType("numeric(24,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShipmentNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "EstimatedArrival");
+
+                    b.ToTable("shipments", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_shipment_actual_dates", "\"ActualArrival\" IS NULL OR \"ActualDeparture\" IS NULL OR \"ActualArrival\" >= \"ActualDeparture\"");
+
+                            t.HasCheckConstraint("ck_trade_shipment_estimated_dates", "\"EstimatedArrival\" IS NULL OR \"EstimatedDeparture\" IS NULL OR \"EstimatedArrival\" >= \"EstimatedDeparture\"");
+
+                            t.HasCheckConstraint("ck_trade_shipment_mode", "\"TransportMode\" IN ('SEA','AIR','ROAD','RAIL','MULTIMODAL')");
+
+                            t.HasCheckConstraint("ck_trade_shipment_status", "\"Status\" IN ('DRAFT','WAITING_LINK','READY','IN_TRANSIT','ARRIVED','IN_CUSTOMS','PARTIAL_CLEARED','CLEARED','DELIVERED','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_trade_shipment_volume", "\"VolumeCbm\" IS NULL OR \"VolumeCbm\" >= 0");
+
+                            t.HasCheckConstraint("ck_trade_shipment_weight", "\"GrossWeight\" IS NULL OR \"GrossWeight\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipmentLeg", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualArrival")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ActualDeparture")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly?>("EstimatedArrival")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EstimatedDeparture")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FromLocation")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<string>("ToLocation")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TrackingNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("TransportMode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShipmentId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("shipment_legs", "trading", t =>
+                        {
+                            t.HasCheckConstraint("ck_trade_leg_actual_dates", "\"ActualArrival\" IS NULL OR \"ActualDeparture\" IS NULL OR \"ActualArrival\" >= \"ActualDeparture\"");
+
+                            t.HasCheckConstraint("ck_trade_leg_estimated_dates", "\"EstimatedArrival\" IS NULL OR \"EstimatedDeparture\" IS NULL OR \"EstimatedArrival\" >= \"EstimatedDeparture\"");
+
+                            t.HasCheckConstraint("ck_trade_leg_mode", "\"TransportMode\" IN ('SEA','AIR','ROAD','RAIL','MULTIMODAL')");
+
+                            t.HasCheckConstraint("ck_trade_leg_status", "\"Status\" IN ('PLANNED','DEPARTED','IN_TRANSIT','ARRIVED','DELAYED','CANCELLED')");
+
+                            t.HasCheckConstraint("ck_trade_shipment_leg_sequence", "\"Sequence\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Platform.Audit.OperationalAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CurrentValuesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreviousValuesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("EntityType", "EntityId", "OccurredAtUtc");
+
+                    b.ToTable("operational_audit_events", "platform");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("role_claims", "identity");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_claims", "identity");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LoginProvider", "ProviderKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_logins", "identity");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("user_roles", "identity");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "LoginProvider", "Name");
+
+                    b.ToTable("user_tokens", "identity");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomItemApplicability", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "ChildItem")
+                        .WithMany()
+                        .HasForeignKey("ChildItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "ParentItem")
+                        .WithMany()
+                        .HasForeignKey("ParentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChildItem");
+
+                    b.Navigation("ParentItem");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", "BomRevision")
@@ -3592,6 +7929,133 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("ParentItem");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookLine", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ItemBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ItemBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", "MaterialCostBookRevision")
+                        .WithMany("Lines")
+                        .HasForeignKey("MaterialCostBookRevisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "PriceUnit")
+                        .WithMany()
+                        .HasForeignKey("PriceUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Suppliers.Domain.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("ItemBaseUnit");
+
+                    b.Navigation("MaterialCostBookRevision");
+
+                    b.Navigation("PriceUnit");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookOperationReceipt", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", "MaterialCostBookRevision")
+                        .WithMany()
+                        .HasForeignKey("MaterialCostBookRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MaterialCostBookRevision");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBook", "MaterialCostBook")
+                        .WithMany("Revisions")
+                        .HasForeignKey("MaterialCostBookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", "SupersedesRevision")
+                        .WithMany()
+                        .HasForeignKey("SupersedesRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("MaterialCostBook");
+
+                    b.Navigation("SupersedesRevision");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxOperationReceipt", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", "RateSet")
+                        .WithMany()
+                        .HasForeignKey("RateSetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RateSet");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRate", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", "RateSet")
+                        .WithMany("Rates")
+                        .HasForeignKey("RateSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("RateSet");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Currency", "BaseCurrency")
+                        .WithMany()
+                        .HasForeignKey("BaseCurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", "SupersedesRateSet")
+                        .WithMany()
+                        .HasForeignKey("SupersedesRateSetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BaseCurrency");
+
+                    b.Navigation("SupersedesRateSet");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Catalog.Domain.Item", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "BaseUnit")
@@ -3622,6 +8086,250 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Item");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.CallSession", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.CollaborationAttachment", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMessage", "Message")
+                        .WithMany("Attachments")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetter", "OfficialLetter")
+                        .WithMany("Attachments")
+                        .HasForeignKey("OfficialLetterId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Message");
+
+                    b.Navigation("OfficialLetter");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMember", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", "Conversation")
+                        .WithMany("Members")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMessage", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingAttendanceInterval", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "MeetingSession")
+                        .WithMany()
+                        .HasForeignKey("MeetingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", "Participant")
+                        .WithMany("AttendanceIntervals")
+                        .HasForeignKey("ParticipantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MeetingSession");
+
+                    b.Navigation("Participant");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "MeetingSession")
+                        .WithMany("Events")
+                        .HasForeignKey("MeetingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MeetingSession");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingGuestAccessTicket", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "MeetingSession")
+                        .WithMany()
+                        .HasForeignKey("MeetingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", "Participant")
+                        .WithMany()
+                        .HasForeignKey("ParticipantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MeetingSession");
+
+                    b.Navigation("Participant");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingGuestInvite", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "MeetingSession")
+                        .WithMany()
+                        .HasForeignKey("MeetingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", "Participant")
+                        .WithOne()
+                        .HasForeignKey("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingGuestInvite", "ParticipantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MeetingSession");
+
+                    b.Navigation("Participant");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "MeetingSession")
+                        .WithMany("Participants")
+                        .HasForeignKey("MeetingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MeetingSession");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", "Conversation")
+                        .WithOne()
+                        .HasForeignKey("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", "ConversationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MessageReaction", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMessage", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetterEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetter", "OfficialLetter")
+                        .WithMany("Events")
+                        .HasForeignKey("OfficialLetterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OfficialLetter");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetterRecipient", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetter", "OfficialLetter")
+                        .WithMany("Recipients")
+                        .HasForeignKey("OfficialLetterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OfficialLetter");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.OrganizationalUnit", "OrganizationalUnit")
+                        .WithMany()
+                        .HasForeignKey("OrganizationalUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationalUnit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserDataScope", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserPermissionOverride", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Identity.Domain.UserSession", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryItemUnitConversion", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "BaseUnit")
+                        .WithMany()
+                        .HasForeignKey("BaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "TransactionUnit")
+                        .WithMany()
+                        .HasForeignKey("TransactionUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BaseUnit");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("TransactionUnit");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "DestinationWarehouse")
@@ -3639,6 +8347,12 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("OriginalTransactionId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "TransactionUnit")
+                        .WithMany()
+                        .HasForeignKey("TransactionUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "Unit")
                         .WithMany()
@@ -3658,9 +8372,112 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.Navigation("OriginalTransaction");
 
+                    b.Navigation("TransactionUnit");
+
                     b.Navigation("Unit");
 
                     b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransfer", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "DestinationWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DestinationWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", "DispatchTransaction")
+                        .WithMany()
+                        .HasForeignKey("DispatchTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "SourceWarehouse")
+                        .WithMany()
+                        .HasForeignKey("SourceWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "TransactionUnit")
+                        .WithMany()
+                        .HasForeignKey("TransactionUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DestinationWarehouse");
+
+                    b.Navigation("DispatchTransaction");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("SourceWarehouse");
+
+                    b.Navigation("TransactionUnit");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransferReceipt", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", "InventoryTransaction")
+                        .WithMany()
+                        .HasForeignKey("InventoryTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "TransactionUnit")
+                        .WithMany()
+                        .HasForeignKey("TransactionUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransfer", "Transfer")
+                        .WithMany()
+                        .HasForeignKey("TransferId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InventoryTransaction");
+
+                    b.Navigation("TransactionUnit");
+
+                    b.Navigation("Transfer");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PrimaryResponsibleUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpPlanSlot", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRefreshOutboxMessage", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunBomInput", b =>
@@ -3762,6 +8579,15 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunManufacturingOperationInput", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunResolvedRouteResult", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
@@ -3785,6 +8611,108 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerWorkItem", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AcknowledgedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRunException", null)
+                        .WithMany()
+                        .HasForeignKey("ExceptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerWorkItemEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.PlannerWorkItem", null)
+                        .WithMany()
+                        .HasForeignKey("WorkItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfDailyResult", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfException", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfFirmSupplyOverride", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfForecastOverride", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfInventoryOverride", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfItemSummary", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", null)
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Mrp.Domain.WhatIfScenario", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Mrp.Domain.MrpRun", null)
+                        .WithMany()
+                        .HasForeignKey("BaseRunId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -3876,6 +8804,60 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("DailyActual");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntry", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.BusinessPeriod", "BusinessPeriod")
+                        .WithMany()
+                        .HasForeignKey("BusinessPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlan", "ForecastPlan")
+                        .WithMany("Entries")
+                        .HasForeignKey("ForecastPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", "ForecastRevision")
+                        .WithMany()
+                        .HasForeignKey("ForecastRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Products.Domain.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessPeriod");
+
+                    b.Navigation("ForecastPlan");
+
+                    b.Navigation("ForecastRevision");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntryCorrection", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntry", "ForecastPlanEntry")
+                        .WithMany("Corrections")
+                        .HasForeignKey("ForecastPlanEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", "ForecastRevision")
+                        .WithMany()
+                        .HasForeignKey("ForecastRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ForecastPlanEntry");
+
+                    b.Navigation("ForecastRevision");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", b =>
                 {
                     b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", "ForecastSeries")
@@ -3930,6 +8912,232 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("BusinessPeriod");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRoute", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRouteOperation", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRoute", "Route")
+                        .WithMany("Operations")
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionWorkCenter", "WorkCenter")
+                        .WithMany()
+                        .HasForeignKey("WorkCenterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Route");
+
+                    b.Navigation("WorkCenter");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionMaterialStaging", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransfer", "InventoryTransfer")
+                        .WithMany()
+                        .HasForeignKey("InventoryTransferId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderMaterial", "ProductionOrderMaterial")
+                        .WithMany("Stagings")
+                        .HasForeignKey("ProductionOrderMaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InventoryTransfer");
+
+                    b.Navigation("ProductionOrderMaterial");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", "BomRevision")
+                        .WithMany()
+                        .HasForeignKey("BomRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "DestinationWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DestinationWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastRevision", "ForecastRevision")
+                        .WithMany()
+                        .HasForeignKey("ForecastRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", "ForecastSeries")
+                        .WithMany()
+                        .HasForeignKey("ForecastSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "ProductBaseUnit")
+                        .WithMany()
+                        .HasForeignKey("ProductBaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BomRevision");
+
+                    b.Navigation("DestinationWarehouse");
+
+                    b.Navigation("ForecastRevision");
+
+                    b.Navigation("ForecastSeries");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ProductBaseUnit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderLifecycleEvent", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", "ProductionOrder")
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProductionOrder");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderMaterial", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Bom.Domain.BomLine", "BomLine")
+                        .WithMany()
+                        .HasForeignKey("BomLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Catalog.Domain.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", "ProductionOrder")
+                        .WithMany("Materials")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.ReferenceData.Domain.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BomLine");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("ProductionOrder");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionReport", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", "DailyActual")
+                        .WithMany()
+                        .HasForeignKey("DailyActualId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Planning.Domain.DailyActualRevision", "DailyActualRevision")
+                        .WithMany()
+                        .HasForeignKey("DailyActualRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.Warehouse", "DestinationWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DestinationWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", "FinishedGoodsTransaction")
+                        .WithMany()
+                        .HasForeignKey("FinishedGoodsTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", "ProductionOrder")
+                        .WithMany("Reports")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DailyActual");
+
+                    b.Navigation("DailyActualRevision");
+
+                    b.Navigation("DestinationWarehouse");
+
+                    b.Navigation("FinishedGoodsTransaction");
+
+                    b.Navigation("ProductionOrder");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionReportMaterial", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Inventory.Domain.InventoryTransaction", "InventoryTransaction")
+                        .WithMany()
+                        .HasForeignKey("InventoryTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderMaterial", "ProductionOrderMaterial")
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderMaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Production.Domain.ProductionReport", "ProductionReport")
+                        .WithMany("Materials")
+                        .HasForeignKey("ProductionReportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InventoryTransaction");
+
+                    b.Navigation("ProductionOrderMaterial");
+
+                    b.Navigation("ProductionReport");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionWorkCenter", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.OrganizationalUnit", "OrganizationalUnit")
+                        .WithMany()
+                        .HasForeignKey("OrganizationalUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationalUnit");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Products.Domain.Product", b =>
@@ -4099,8 +9307,7 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.HasOne("Hadron.Erp.Api.Modules.Sourcing.Domain.SourcingPrice", "SourcingPrice")
                         .WithMany()
                         .HasForeignKey("SourcingPriceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Item");
 
@@ -4345,9 +9552,202 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeCost", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", "Project")
+                        .WithMany("Costs")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeCustomsClearance", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipment", "Shipment")
+                        .WithMany("CustomsClearances")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Shipment");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeFxAllocation", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeOrderRegistration", "OrderRegistration")
+                        .WithMany()
+                        .HasForeignKey("OrderRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", "Project")
+                        .WithMany("FxAllocations")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrderRegistration");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeOrderRegistration", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", "Project")
+                        .WithMany("OrderRegistrations")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeProjectShipment", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", "Project")
+                        .WithMany("ShipmentLinks")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipment", "Shipment")
+                        .WithMany("ProjectLinks")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Shipment");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeReportNote", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipmentLeg", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipment", "Shipment")
+                        .WithMany("Legs")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Shipment");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Bom.Domain.BomRevision", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBook", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.MaterialCostBookRevision", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.CashFlow.Domain.ReportingFxRateSet", b =>
+                {
+                    b.Navigation("Rates");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.Conversation", b =>
+                {
+                    b.Navigation("Members");
+
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.ConversationMessage", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingParticipant", b =>
+                {
+                    b.Navigation("AttendanceIntervals");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.MeetingSession", b =>
+                {
+                    b.Navigation("Events");
+
+                    b.Navigation("Participants");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Collaboration.Domain.OfficialLetter", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Events");
+
+                    b.Navigation("Recipients");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.DailyActual", b =>
@@ -4355,9 +9755,41 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("Revisions");
                 });
 
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlan", b =>
+                {
+                    b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastPlanEntry", b =>
+                {
+                    b.Navigation("Corrections");
+                });
+
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Planning.Domain.ForecastSeries", b =>
                 {
                     b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ManufacturingRoute", b =>
+                {
+                    b.Navigation("Operations");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrder", b =>
+                {
+                    b.Navigation("Materials");
+
+                    b.Navigation("Reports");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionOrderMaterial", b =>
+                {
+                    b.Navigation("Stagings");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Production.Domain.ProductionReport", b =>
+                {
+                    b.Navigation("Materials");
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.PurchaseSupply.Domain.DeliverySchedule", b =>
@@ -4399,6 +9831,26 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
 
                     b.Navigation("PaymentProfile")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", b =>
+                {
+                    b.Navigation("Costs");
+
+                    b.Navigation("FxAllocations");
+
+                    b.Navigation("OrderRegistrations");
+
+                    b.Navigation("ShipmentLinks");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeShipment", b =>
+                {
+                    b.Navigation("CustomsClearances");
+
+                    b.Navigation("Legs");
+
+                    b.Navigation("ProjectLinks");
                 });
 #pragma warning restore 612, 618
         }

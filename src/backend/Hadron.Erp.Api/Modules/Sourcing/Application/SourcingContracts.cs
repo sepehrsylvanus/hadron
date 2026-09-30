@@ -13,31 +13,38 @@ public sealed record SourcingUnitReference(Guid Id, string Code, string NameFa, 
 public sealed record SourcingItemReference(Guid Id, string Code, string NameFa, string? NameEn,
     string ItemType, string SupplyMethod, bool IsActive, SourcingUnitReference BaseUnit);
 public sealed record SourcingSupplierReference(Guid Id, string SupplierNumber, string Name, bool IsActive);
-public sealed record SourcingPriceResponse(Guid Id, decimal UnitPrice, SourcingReference Currency,
-    DateOnly EffectiveFrom, DateOnly? EffectiveTo, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 public sealed record SourcingReadinessResponse(string State, IReadOnlyList<string> ReasonCodes);
 public sealed record SourcingOptionResponse(Guid Id, string SourcingNumber, SourcingItemReference Item,
-    SourcingSupplierReference Supplier, SourcingUnitReference ItemBaseUnit, decimal? MinimumOrderQuantity,
+    SourcingSupplierReference Supplier, SourcingUnitReference ItemBaseUnit, string RouteScope,
+    decimal? MinimumOrderQuantity,
     SourcingReference? ShippingMode, SourcingReference? Incoterm, int? SupplierLeadTimeDays,
     int? ForwarderToShipmentDays, int? ShippingPeriodDays, int? DestinationCustomsDays,
     int? TotalConfiguredLeadTimeDays, bool IsPreferred, bool IsActive, long Version, DateOnly EvaluationDate,
-    SourcingReadinessResponse Readiness, SourcingPriceResponse? CurrentPrice, DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc, IReadOnlyList<SourcingPriceResponse> Prices);
+    SourcingReadinessResponse Readiness, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 public sealed record SourcingOptionListResponse(IReadOnlyList<SourcingOptionResponse> Items, int Page, int PageSize,
     int TotalCount, DateOnly EvaluationDate);
+public sealed record SourcingItemGroupResponse(SourcingItemReference Item, int OptionCount, int ReadyOptionCount,
+    Guid? PreferredOptionId, IReadOnlyList<SourcingOptionResponse> Options);
+public sealed record SourcingTreeListResponse(IReadOnlyList<SourcingItemGroupResponse> Items, int Page, int PageSize,
+    int TotalItemCount, int TotalOptionCount, DateOnly EvaluationDate);
+public sealed record ItemSupplierLinkResponse(Guid Id, string SourcingNumber,
+    SourcingSupplierReference Supplier, bool IsPreferred, bool IsActive, long Version);
+public sealed record ItemSupplierLinkListResponse(IReadOnlyList<ItemSupplierLinkResponse> Items,
+    int Page, int PageSize, int TotalCount);
+public sealed record SourcingSupplierCandidateResponse(Guid Id, string SupplierNumber, string Name);
+public sealed record SourcingSupplierCandidateListResponse(IReadOnlyList<SourcingSupplierCandidateResponse> Items,
+    int Page, int PageSize, int TotalCount);
 
-public sealed record CreateSourcingOptionRequest(Guid ItemId, Guid SupplierId, decimal? MinimumOrderQuantity,
+public sealed record CreateSourcingOptionRequest(Guid ItemId, Guid SupplierId, string? RouteScope,
+    decimal? MinimumOrderQuantity,
     Guid? ShippingModeId, Guid? IncotermId, int? SupplierLeadTimeDays, int? ForwarderToShipmentDays,
     int? ShippingPeriodDays, int? DestinationCustomsDays);
-public sealed record UpdateSourcingOptionRequest(decimal? MinimumOrderQuantity, Guid? ShippingModeId,
+public sealed record UpdateSourcingOptionRequest(string? RouteScope, decimal? MinimumOrderQuantity, Guid? ShippingModeId,
     Guid? IncotermId, int? SupplierLeadTimeDays, int? ForwarderToShipmentDays, int? ShippingPeriodDays,
     int? DestinationCustomsDays, long ExpectedVersion);
 public sealed record ChangeSourcingOptionStateRequest(long ExpectedVersion, string? Reason);
 public sealed record SetPreferredSourcingOptionRequest(long ExpectedVersion, Guid? ExpectedCurrentPreferredId,
     long? ExpectedCurrentPreferredVersion, string? Reason);
-public sealed record CreateSourcingPriceRequest(decimal UnitPrice, Guid CurrencyId, DateOnly EffectiveFrom,
-    DateOnly? EffectiveTo, long ExpectedVersion);
-public sealed record CloseSourcingPriceRequest(DateOnly EffectiveTo, long ExpectedVersion, string? Reason);
 public sealed record LeadTimeStageApplication(string StageCode, int RecommendedDays, int SampleCount,
     DateOnly WindowStartExclusive, DateOnly WindowEndInclusive);
 public sealed record ApplyLeadTimeRecommendationCommand(long ExpectedVersion,

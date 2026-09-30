@@ -11,12 +11,15 @@ internal sealed class SourcingOptionConfiguration : IEntityTypeConfiguration<Sou
         builder.ToTable("sourcing_options", "procurement", table =>
         {
             table.HasCheckConstraint("ck_sourcing_options_version", "\"Version\" >= 1");
+            table.HasCheckConstraint("ck_sourcing_options_route_scope", "\"RouteScope\" IN ('DOMESTIC','IMPORT')");
+            table.HasCheckConstraint("ck_sourcing_options_domestic_fields", "\"RouteScope\" <> 'DOMESTIC' OR (\"IncotermId\" IS NULL AND \"ForwarderToShipmentDays\" IS NULL AND \"DestinationCustomsDays\" IS NULL)");
             table.HasCheckConstraint("ck_sourcing_options_moq", "\"MinimumOrderQuantity\" IS NULL OR \"MinimumOrderQuantity\" >= 0");
             table.HasCheckConstraint("ck_sourcing_options_lead_times", "(\"SupplierLeadTimeDays\" IS NULL OR \"SupplierLeadTimeDays\" >= 0) AND (\"ForwarderToShipmentDays\" IS NULL OR \"ForwarderToShipmentDays\" >= 0) AND (\"ShippingPeriodDays\" IS NULL OR \"ShippingPeriodDays\" >= 0) AND (\"DestinationCustomsDays\" IS NULL OR \"DestinationCustomsDays\" >= 0)");
             table.HasCheckConstraint("ck_sourcing_options_preferred_active", "NOT \"IsPreferred\" OR \"IsActive\"");
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.SourcingNumber).HasMaxLength(32).IsRequired();
+        builder.Property(x => x.RouteScope).HasMaxLength(16).IsRequired();
         builder.Property(x => x.MinimumOrderQuantity).HasPrecision(18, 6);
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");

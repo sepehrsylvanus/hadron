@@ -10,12 +10,25 @@ using Hadron.Erp.Api.Modules.Inventory.Domain;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 using Hadron.Erp.Api.Modules.Mrp.Domain;
 using Hadron.Erp.Api.Modules.OrderPlanning.Domain;
+using Hadron.Erp.Api.Modules.Identity.Domain;
+using Hadron.Erp.Api.Modules.Identity.Infrastructure;
+using Hadron.Erp.Api.Modules.Production.Domain;
+using Hadron.Erp.Api.Modules.Trading.Domain;
+using Hadron.Erp.Api.Modules.CashFlow.Domain;
+using Hadron.Erp.Api.Modules.Collaboration.Domain;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Hadron.Erp.Api.Platform.Audit;
 
 namespace Hadron.Erp.Api.Infrastructure;
 
 public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>(options)
 {
+    public DbSet<OrganizationalUnit> OrganizationalUnits => Set<OrganizationalUnit>();
+    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<UserDataScope> UserDataScopes => Set<UserDataScope>();
+    public DbSet<SecurityAuditEvent> SecurityAuditEvents => Set<SecurityAuditEvent>();
     public DbSet<ReferenceType> ReferenceTypes => Set<ReferenceType>();
     public DbSet<ReferenceValue> ReferenceValues => Set<ReferenceValue>();
     public DbSet<Currency> Currencies => Set<Currency>();
@@ -32,6 +45,10 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<LeadTimeRecommendationApplication> LeadTimeRecommendationApplications => Set<LeadTimeRecommendationApplication>();
     public DbSet<BomRevision> BomRevisions => Set<BomRevision>();
     public DbSet<BomLine> BomLines => Set<BomLine>();
+    public DbSet<BomItemApplicability> BomItemApplicabilities => Set<BomItemApplicability>();
+    public DbSet<ForecastPlan> ForecastPlans => Set<ForecastPlan>();
+    public DbSet<ForecastPlanEntry> ForecastPlanEntries => Set<ForecastPlanEntry>();
+    public DbSet<ForecastPlanEntryCorrection> ForecastPlanEntryCorrections => Set<ForecastPlanEntryCorrection>();
     public DbSet<BusinessPeriod> BusinessPeriods => Set<BusinessPeriod>();
     public DbSet<ForecastSeries> ForecastSeries => Set<ForecastSeries>();
     public DbSet<ForecastRevision> ForecastRevisions => Set<ForecastRevision>();
@@ -39,8 +56,20 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<DailyActualRevision> DailyActualRevisions => Set<DailyActualRevision>();
     public DbSet<PeriodLifecycleEvent> PeriodLifecycleEvents => Set<PeriodLifecycleEvent>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<InventoryItemUnitConversion> InventoryItemUnitConversions => Set<InventoryItemUnitConversion>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
     public DbSet<InventoryLedgerEffect> InventoryLedgerEffects => Set<InventoryLedgerEffect>();
+    public DbSet<InventoryTransfer> InventoryTransfers => Set<InventoryTransfer>();
+    public DbSet<InventoryTransferReceipt> InventoryTransferReceipts => Set<InventoryTransferReceipt>();
+    public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<ProductionOrderMaterial> ProductionOrderMaterials => Set<ProductionOrderMaterial>();
+    public DbSet<ProductionMaterialStaging> ProductionMaterialStagings => Set<ProductionMaterialStaging>();
+    public DbSet<ProductionOrderLifecycleEvent> ProductionOrderLifecycleEvents => Set<ProductionOrderLifecycleEvent>();
+    public DbSet<ProductionReport> ProductionReports => Set<ProductionReport>();
+    public DbSet<ProductionReportMaterial> ProductionReportMaterials => Set<ProductionReportMaterial>();
+    public DbSet<ProductionWorkCenter> ProductionWorkCenters => Set<ProductionWorkCenter>();
+    public DbSet<ManufacturingRoute> ManufacturingRoutes => Set<ManufacturingRoute>();
+    public DbSet<ManufacturingRouteOperation> ManufacturingRouteOperations => Set<ManufacturingRouteOperation>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<DeliverySchedule> DeliverySchedules => Set<DeliverySchedule>();
@@ -59,6 +88,7 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<MrpRunInventoryInput> MrpRunInventoryInputs => Set<MrpRunInventoryInput>();
     public DbSet<MrpRunFirmSupplyInput> MrpRunFirmSupplyInputs => Set<MrpRunFirmSupplyInput>();
     public DbSet<MrpRunRouteAvailabilityInput> MrpRunRouteAvailabilityInputs => Set<MrpRunRouteAvailabilityInput>();
+    public DbSet<MrpRunManufacturingOperationInput> MrpRunManufacturingOperationInputs => Set<MrpRunManufacturingOperationInput>();
     public DbSet<MrpRunExternalSourceInput> MrpRunExternalSourceInputs => Set<MrpRunExternalSourceInput>();
     public DbSet<MrpRunRouteDecision> MrpRunRouteDecisions => Set<MrpRunRouteDecision>();
     public DbSet<MrpRunResolvedRouteResult> MrpRunResolvedRouteResults => Set<MrpRunResolvedRouteResult>();
@@ -66,13 +96,62 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
     public DbSet<MrpRunItemSummary> MrpRunItemSummaries => Set<MrpRunItemSummary>();
     public DbSet<MrpRunException> MrpRunExceptions => Set<MrpRunException>();
     public DbSet<MrpRunDemandTrace> MrpRunDemandTraces => Set<MrpRunDemandTrace>();
+    public DbSet<MrpPlanSlot> MrpPlanSlots => Set<MrpPlanSlot>();
+    public DbSet<MrpDailyCertificate> MrpDailyCertificates => Set<MrpDailyCertificate>();
+    public DbSet<MrpRefreshOutboxMessage> MrpRefreshOutboxMessages => Set<MrpRefreshOutboxMessage>();
+    public DbSet<PlannerWorkItem> PlannerWorkItems => Set<PlannerWorkItem>();
+    public DbSet<PlannerWorkItemEvent> PlannerWorkItemEvents => Set<PlannerWorkItemEvent>();
+    public DbSet<PlannerSavedView> PlannerSavedViews => Set<PlannerSavedView>();
+    public DbSet<WhatIfScenario> WhatIfScenarios => Set<WhatIfScenario>();
+    public DbSet<WhatIfForecastOverride> WhatIfForecastOverrides => Set<WhatIfForecastOverride>();
+    public DbSet<WhatIfInventoryOverride> WhatIfInventoryOverrides => Set<WhatIfInventoryOverride>();
+    public DbSet<WhatIfFirmSupplyOverride> WhatIfFirmSupplyOverrides => Set<WhatIfFirmSupplyOverride>();
+    public DbSet<WhatIfDailyResult> WhatIfDailyResults => Set<WhatIfDailyResult>();
+    public DbSet<WhatIfItemSummary> WhatIfItemSummaries => Set<WhatIfItemSummary>();
+    public DbSet<WhatIfException> WhatIfExceptions => Set<WhatIfException>();
     public DbSet<OrderPlanningGeneration> OrderPlanningGenerations => Set<OrderPlanningGeneration>();
     public DbSet<OrderRecommendation> OrderRecommendations => Set<OrderRecommendation>();
     public DbSet<OrderRecommendationCandidate> OrderRecommendationCandidates => Set<OrderRecommendationCandidate>();
     public DbSet<OrderRecommendationDecision> OrderRecommendationDecisions => Set<OrderRecommendationDecision>();
+    public DbSet<TradeReferenceValue> TradeReferenceValues => Set<TradeReferenceValue>();
+    public DbSet<TradeProject> TradeProjects => Set<TradeProject>();
+    public DbSet<TradeOrderRegistration> TradeOrderRegistrations => Set<TradeOrderRegistration>();
+    public DbSet<TradeFxAllocation> TradeFxAllocations => Set<TradeFxAllocation>();
+    public DbSet<TradeShipment> TradeShipments => Set<TradeShipment>();
+    public DbSet<TradeShipmentLeg> TradeShipmentLegs => Set<TradeShipmentLeg>();
+    public DbSet<TradeProjectShipment> TradeProjectShipments => Set<TradeProjectShipment>();
+    public DbSet<TradeCustomsClearance> TradeCustomsClearances => Set<TradeCustomsClearance>();
+    public DbSet<TradeCost> TradeCosts => Set<TradeCost>();
+    public DbSet<TradeAuditEvent> TradeAuditEvents => Set<TradeAuditEvent>();
+    public DbSet<TradeReportNote> TradeReportNotes => Set<TradeReportNote>();
+    public DbSet<ReportingFxRateSet> ReportingFxRateSets => Set<ReportingFxRateSet>();
+    public DbSet<ReportingFxRate> ReportingFxRates => Set<ReportingFxRate>();
+    public DbSet<ReportingFxOperationReceipt> ReportingFxOperationReceipts => Set<ReportingFxOperationReceipt>();
+    public DbSet<MaterialCostBook> MaterialCostBooks => Set<MaterialCostBook>();
+    public DbSet<MaterialCostBookRevision> MaterialCostBookRevisions => Set<MaterialCostBookRevision>();
+    public DbSet<MaterialCostBookLine> MaterialCostBookLines => Set<MaterialCostBookLine>();
+    public DbSet<MaterialCostBookOperationReceipt> MaterialCostBookOperationReceipts => Set<MaterialCostBookOperationReceipt>();
+    public DbSet<OperationalAuditEvent> OperationalAuditEvents => Set<OperationalAuditEvent>();
+    public DbSet<Conversation> CollaborationConversations => Set<Conversation>();
+    public DbSet<ConversationMember> CollaborationConversationMembers => Set<ConversationMember>();
+    public DbSet<ConversationMessage> CollaborationMessages => Set<ConversationMessage>();
+    public DbSet<MessageReaction> CollaborationMessageReactions => Set<MessageReaction>();
+    public DbSet<OfficialLetter> OfficialLetters => Set<OfficialLetter>();
+    public DbSet<OfficialLetterRecipient> OfficialLetterRecipients => Set<OfficialLetterRecipient>();
+    public DbSet<OfficialLetterEvent> OfficialLetterEvents => Set<OfficialLetterEvent>();
+    public DbSet<CollaborationAttachment> CollaborationAttachments => Set<CollaborationAttachment>();
+    public DbSet<CallSession> CollaborationCallSessions => Set<CallSession>();
+    public DbSet<MeetingSession> CollaborationMeetingSessions => Set<MeetingSession>();
+    public DbSet<MeetingParticipant> CollaborationMeetingParticipants => Set<MeetingParticipant>();
+    public DbSet<MeetingGuestInvite> CollaborationMeetingGuestInvites => Set<MeetingGuestInvite>();
+    public DbSet<MeetingGuestAccessTicket> CollaborationMeetingGuestAccessTickets => Set<MeetingGuestAccessTicket>();
+    public DbSet<MeetingAttendanceInterval> CollaborationMeetingAttendanceIntervals => Set<MeetingAttendanceInterval>();
+    public DbSet<MeetingEvent> CollaborationMeetingEvents => Set<MeetingEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+        IdentityTableMapping.Configure(modelBuilder);
         modelBuilder.HasSequence<long>("product_number_seq", "catalog");
         modelBuilder.HasSequence<long>("part_number_seq", "catalog");
         modelBuilder.HasSequence<long>("component_number_seq", "catalog");
@@ -80,9 +159,26 @@ public sealed class HadronDbContext(DbContextOptions<HadronDbContext> options)
         modelBuilder.HasSequence<long>("sourcing_option_number_seq", "procurement");
         modelBuilder.HasSequence<long>("bom_revision_number_seq", "engineering");
         modelBuilder.HasSequence<long>("warehouse_number_seq", "inventory");
+        modelBuilder.HasSequence<long>("inventory_transfer_number_seq", "inventory");
+        modelBuilder.HasSequence<long>("production_order_number_seq", "production");
+        modelBuilder.HasSequence<long>("production_work_center_number_seq", "production");
+        modelBuilder.HasSequence<long>("manufacturing_route_number_seq", "production");
         modelBuilder.HasSequence<long>("purchase_order_number_seq", "procurement");
         modelBuilder.HasSequence<long>("purchase_receipt_number_seq", "procurement");
         modelBuilder.HasSequence<long>("mrp_run_number_seq", "planning");
+        modelBuilder.HasSequence<long>("trade_reference_value_number_seq", "trading");
+        modelBuilder.HasSequence<long>("trade_project_number_seq", "trading");
+        modelBuilder.HasSequence<long>("trade_shipment_number_seq", "trading");
+        modelBuilder.HasSequence<long>("material_cost_book_number_seq", "cash_flow");
+        modelBuilder.HasSequence<long>("official_letter_number_seq", "collaboration");
+        modelBuilder.HasSequence<long>("country_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("business_unit_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("product_category_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("part_category_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("component_category_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("payment_term_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("shipping_mode_value_code_seq", "reference_data");
+        modelBuilder.HasSequence<long>("incoterm_value_code_seq", "reference_data");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HadronDbContext).Assembly);
     }
 }

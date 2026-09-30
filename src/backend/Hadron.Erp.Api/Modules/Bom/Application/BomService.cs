@@ -15,7 +15,7 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
     private const long GraphLockKey = 62006;
 
     public async Task<BomRevisionListResponse> List(string? search, Guid? parentItemId, string? itemType,
-        string? status, DateOnly? effectiveDate, int page, int pageSize, CancellationToken ct)
+        string? status, int page, int pageSize, CancellationToken ct)
     {
         if (page < 1 || pageSize is < 1 or > 100) throw Validation("page", "صفحه و اندازه صفحه معتبر نیست.");
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -23,8 +23,6 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         if (parentItemId.HasValue) q = q.Where(x => x.ParentItemId == parentItemId);
         if (!string.IsNullOrWhiteSpace(itemType)) q = q.Where(x => x.ParentItem.ItemType == itemType);
         if (!string.IsNullOrWhiteSpace(status)) q = q.Where(x => x.Status == status);
-        if (effectiveDate.HasValue) q = q.Where(x => x.EffectiveFrom <= effectiveDate &&
-            (!x.EffectiveTo.HasValue || x.EffectiveTo >= effectiveDate));
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -45,13 +43,13 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
                 ? Array.Empty<string>() : ["BASE_UNIT_CHANGED"];
             return new BomRevisionResponse(x.Revision.Id, x.Revision.RevisionCode,
                 Item(x.Revision.ParentItem, profile), Unit(x.Revision.ParentBaseUnit), x.Revision.Status,
-                x.Revision.BaseOutputQty, x.Revision.EffectiveFrom, x.Revision.EffectiveTo,
-                x.Revision.RevisionNotes, x.Revision.CopiedFromRevisionId, x.Revision.Version,
+                x.Revision.BaseOutputQty, x.Revision.RevisionNotes, x.Revision.CopiedFromRevisionId,
+                x.Revision.Version,
                 x.Revision.CreatedAtUtc, x.Revision.UpdatedAtUtc, x.Revision.ApprovedAtUtc,
                 x.Revision.ObsoletedAtUtc, x.LineCount, Array.Empty<string>(), integrity,
                 Array.Empty<BomLineResponse>());
         }).ToList();
-        return new(rows, page, pageSize, total, effectiveDate);
+        return new(rows, page, pageSize, total);
     }
 
     public async Task<BomRevisionResponse?> Get(Guid id, CancellationToken ct)
@@ -62,13 +60,13 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
 
     public async Task<BomRevisionResponse> Create(CreateBomRevisionRequest request, CancellationToken ct)
     {
-        ValidateHeader(request.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo, request.RevisionNotes);
+        ValidateHeader(request.BaseOutputQty, request.RevisionNotes);
         await using var db = await factory.CreateDbContextAsync(ct);
         var parent = await db.Items.SingleOrDefaultAsync(x => x.Id == request.ParentItemId, ct)
             ?? throw new KeyNotFoundException();
         EnsureParent(parent, true);
         var revision = new BomRevision(await NextCode(db, ct), parent.Id, parent.BaseUnitId,
-            request.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo, Clean(request.RevisionNotes));
+            request.BaseOutputQty, Clean(request.RevisionNotes));
         db.BomRevisions.Add(revision);
         await Save(db, ct);
         var response = (await LoadResponse(db, revision.Id, true, ct))!;
@@ -79,37 +77,80 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
     public async Task<BomRevisionResponse> Copy(Guid sourceId, CopyBomRevisionRequest request, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await LockRevisions(db, transaction, [sourceId], ct);
         var source = await db.BomRevisions.AsNoTracking().Include(x => x.Lines)
             .SingleOrDefaultAsync(x => x.Id == sourceId, ct) ?? throw new KeyNotFoundException();
-        var itemIds = source.Lines.Select(x => x.ChildItemId).Append(source.ParentItemId).ToArray();
+        var targetParentId = request.TargetParentItemId ?? source.ParentItemId;
+        var itemIds = source.Lines.Select(x => x.ChildItemId).Append(source.ParentItemId)
+            .Append(targetParentId).Distinct().ToArray();
         var items = await db.Items.Where(x => itemIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
-        var parent = items[source.ParentItemId];
-        EnsureParent(parent, true);
-        ValidateHeader(source.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo, request.RevisionNotes);
-        var revision = new BomRevision(await NextCode(db, ct), source.ParentItemId, parent.BaseUnitId,
-            source.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo,
-            Clean(request.RevisionNotes) ?? source.RevisionNotes, source.Id);
+        var sourceParent = items[source.ParentItemId];
+        if (!items.TryGetValue(targetParentId, out var targetParent)) throw new KeyNotFoundException();
+        EnsureParent(targetParent, true);
+        if (targetParent.ItemType != sourceParent.ItemType)
+            throw Validation("targetParentItemId", "نوع قلم مقصد باید با Parent مبدأ یکسان باشد.");
+        if (targetParent.BaseUnitId != sourceParent.BaseUnitId)
+            throw Validation("targetParentItemId", "واحد پایه قلم مقصد باید با Parent مبدأ یکسان باشد.");
+        ValidateHeader(source.BaseOutputQty, request.RevisionNotes);
+        var revision = new BomRevision(await NextCode(db, ct), targetParent.Id, targetParent.BaseUnitId,
+            source.BaseOutputQty, Clean(request.RevisionNotes) ?? source.RevisionNotes, source.Id);
         foreach (var line in source.Lines)
         {
             var child = items[line.ChildItemId];
             if (!child.IsActive) throw Validation("childItemId", "همه Childهای Revision کپی‌شده باید فعال باشند.");
-            EnsureRelationship(parent.Id, parent.ItemType, child.Id, child.ItemType);
+            EnsureRelationship(targetParent.Id, targetParent.ItemType, child.Id, child.ItemType);
             revision.Lines.Add(new(revision.Id, line.ChildItemId, child.BaseUnitId, line.UsageQty,
                 line.ScrapOverridePercent, line.SortOrder));
         }
         db.BomRevisions.Add(revision);
         await Save(db, ct);
+        await Commit(transaction, ct);
         var response = (await LoadResponse(db, revision.Id, true, ct))!;
-        await Emit(revision.Id, "COPY_REVISION", response, null, ct);
+        await Emit(revision.Id, targetParent.Id == source.ParentItemId ? "COPY_REVISION" : "COPY_TO_PARENT",
+            response, null, ct);
         return response;
+    }
+
+    public async Task<DiscardBomRevisionResponse> DiscardDraft(Guid id, BomMutationRequest request,
+        CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await LockRevisions(db, transaction, [id], ct);
+        var revision = await db.BomRevisions.Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
+        EnsureVersion(revision.Version, request.ExpectedVersion);
+        if (revision.Status != BomStatuses.Draft)
+            throw new BomConflictException("RELEASED_BOM_IMMUTABLE",
+                "فقط پیش‌نویس BOM قابل حذف است؛ تاریخچه منتشرشده حفظ می‌شود.");
+        if (await db.BomRevisions.AnyAsync(x => x.CopiedFromRevisionId == id, ct))
+            throw new BomConflictException("BOM_DRAFT_HAS_SUCCESSOR",
+                "این پیش‌نویس مبدأ Revision دیگری است و قابل حذف نیست.");
+
+        var result = new DiscardBomRevisionResponse(revision.Id, revision.RevisionCode, revision.ParentItemId);
+        var oldValues = new Dictionary<string, object?>
+        {
+            ["RevisionCode"] = revision.RevisionCode,
+            ["Status"] = revision.Status,
+            ["Version"] = revision.Version,
+            ["ParentItemId"] = revision.ParentItemId,
+            ["LineCount"] = revision.Lines.Count
+        };
+        db.BomLines.RemoveRange(revision.Lines);
+        db.BomRevisions.Remove(revision);
+        await Save(db, ct);
+        await Commit(transaction, ct);
+        await EmitDiscard(id, oldValues, request.Reason, ct);
+        return result;
     }
 
     public async Task<BomRevisionResponse> Update(Guid id, UpdateBomRevisionRequest request, CancellationToken ct)
     {
-        ValidateHeader(request.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo, request.RevisionNotes);
+        ValidateHeader(request.BaseOutputQty, request.RevisionNotes);
         await using var db = await factory.CreateDbContextAsync(ct);
         var revision = await Draft(db, id, request.ExpectedVersion, ct);
-        revision.EditDraft(request.BaseOutputQty, request.EffectiveFrom, request.EffectiveTo, Clean(request.RevisionNotes));
+        revision.EditDraft(request.BaseOutputQty, Clean(request.RevisionNotes));
         await Save(db, ct);
         var response = (await LoadResponse(db, id, true, ct))!;
         await Emit(id, "EDIT_HEADER", response, null, ct);
@@ -123,11 +164,17 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         var revision = await Draft(db, id, request.ExpectedVersion, ct);
         var child = await db.Items.SingleOrDefaultAsync(x => x.Id == request.ChildItemId, ct)
             ?? throw new KeyNotFoundException();
+        var parent = await db.Items.SingleAsync(x => x.Id == revision.ParentItemId, ct);
         if (!child.IsActive) throw Validation("childItemId", "Child فعال الزامی است.");
-        EnsureRelationship(revision.ParentItemId, await db.Items.Where(x => x.Id == revision.ParentItemId)
-            .Select(x => x.ItemType).SingleAsync(ct), child.Id, child.ItemType);
+        EnsureRelationship(parent.Id, parent.ItemType, child.Id, child.ItemType);
         if (await db.BomLines.AnyAsync(x => x.BomRevisionId == id && x.ChildItemId == child.Id, ct))
             throw new BomConflictException("DUPLICATE_CHILD", "Child در Revision تکراری است.");
+        var applicability = await db.BomItemApplicabilities.SingleOrDefaultAsync(x =>
+            x.ParentItemId == parent.Id && x.ChildItemId == child.Id, ct);
+        if (applicability is null)
+            db.BomItemApplicabilities.Add(new(parent.Id, child.Id));
+        else if (!applicability.IsActive)
+            applicability.ChangeState(true);
         db.BomLines.Add(new(id, child.Id, child.BaseUnitId, request.UsageQty, request.ScrapOverridePercent, request.SortOrder));
         revision.TouchDraft();
         await Save(db, ct);
@@ -183,41 +230,43 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await LockGraph(db, transaction, ct);
-        await LockRevisions(db, transaction, request.PreviousRevisionId.HasValue
-            ? [id, request.PreviousRevisionId.Value] : [id], ct);
+        await LockRevisions(db, transaction, [id], ct);
         db.ChangeTracker.Clear();
         var revision = await db.BomRevisions.Include(x => x.Lines).SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException();
         EnsureVersion(revision.Version, request.ExpectedVersion);
         if (revision.Status != BomStatuses.Draft) throw new BomConflictException("APPROVED_IMMUTABLE", "فقط Draft قابل تأیید است.");
+        await LockParentRevisions(db, transaction, revision.ParentItemId, ct);
+        db.ChangeTracker.Clear();
+        revision = await db.BomRevisions.Include(x => x.Lines).SingleAsync(x => x.Id == id, ct);
+        EnsureVersion(revision.Version, request.ExpectedVersion);
         await LockItems(db, transaction, revision.Lines.Select(x => x.ChildItemId).Append(revision.ParentItemId), ct);
         var blocking = await BlockingCodes(db, revision, true, ct);
         if (blocking.Count > 0) throw new BomConflictException(blocking[0], "BOM قابل تأیید نیست.", blocking);
-
-        var suppliedClosure = request.ConfirmPreviousClosure || request.PreviousRevisionId.HasValue || request.ExpectedPreviousVersion.HasValue;
-        if (suppliedClosure && (!request.ConfirmPreviousClosure || !request.PreviousRevisionId.HasValue || !request.ExpectedPreviousVersion.HasValue))
-            throw Validation("previousRevision", "تأیید، شناسه و نسخه Revision قبلی همگی الزامی هستند.");
-        if (request.ConfirmPreviousClosure)
-        {
-            var previous = await db.BomRevisions.SingleOrDefaultAsync(x => x.Id == request.PreviousRevisionId, ct)
-                ?? throw new KeyNotFoundException();
-            EnsureVersion(previous.Version, request.ExpectedPreviousVersion!.Value);
-            if (previous.ParentItemId != revision.ParentItemId || previous.Status != BomStatuses.Approved ||
-                previous.EffectiveTo.HasValue || previous.EffectiveFrom >= revision.EffectiveFrom)
-                throw new BomConflictException("PREVIOUS_REVISION_INVALID", "Revision قبلی open-ended معتبر نیست.");
-            var openCount = await db.BomRevisions.CountAsync(x => x.ParentItemId == revision.ParentItemId &&
-                x.Status == BomStatuses.Approved && !x.EffectiveTo.HasValue, ct);
-            if (openCount != 1) throw new BomConflictException("PREVIOUS_REVISION_INVALID", "دقیقاً یک Revision قبلی open-ended لازم است.");
-            previous.CloseForSuccessor(revision.EffectiveFrom!.Value.AddDays(-1));
-        }
-        if (await HasReleasedOverlap(db, revision, request.ConfirmPreviousClosure ? request.PreviousRevisionId : null, ct))
-            throw new BomConflictException("BOM_EFFECTIVITY_OVERLAP", "بازه Revisionهای منتشرشده هم‌پوشانی دارد.");
-        if (await HasEffectiveCycle(db, revision, ct))
+        if (await HasCurrentCycle(db, revision, ct))
             throw new BomConflictException("BOM_CYCLE_DETECTED", "چرخه BOM تأیید را مسدود کرد.");
+
+        var previousRows = await db.BomRevisions.Where(x => x.ParentItemId == revision.ParentItemId &&
+            x.Id != revision.Id && x.Status == BomStatuses.Approved).ToListAsync(ct);
+        if (previousRows.Count > 1)
+            throw new BomConflictException("MULTIPLE_CURRENT_BOMS", "برای Parent بیش از یک BOM جاری ثبت شده است.");
+        var previous = previousRows.SingleOrDefault();
+        if (previous is not null)
+        {
+            previous.Obsolete(Actor());
+            // The partial unique index is immediate. Persist the old-current transition first,
+            // while keeping both transitions inside the same transaction.
+            await Save(db, ct);
+        }
         revision.Approve(Actor());
         await Save(db, ct);
         await Commit(transaction, ct);
         var response = (await Get(id, ct))!;
+        if (previous is not null)
+        {
+            var superseded = (await Get(previous.Id, ct))!;
+            await Emit(previous.Id, "SUPERSEDED", superseded, request.Reason, ct);
+        }
         await Emit(id, "APPROVE", response, request.Reason, ct);
         return response;
     }
@@ -231,8 +280,8 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         db.ChangeTracker.Clear();
         var revision = await db.BomRevisions.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         EnsureVersion(revision.Version, request.ExpectedVersion);
-        try { revision.Obsolete(request.RetireFromDate, Actor()); }
-        catch (InvalidOperationException) { throw Validation("retireFromDate", "تاریخ بازنشستگی باید بعد از شروع Revision Approved باشد."); }
+        try { revision.Obsolete(Actor()); }
+        catch (InvalidOperationException) { throw new BomConflictException("BOM_NOT_CURRENT", "فقط BOM جاری قابل منسوخ‌کردن است."); }
         await Save(db, ct);
         await Commit(transaction, ct);
         var response = (await Get(id, ct))!;
@@ -240,16 +289,15 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         return response;
     }
 
-    public async Task<BomRevisionResponse?> Resolve(Guid parentId, DateOnly date, bool historical, CancellationToken ct)
+    public async Task<BomRevisionResponse?> Current(Guid parentId, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var statuses = historical ? new[] { BomStatuses.Approved, BomStatuses.Obsolete } : [BomStatuses.Approved];
-        var id = await db.BomRevisions.AsNoTracking().Where(x => x.ParentItemId == parentId && statuses.Contains(x.Status) &&
-            x.EffectiveFrom <= date && (!x.EffectiveTo.HasValue || x.EffectiveTo >= date)).Select(x => (Guid?)x.Id)
+        var id = await db.BomRevisions.AsNoTracking().Where(x => x.ParentItemId == parentId &&
+            x.Status == BomStatuses.Approved).Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(ct);
         if (!id.HasValue) return null;
         var response = (await LoadResponse(db, id.Value, true, ct))!;
-        if (!historical && response.IntegrityReasonCodes.Contains("BASE_UNIT_CHANGED"))
+        if (response.IntegrityReasonCodes.Contains("BASE_UNIT_CHANGED"))
             throw new BomConflictException("BASE_UNIT_CHANGED", "واحد پایه فعلی با snapshot BOM تطابق ندارد.");
         return response;
     }
@@ -267,8 +315,6 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
     {
         var codes = new List<string>();
         if (revision.BaseOutputQty <= 0) codes.Add("BASE_OUTPUT_QTY_INVALID");
-        if (approval && !revision.EffectiveFrom.HasValue) codes.Add("EFFECTIVE_FROM_REQUIRED");
-        if (revision.EffectiveTo < revision.EffectiveFrom) codes.Add("EFFECTIVE_RANGE_INVALID");
         if (approval && revision.Lines.Count == 0) codes.Add("EMPTY_BOM");
         var items = await db.Items.Where(x => x.Id == revision.ParentItemId || revision.Lines.Select(l => l.ChildItemId).Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, ct);
@@ -288,39 +334,22 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
     }
 
     private static Task<bool> HasCandidateCycle(HadronDbContext db, BomRevision candidate, CancellationToken ct) =>
-        candidate.EffectiveFrom.HasValue ? HasEffectiveCycle(db, candidate, ct) : Task.FromResult(false);
+        HasCurrentCycle(db, candidate, ct);
 
-    private static async Task<bool> HasEffectiveCycle(HadronDbContext db, BomRevision candidate, CancellationToken ct)
+    private static async Task<bool> HasCurrentCycle(HadronDbContext db, BomRevision candidate,
+        CancellationToken ct)
     {
-        var from = candidate.EffectiveFrom!.Value;
-        var to = candidate.EffectiveTo;
-        var released = await LoadReachableReleasedGraph(db, candidate, from, to, ct);
-        var boundaries = new SortedSet<DateOnly> { from };
-        foreach (var r in released)
+        var released = await LoadReachableCurrentGraph(db, candidate, ct);
+        IEnumerable<Guid> Children(Guid parent)
         {
-            if (r.EffectiveFrom.HasValue && r.EffectiveFrom.Value >= from &&
-                (!to.HasValue || r.EffectiveFrom.Value <= to)) boundaries.Add(r.EffectiveFrom.Value);
-            if (r.EffectiveTo.HasValue && r.EffectiveTo.Value < DateOnly.MaxValue)
-            {
-                var next = r.EffectiveTo.Value.AddDays(1);
-                if (next >= from && (!to.HasValue || next <= to)) boundaries.Add(next);
-            }
+            if (parent == candidate.ParentItemId) return candidate.Lines.Select(x => x.ChildItemId);
+            return released.SingleOrDefault(x => x.ParentItemId == parent)?.Lines.Select(x => x.ChildItemId) ?? [];
         }
-        foreach (var date in boundaries)
-        {
-            IEnumerable<Guid> Children(Guid parent)
-            {
-                if (parent == candidate.ParentItemId) return candidate.Lines.Select(x => x.ChildItemId);
-                return released.SingleOrDefault(x => x.ParentItemId == parent && x.EffectiveFrom <= date &&
-                    (!x.EffectiveTo.HasValue || x.EffectiveTo >= date))?.Lines.Select(x => x.ChildItemId) ?? [];
-            }
-            if (HasCycle(candidate.ParentItemId, Children)) return true;
-        }
-        return false;
+        return HasCycle(candidate.ParentItemId, Children);
     }
 
-    private static async Task<List<BomRevision>> LoadReachableReleasedGraph(HadronDbContext db,
-        BomRevision candidate, DateOnly from, DateOnly? to, CancellationToken ct)
+    private static async Task<List<BomRevision>> LoadReachableCurrentGraph(HadronDbContext db,
+        BomRevision candidate, CancellationToken ct)
     {
         var result = new List<BomRevision>();
         var visitedParents = new HashSet<Guid> { candidate.ParentItemId };
@@ -330,27 +359,13 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
             var batch = frontier.Where(visitedParents.Add).ToArray();
             if (batch.Length == 0) break;
             var revisions = await db.BomRevisions.AsNoTracking()
-                .Where(x => batch.Contains(x.ParentItemId) &&
-                    (x.Status == BomStatuses.Approved || x.Status == BomStatuses.Obsolete) &&
-                    (!to.HasValue || x.EffectiveFrom <= to.Value) &&
-                    (!x.EffectiveTo.HasValue || x.EffectiveTo >= from))
+                .Where(x => batch.Contains(x.ParentItemId) && x.Status == BomStatuses.Approved)
                 .Include(x => x.Lines).ToListAsync(ct);
             result.AddRange(revisions);
             frontier = revisions.SelectMany(x => x.Lines).Select(x => x.ChildItemId)
                 .Where(x => !visitedParents.Contains(x)).Distinct().ToArray();
         }
         return result;
-    }
-
-    private static Task<bool> HasReleasedOverlap(HadronDbContext db, BomRevision candidate, Guid? excludedId,
-        CancellationToken ct)
-    {
-        var from = candidate.EffectiveFrom!.Value;
-        var to = candidate.EffectiveTo;
-        return db.BomRevisions.AsNoTracking().AnyAsync(x => x.ParentItemId == candidate.ParentItemId &&
-            x.Id != candidate.Id && (!excludedId.HasValue || x.Id != excludedId.Value) &&
-            (x.Status == BomStatuses.Approved || x.Status == BomStatuses.Obsolete) &&
-            (!to.HasValue || x.EffectiveFrom <= to.Value) && (!x.EffectiveTo.HasValue || x.EffectiveTo >= from), ct);
     }
 
     private static bool HasCycle(Guid root, Func<Guid, IEnumerable<Guid>> children)
@@ -392,7 +407,7 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
             ? new[] { "BOM_CYCLE_DETECTED" } : Array.Empty<string>();
         profiles.TryGetValue(r.ParentItemId, out var parentProfile);
         return new(r.Id, r.RevisionCode, Item(r.ParentItem, parentProfile), Unit(r.ParentBaseUnit), r.Status,
-            r.BaseOutputQty, r.EffectiveFrom, r.EffectiveTo, r.RevisionNotes, r.CopiedFromRevisionId, r.Version,
+            r.BaseOutputQty, r.RevisionNotes, r.CopiedFromRevisionId, r.Version,
             r.CreatedAtUtc, r.UpdatedAtUtc, r.ApprovedAtUtc, r.ObsoletedAtUtc, lineResponses.Count, warnings,
             integrity.Distinct().ToArray(), lineResponses);
     }
@@ -416,11 +431,10 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
             parentType == ItemTypes.Component && childType == ItemTypes.Component;
         if (!valid) throw Validation("childItemId", "رابطه Parent/Child مجاز نیست.");
     }
-    private static void ValidateHeader(decimal qty, DateOnly? from, DateOnly? to, string? notes)
+    private static void ValidateHeader(decimal qty, string? notes)
     {
         var e = new Dictionary<string, string[]>();
         if (qty <= 0) e["baseOutputQty"] = ["مقدار خروجی باید مثبت باشد."];
-        if (to < from) e["effectiveTo"] = ["پایان نمی‌تواند قبل از شروع باشد."];
         if (Clean(notes)?.Length > 2000) e["revisionNotes"] = ["یادداشت حداکثر ۲۰۰۰ نویسه است."];
         if (e.Count > 0) throw new BomValidationException(e);
     }
@@ -474,20 +488,26 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         command.Parameters.AddWithValue("ids", ids);
         await command.ExecuteNonQueryAsync(ct);
     }
+    private static async Task LockParentRevisions(HadronDbContext db, IDbContextTransaction tx,
+        Guid parentItemId, CancellationToken ct)
+    {
+        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        await using var command = new NpgsqlCommand(
+            "SELECT \"Id\" FROM engineering.bom_revisions WHERE \"ParentItemId\" = @parentId ORDER BY \"Id\" FOR UPDATE",
+            connection, (NpgsqlTransaction)tx.GetDbTransaction());
+        command.Parameters.AddWithValue("parentId", parentItemId);
+        await command.ExecuteNonQueryAsync(ct);
+    }
     private static async Task Save(HadronDbContext db, CancellationToken ct)
     {
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { throw new BomConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
-        { throw new BomConflictException("BOM_EFFECTIVITY_OVERLAP", "بازه Revisionهای منتشرشده هم‌پوشانی دارد."); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        { throw new BomConflictException("BOM_UNIQUE_CONFLICT", "رکورد BOM تکراری است."); }
+        { throw new BomConflictException("CURRENT_BOM_CONFLICT", "برای هر Parent فقط یک BOM جاری مجاز است."); }
     }
     private static async Task Commit(IDbContextTransaction transaction, CancellationToken ct)
     {
-        try { await transaction.CommitAsync(ct); }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.ExclusionViolation)
-        { throw new BomConflictException("BOM_EFFECTIVITY_OVERLAP", "بازه Revisionهای منتشرشده هم‌پوشانی دارد."); }
+        await transaction.CommitAsync(ct);
     }
     private string? Actor() => AuditEventContext.ActorId(accessor.HttpContext);
     private async Task Emit(Guid id, string action, BomRevisionResponse response, string? reason, CancellationToken ct)
@@ -505,5 +525,16 @@ public sealed class BomService(IDbContextFactory<HadronDbContext> factory, IAudi
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) { logger.LogError(ex, "Post-commit BOM audit failed for {BomId} {Action}.", id, action); }
+    }
+    private async Task EmitDiscard(Guid id, IReadOnlyDictionary<string, object?> oldValues, string? reason,
+        CancellationToken ct)
+    {
+        try
+        {
+            await auditSink.WriteAsync(new("BomRevision", id, "DISCARD_DRAFT", DateTime.UtcNow, Actor(),
+                AuditEventContext.CorrelationId(accessor.HttpContext), oldValues, null, reason), ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { logger.LogError(ex, "Post-commit BOM audit failed for {BomId} DISCARD_DRAFT.", id); }
     }
 }

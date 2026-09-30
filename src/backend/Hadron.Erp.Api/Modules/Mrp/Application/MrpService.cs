@@ -5,6 +5,8 @@ using Hadron.Erp.Api.Modules.Catalog.Domain;
 using Hadron.Erp.Api.Modules.Mrp.Domain;
 using Hadron.Erp.Api.Modules.Planning.Application;
 using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
+using Hadron.Erp.Api.Modules.Production.Domain;
+using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -15,13 +17,33 @@ public sealed class MrpService(
     IDbContextFactory<HadronDbContext> factory,
     IPlanningCalendar calendar,
     MrpCalculator calculator,
+    MrpPlanLifecycleService planLifecycle,
     IAuditEventSink auditSink,
     IHttpContextAccessor accessor,
     ILogger<MrpService> logger)
 {
-    public const string EngineVersion = "MRP-10.1.0";
+    public const string EngineVersion = "MRP-10.2.0";
 
-    public async Task<MrpRunResponse> Execute(CreateMrpRunRequest request, CancellationToken ct)
+    public MrpRunDefaultsResponse DefaultParameters(DateOnly? asOfDate)
+    {
+        var asOf = asOfDate ?? calendar.TehranToday;
+        var horizon = DefaultHorizon(asOf);
+        return new(asOf, JalaliCode(asOf), horizon, JalaliCode(horizon));
+    }
+
+    public Task<MrpRunResponse> Execute(CreateMrpRunRequest request, CancellationToken ct) =>
+        ExecuteCore(request, Actor(), MrpRunPurposes.Published, MrpPlanSlotNames.Current, ct);
+
+    public Task<MrpRunResponse> ExecuteAutomatic(DateOnly asOfDate, CancellationToken ct) =>
+        ExecuteCore(new CreateMrpRunRequest(asOfDate, null, []), "SYSTEM:MRP_AUTO_REFRESH",
+            MrpRunPurposes.Current, MrpPlanSlotNames.Current, ct);
+
+    public Task<MrpRunResponse> ExecuteCertified(DateOnly businessDate, CancellationToken ct) =>
+        ExecuteCore(new CreateMrpRunRequest(businessDate, null, []), "SYSTEM:MRP_DAILY_CERTIFICATION",
+            MrpRunPurposes.Certified, MrpPlanSlotNames.Certified, ct);
+
+    private async Task<MrpRunResponse> ExecuteCore(CreateMrpRunRequest request,
+        string? actorIdentifier, string purpose, string targetSlot, CancellationToken ct)
     {
         var horizon = request.HorizonEndDate ?? DefaultHorizon(request.AsOfDate);
         if (horizon < request.AsOfDate)
@@ -41,7 +63,7 @@ public sealed class MrpService(
                         "Route decisions may reference HYBRID Items only.");
             }
             run = new(await NextRunNumber(db, ct), request.AsOfDate, horizon, EngineVersion,
-                Actor(), DateTime.UtcNow);
+                actorIdentifier, DateTime.UtcNow, purpose);
             db.MrpRuns.Add(run);
             await db.SaveChangesAsync(ct);
         }
@@ -52,6 +74,10 @@ public sealed class MrpService(
             var input = await LoadCalculationInput(run.Id, ct);
             var output = calculator.Calculate(input);
             await PersistOfficialResults(run.Id, output, ct);
+            if (targetSlot == MrpPlanSlotNames.Certified)
+                await planLifecycle.CertifyAsync(run.Id, request.AsOfDate, ct);
+            else
+                await planLifecycle.ActivateCurrentAsync(run.Id, ct);
             var response = (await Get(run.Id, ct))!;
             await Emit(run.Id, "EXECUTE", new Dictionary<string, object?>
             {
@@ -60,12 +86,24 @@ public sealed class MrpService(
                 ["HorizonEndDate"] = response.HorizonEndDate,
                 ["Status"] = response.Status,
                 ["Completeness"] = response.Completeness
-            }, ct);
+            }, actorIdentifier, ct);
             return response;
         }
         catch (Exception exception)
         {
             await MarkFailed(run.Id, exception, CancellationToken.None);
+            if (purpose != MrpRunPurposes.Published)
+            {
+                try
+                {
+                    await planLifecycle.DiscardTransientRunAsync(run.Id, CancellationToken.None);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    logger.LogError(cleanupFailure,
+                        "Failed to discard unpublished MRP Run {RunId} after execution failure", run.Id);
+                }
+            }
             throw;
         }
     }
@@ -74,8 +112,10 @@ public sealed class MrpService(
     {
         ValidatePage(page, pageSize);
         await using var db = await factory.CreateDbContextAsync(ct);
-        var total = await db.MrpRuns.CountAsync(ct);
-        var rows = await db.MrpRuns.AsNoTracking().OrderByDescending(x => x.StartedAtUtc)
+        var query = db.MrpRuns.AsNoTracking().Where(x => x.Purpose == MrpRunPurposes.Published ||
+            db.MrpPlanSlots.Any(slot => slot.RunId == x.Id));
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderByDescending(x => x.StartedAtUtc)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new MrpRunListItem(x.Id, x.RunNumber, x.AsOfDate, x.HorizonEndDate,
                 x.EngineVersion, x.Status, x.Completeness, x.StartedAtUtc, x.CompletedAtUtc,
@@ -157,7 +197,8 @@ public sealed class MrpService(
                 x.IsRootProduct, x.Completeness)).ToListAsync(ct);
         var trace = await db.MrpRunDemandTraces.AsNoTracking().Where(x => x.RunId == runId &&
                 (x.ParentItemId == itemId || x.ChildItemId == itemId)).OrderBy(x => x.Date)
-            .Select(x => new MrpTraceResponse(x.Date, x.ParentItemId, x.ChildItemId, x.BomRevisionId,
+            .Select(x => new MrpTraceResponse(x.Date, x.ParentDemandDate, x.ParentItemId,
+                x.ChildItemId, x.BomRevisionId,
                 x.BomLineId, x.ParentNetRequirement, x.BaseRequirement, x.ScrapPercent,
                 x.ScrapSource, x.ChildGrossRequirement)).ToListAsync(ct);
         return new(new(item.ItemId, item.ItemCode, item.NameFa, item.NameEn, item.ItemType,
@@ -175,19 +216,25 @@ public sealed class MrpService(
         if (!itemById.TryGetValue(itemId, out var item)) return null;
         var result = await db.MrpRunDailyResults.AsNoTracking().SingleOrDefaultAsync(x =>
             x.RunId == runId && x.ItemId == itemId && x.Date == demandDate, ct);
-        var traceRows = await db.MrpRunDemandTraces.AsNoTracking()
-            .Where(x => x.RunId == runId && x.Date == demandDate).ToListAsync(ct);
-        var ancestry = new HashSet<Guid> { itemId };
-        bool changed;
-        do
+        var allTraceRows = await db.MrpRunDemandTraces.AsNoTracking()
+            .Where(x => x.RunId == runId).ToListAsync(ct);
+        var ancestry = new HashSet<(Guid ItemId, DateOnly Date)> { (itemId, demandDate) };
+        var traceRows = new List<MrpRunDemandTrace>();
+        var frontier = new Queue<(Guid ItemId, DateOnly Date)>();
+        frontier.Enqueue((itemId, demandDate));
+        while (frontier.TryDequeue(out var child))
         {
-            changed = false;
-            foreach (var edge in traceRows.Where(x => ancestry.Contains(x.ChildItemId)))
-                changed |= ancestry.Add(edge.ParentItemId);
-        } while (changed);
+            foreach (var edge in allTraceRows.Where(x => x.ChildItemId == child.ItemId && x.Date == child.Date))
+            {
+                if (!traceRows.Any(x => x.Id == edge.Id)) traceRows.Add(edge);
+                var parent = (edge.ParentItemId, edge.ParentDemandDate);
+                if (ancestry.Add(parent)) frontier.Enqueue(parent);
+            }
+        }
 
-        var forecastRows = await db.MrpRunForecastInputs.AsNoTracking().Where(x => x.RunId == runId &&
-            x.DemandDate == demandDate && ancestry.Contains(x.ProductId)).ToListAsync(ct);
+        var allForecastRows = await db.MrpRunForecastInputs.AsNoTracking()
+            .Where(x => x.RunId == runId).ToListAsync(ct);
+        var forecastRows = allForecastRows.Where(x => ancestry.Contains((x.ProductId, x.DemandDate))).ToList();
         var forecastPeriods = await db.MrpRunForecastPeriodInputs.AsNoTracking()
             .Where(x => x.RunId == runId).ToListAsync(ct);
         var origins = forecastRows.Select(forecast =>
@@ -201,7 +248,7 @@ public sealed class MrpService(
                 period.AllocationState);
         }).ToList();
         var bomInputs = await db.MrpRunBomInputs.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
-        var bom = traceRows.Where(x => ancestry.Contains(x.ParentItemId) && ancestry.Contains(x.ChildItemId))
+        var bom = traceRows
             .Select(trace =>
             {
                 var snapshot = bomInputs.Single(x => x.RevisionId == trace.BomRevisionId && x.LineId == trace.BomLineId);
@@ -263,6 +310,40 @@ public sealed class MrpService(
         return new(rows, page, pageSize, total);
     }
 
+    public async Task<MrpExceptionSummaryListResponse> ExceptionSummary(Guid runId, string? severity,
+        int page, int pageSize, CancellationToken ct)
+    {
+        ValidatePage(page, pageSize);
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var query = db.MrpRunExceptions.AsNoTracking().Where(x => x.RunId == runId);
+        if (!string.IsNullOrWhiteSpace(severity))
+            query = query.Where(x => x.Severity == severity.Trim().ToUpperInvariant());
+        var grouped = query.GroupBy(x => new { x.ItemId, x.Code, x.Severity, x.AffectsDemand, x.Message })
+            .Select(group => new
+            {
+                group.Key.ItemId,
+                group.Key.Code,
+                group.Key.Severity,
+                group.Key.AffectsDemand,
+                group.Key.Message,
+                FirstDate = group.Min(x => x.Date),
+                LastDate = group.Max(x => x.Date),
+                Count = group.Count()
+            });
+        var total = await grouped.CountAsync(ct);
+        var rows = await (from summary in grouped
+                          join item in db.MrpRunItemInputs.AsNoTracking().Where(x => x.RunId == runId)
+                              on summary.ItemId equals (Guid?)item.ItemId into itemJoin
+                          from item in itemJoin.DefaultIfEmpty()
+                          orderby summary.Severity, summary.FirstDate, summary.Code
+                          select new MrpExceptionSummaryResponse(summary.ItemId,
+                              item == null ? null : item.ItemCode, summary.Code, summary.Severity,
+                              summary.AffectsDemand, summary.Message, summary.FirstDate,
+                              summary.LastDate, summary.Count))
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return new(rows, page, pageSize, total);
+    }
+
     private async Task CaptureSnapshot(MrpRun run, IReadOnlyList<MrpRouteDecisionInput> requestedDecisions,
         CancellationToken ct)
     {
@@ -313,8 +394,10 @@ public sealed class MrpService(
             x.Quantity, x.PeriodForecastQty, x.ActualMtd, x.UnitId)));
         db.MrpRunBomInputs.AddRange(bomInputs);
 
+        var mrpWarehouseIds = await db.Warehouses.AsNoTracking()
+            .Where(x => x.IncludeInMrpAvailable).Select(x => x.Id).ToListAsync(ct);
         var effects = await db.InventoryLedgerEffects.AsNoTracking().Where(x => relevantItemIds.Contains(x.ItemId) &&
-                x.EffectiveDate <= run.AsOfDate)
+                mrpWarehouseIds.Contains(x.WarehouseId) && x.EffectiveDate <= run.AsOfDate)
             .GroupBy(x => new { x.ItemId, x.WarehouseId, x.UnitId })
             .Select(x => new { x.Key.ItemId, x.Key.WarehouseId, x.Key.UnitId, Qty = x.Sum(y => y.QuantityEffect) })
             .ToListAsync(ct);
@@ -330,6 +413,26 @@ public sealed class MrpService(
             x.SupplierId, x.SupplierNumber, x.SupplierNameFa, x.SupplierNameEn)));
 
         db.MrpRunExternalSourceInputs.AddRange(await CaptureExternalSourceInputs(db, run.Id, relevantItemIds, ct));
+        var routeOperationRows = await db.ManufacturingRoutes.AsNoTracking().Where(x =>
+                relevantItemIds.Contains(x.ItemId) && x.Status == ManufacturingRouteStatuses.Approved)
+            .SelectMany(x => x.Operations.Select(operation => new
+            {
+                RouteId = x.Id,
+                RouteCode = x.BusinessNumber,
+                x.ItemId,
+                OperationId = operation.Id,
+                operation.Sequence,
+                operation.WorkCenterId,
+                WorkCenterCode = operation.WorkCenter.BusinessNumber,
+                operation.WorkCenter.WorkingWeekMask,
+                operation.PreparationWorkingDays,
+                operation.ExecutionWorkingDays
+            })).ToListAsync(ct);
+        var routeOperations = routeOperationRows.Select(x => new MrpRunManufacturingOperationInput(
+            run.Id, x.RouteId, x.RouteCode, x.ItemId, x.OperationId, x.Sequence,
+            x.WorkCenterId, x.WorkCenterCode, x.WorkingWeekMask, x.PreparationWorkingDays,
+            x.ExecutionWorkingDays)).ToList();
+        db.MrpRunManufacturingOperationInputs.AddRange(routeOperations);
         foreach (var decision in requestedDecisions)
             db.MrpRunRouteDecisions.Add(new(run.Id, decision.ItemId, decision.Route.Trim().ToUpperInvariant(), "USER"));
         db.MrpRunExceptions.AddRange(initialExceptions.Select(x => Exception(run.Id, x)));
@@ -350,7 +453,9 @@ public sealed class MrpService(
         var actuals = await db.DailyActuals.AsNoTracking().Where(x => x.ProductionDate <= run.AsOfDate &&
                 periods.Select(p => p.Id).Contains(x.BusinessPeriodId) && x.CurrentRevisionId != null)
             .Include(x => x.CurrentRevision).ToListAsync(ct);
-        var products = itemRows.Where(x => x.ItemType == ItemTypes.Product).ToList();
+        // Inactive products remain in master data and forecast history for audit/reporting,
+        // but they are outside the operational planning scope and must not create demand.
+        var products = itemRows.Where(x => x.ItemType == ItemTypes.Product && x.IsActive).ToList();
         var result = new List<MrpProductDemand>();
         var periodSnapshots = new List<MrpRunForecastPeriodInput>();
         var expectedStart = run.AsOfDate;
@@ -390,9 +495,6 @@ public sealed class MrpService(
                         period.StartDate, period.EndDate, first, "BLOCKED", "BASE_UNIT_CHANGED"));
                     continue;
                 }
-                if (!product.IsActive)
-                    exceptions.Add(new(product.Id, period.StartDate, "INACTIVE_PRODUCT_WITH_FORECAST",
-                        MrpExceptionSeverities.Warning, false, "Inactive Product has an official future Forecast."));
                 var quantity = period.StartDate <= run.AsOfDate && period.EndDate >= run.AsOfDate
                     ? Math.Max(current.CurrentRevision.ForecastQty - actualMtd, 0) : current.CurrentRevision.ForecastQty;
                 if (first > period.EndDate)
@@ -473,13 +575,12 @@ public sealed class MrpService(
             var batch = frontier.Where(visited.Add).ToList();
             if (batch.Count == 0) break;
             var revisions = await db.BomRevisions.AsNoTracking().Where(x => batch.Contains(x.ParentItemId) &&
-                    x.Status == BomStatuses.Approved && x.EffectiveFrom <= run.HorizonEndDate &&
-                    (!x.EffectiveTo.HasValue || x.EffectiveTo >= run.AsOfDate))
+                    x.Status == BomStatuses.Approved)
                 .Include(x => x.Lines).AsSplitQuery().ToListAsync(ct);
             var captured = revisions.SelectMany(revision => revision.Lines.Select(line => new MrpRunBomInput(run.Id,
                 revision.Id, revision.RevisionCode, line.Id, revision.ParentItemId, line.ChildItemId,
                 revision.ParentBaseUnitId, line.ChildBaseUnitId, revision.BaseOutputQty, line.UsageQty,
-                line.ScrapOverridePercent, revision.EffectiveFrom!.Value, revision.EffectiveTo))).ToList();
+                line.ScrapOverridePercent, run.AsOfDate, run.HorizonEndDate))).ToList();
             result.AddRange(captured);
             frontier = captured.Select(x => x.ChildItemId).Where(x => !visited.Contains(x)).Distinct().ToList();
         }
@@ -491,7 +592,7 @@ public sealed class MrpService(
     {
         var options = await db.SourcingOptions.AsNoTracking().Where(x => relevantItemIds.Contains(x.ItemId))
             .Include(x => x.Supplier).Include(x => x.Item).Include(x => x.ShippingMode).Include(x => x.Incoterm)
-            .Include(x => x.Prices).ThenInclude(x => x.Currency).AsSplitQuery().ToListAsync(ct);
+            .AsSplitQuery().ToListAsync(ct);
         var result = new List<MrpRunExternalSourceInput>();
         foreach (var option in options)
         {
@@ -502,19 +603,15 @@ public sealed class MrpService(
                 ItemActive = option.Item.IsActive,
                 MoqSet = option.MinimumOrderQuantity.HasValue,
                 ShippingActive = option.ShippingMode is { IsActive: true },
-                IncotermValid = option.Incoterm is null || option.Incoterm.IsActive,
-                LeadsSet = option.SupplierLeadTimeDays.HasValue && option.ForwarderToShipmentDays.HasValue &&
-                    option.ShippingPeriodDays.HasValue && option.DestinationCustomsDays.HasValue
+                IncotermValid = option.RouteScope == SourcingRouteScopes.Domestic ||
+                    option.Incoterm is null || option.Incoterm.IsActive,
+                LeadsSet = option.SupplierLeadTimeDays.HasValue && option.ShippingPeriodDays.HasValue &&
+                    (option.RouteScope == SourcingRouteScopes.Domestic ||
+                     option.ForwarderToShipmentDays.HasValue && option.DestinationCustomsDays.HasValue)
             };
-            if (option.Prices.Count == 0)
-                result.Add(new(runId, option.Id, option.ItemId, common.OptionActive, common.SupplierActive,
-                    common.ItemActive, option.ItemBaseUnitId, common.MoqSet, common.ShippingActive,
-                    common.IncotermValid, common.LeadsSet, null, null, null, null));
-            else
-                result.AddRange(option.Prices.Select(price => new MrpRunExternalSourceInput(runId, option.Id,
-                    option.ItemId, common.OptionActive, common.SupplierActive, common.ItemActive,
-                    option.ItemBaseUnitId, common.MoqSet, common.ShippingActive, common.IncotermValid,
-                    common.LeadsSet, price.Id, price.Currency.IsActive, price.EffectiveFrom, price.EffectiveTo)));
+            result.Add(new(runId, option.Id, option.ItemId, common.OptionActive, common.SupplierActive,
+                common.ItemActive, option.ItemBaseUnitId, common.MoqSet, common.ShippingActive,
+                common.IncotermValid, common.LeadsSet, null, null, null, null));
         }
         return result;
     }
@@ -529,6 +626,8 @@ public sealed class MrpService(
         var inventory = await db.MrpRunInventoryInputs.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
         var firm = await db.MrpRunFirmSupplyInputs.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
         var availability = await db.MrpRunRouteAvailabilityInputs.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
+        var manufacturing = await db.MrpRunManufacturingOperationInputs.AsNoTracking()
+            .Where(x => x.RunId == runId).ToListAsync(ct);
         var externalSources = await db.MrpRunExternalSourceInputs.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
         var decisions = await db.MrpRunRouteDecisions.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
         var issues = await db.MrpRunExceptions.AsNoTracking().Where(x => x.RunId == runId).ToListAsync(ct);
@@ -551,7 +650,10 @@ public sealed class MrpService(
                 : availability.Select(x => new MrpRouteAvailability(x.ItemId, x.DemandDate, x.BomReady, x.ExternalReady)).ToList(),
             decisions.Select(x => new MrpRouteChoice(x.ItemId, x.Route, x.Source)).ToList(),
             issues.Select(x => new MrpCalculationException(x.ItemId, x.Date, x.Code, x.Severity,
-                x.AffectsDemand, x.Message, x.SourceReference)).ToList());
+                x.AffectsDemand, x.Message, x.SourceReference)).ToList(),
+            manufacturing.Select(x => new MrpManufacturingOperationSnapshot(x.RouteId, x.RouteCode,
+                x.ItemId, x.OperationId, x.Sequence, x.WorkCenterId, x.WorkCenterCode,
+                x.WorkingWeekMask, x.PreparationWorkingDays, x.ExecutionWorkingDays)).ToList());
     }
 
     private static List<MrpRouteAvailability> BuildRouteAvailability(
@@ -572,8 +674,7 @@ public sealed class MrpService(
                 var externalReady = externalSources.Where(x => x.ItemId == item.ItemId).Any(x =>
                     x.OptionIsActive && x.SupplierIsActive && x.ItemIsActive && x.ItemBaseUnitId == item.BaseUnitId &&
                     x.MinimumOrderQuantityIsSet && x.ShippingModeIsActive && x.IncotermIsValid &&
-                    x.AllLeadStagesAreSet && x.PriceId.HasValue && x.CurrencyIsActive == true &&
-                    x.EffectiveFrom <= date && (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= date));
+                    x.AllLeadStagesAreSet);
                 result.Add(new(item.ItemId, date, bomReady, externalReady));
             }
         return result;
@@ -594,7 +695,7 @@ public sealed class MrpService(
             x.StockCoverageState, x.StockCoverageDate, x.StockCoverageDays,
             x.FirmCoverageState, x.FirmCoverageDate, x.FirmCoverageDays, x.Completeness)));
         db.MrpRunDemandTraces.AddRange(output.Traces.Select(x => new MrpRunDemandTrace(runId, x.Date,
-            x.ParentItemId, x.ChildItemId, x.BomRevisionId, x.BomLineId, x.ParentNetRequirement,
+            x.ParentDemandDate, x.ParentItemId, x.ChildItemId, x.BomRevisionId, x.BomLineId, x.ParentNetRequirement,
             x.BaseRequirement, x.ScrapPercent, x.ScrapSource, x.ChildGrossRequirement)));
         db.MrpRunResolvedRouteResults.AddRange(output.ResolvedRoutes.Select(x =>
             new MrpRunResolvedRouteResult(runId, x.ItemId, x.DemandDate,
@@ -643,6 +744,12 @@ public sealed class MrpService(
         return calendar.GetPeriodBounds(year, month).EndDate;
     }
 
+    private string JalaliCode(DateOnly date)
+    {
+        var jalali = calendar.GetJalaliDate(date);
+        return $"{jalali.JalaliYear:D4}{jalali.JalaliMonth:D2}{jalali.JalaliDay:D2}";
+    }
+
     private static void ValidateDecisions(IReadOnlyList<MrpRouteDecisionInput>? decisions)
     {
         if (decisions is null) return;
@@ -671,11 +778,12 @@ public sealed class MrpService(
     }
 
     private string? Actor() => AuditEventContext.ActorId(accessor.HttpContext);
-    private async Task Emit(Guid id, string action, IReadOnlyDictionary<string, object?> values, CancellationToken ct)
+    private async Task Emit(Guid id, string action, IReadOnlyDictionary<string, object?> values,
+        string? actorIdentifier, CancellationToken ct)
     {
         try
         {
-            await auditSink.WriteAsync(new("MrpRun", id, action, DateTime.UtcNow, Actor(),
+            await auditSink.WriteAsync(new("MrpRun", id, action, DateTime.UtcNow, actorIdentifier,
                 AuditEventContext.CorrelationId(accessor.HttpContext), null, values, null), ct);
         }
         catch (Exception exception) { logger.LogWarning(exception, "MRP audit sink failed after commit for {RunId}", id); }

@@ -18,12 +18,16 @@ public sealed record MrpFirmSupply(Guid ItemId, Guid PurchaseOrderId, string Pur
     string? SupplierNumber = null, string? SupplierNameFa = null, string? SupplierNameEn = null);
 public sealed record MrpRouteAvailability(Guid ItemId, DateOnly Date, bool BomReady, bool ExternalReady);
 public sealed record MrpRouteChoice(Guid ItemId, string Route, string Source);
+public sealed record MrpManufacturingOperationSnapshot(Guid RouteId, string RouteCode, Guid ItemId,
+    Guid OperationId, int Sequence, Guid WorkCenterId, string WorkCenterCode, int WorkingWeekMask,
+    int PreparationWorkingDays, int ExecutionWorkingDays);
 public sealed record MrpCalculationException(Guid? ItemId, DateOnly? Date, string Code, string Severity,
     bool AffectsDemand, string Message, string? SourceReference = null);
 public sealed record MrpDailyCalculation(Guid ItemId, DateOnly Date, decimal GrossDemand, decimal FirmIncoming,
     decimal FirmProjected, decimal PlanningBeforeNeed, decimal NetRequirement, decimal PlanningBalance,
     bool IsRootProduct, string Completeness);
-public sealed record MrpTraceCalculation(DateOnly Date, Guid ParentItemId, Guid ChildItemId,
+public sealed record MrpTraceCalculation(DateOnly Date, DateOnly ParentDemandDate,
+    Guid ParentItemId, Guid ChildItemId,
     Guid? BomRevisionId, Guid? BomLineId, decimal ParentNetRequirement, decimal BaseRequirement,
     decimal ScrapPercent, string ScrapSource, decimal ChildGrossRequirement);
 public sealed record MrpSummaryCalculation(Guid ItemId, decimal StartingOnHand, decimal TotalGrossDemand,
@@ -35,7 +39,8 @@ public sealed record MrpCalculationInput(DateOnly AsOfDate, DateOnly HorizonEndD
     IReadOnlyList<MrpItemSnapshot> Items, IReadOnlyList<MrpProductDemand> ProductDemands,
     IReadOnlyList<MrpBomEdge> BomEdges, IReadOnlyList<MrpInventoryPosition> Inventory,
     IReadOnlyList<MrpFirmSupply> FirmSupply, IReadOnlyList<MrpRouteAvailability> RouteAvailability,
-    IReadOnlyList<MrpRouteChoice> RouteDecisions, IReadOnlyList<MrpCalculationException> InitialExceptions);
+    IReadOnlyList<MrpRouteChoice> RouteDecisions, IReadOnlyList<MrpCalculationException> InitialExceptions,
+    IReadOnlyList<MrpManufacturingOperationSnapshot>? ManufacturingOperations = null);
 public sealed record MrpCalculationOutput(IReadOnlyList<MrpDailyCalculation> Daily,
     IReadOnlyList<MrpSummaryCalculation> Summaries, IReadOnlyList<MrpCalculationException> Exceptions,
     IReadOnlyList<MrpTraceCalculation> Traces, IReadOnlyList<MrpRouteChoice> EffectiveRouteDecisions,
@@ -81,12 +86,20 @@ public sealed class MrpCalculator
             .GroupBy(x => x.ItemId).ToDictionary(x => x.Key, x => x.Sum(y => y.OpenQty));
         var firmBalance = items.Keys.ToDictionary(x => x, x => starting.GetValueOrDefault(x) + usableAsOfFirm.GetValueOrDefault(x));
         var planningBalance = items.Keys.ToDictionary(x => x, x => starting.GetValueOrDefault(x) + usableAsOfFirm.GetValueOrDefault(x));
+        // Supply exactly on As-Of is already part of the opening projection above and must not be counted twice.
         var firmByDate = input.FirmSupply.Where(x => x.OpenQty > 0 && x.Eta.HasValue &&
-                x.Eta.Value >= input.AsOfDate && x.Eta.Value <= input.HorizonEndDate && x.EtaStatus != "OVERDUE")
+                x.Eta.Value > input.AsOfDate && x.Eta.Value <= input.HorizonEndDate && x.EtaStatus != "OVERDUE")
             .GroupBy(x => (x.ItemId, x.Eta!.Value)).ToDictionary(x => x.Key, x => x.Sum(y => y.OpenQty));
         var availability = input.RouteAvailability.ToDictionary(x => (x.ItemId, x.Date));
         var rootDemand = input.ProductDemands.Where(x => x.Date > input.AsOfDate && x.Date <= input.HorizonEndDate)
             .GroupBy(x => (x.ProductId, x.Date)).ToDictionary(x => x.Key, x => x.Sum(y => y.Quantity));
+        var gross = rootDemand.ToDictionary(
+            x => (ItemId: x.Key.ProductId, Date: x.Key.Date),
+            x => x.Value);
+        var manufacturingByItem = (input.ManufacturingOperations ?? [])
+            .GroupBy(x => x.ItemId).ToDictionary(x => x.Key,
+                x => (IReadOnlyList<MrpManufacturingOperationSnapshot>)x.OrderBy(o => o.Sequence).ToList());
+        var enforceManufacturingRoutes = input.ManufacturingOperations is not null;
 
         foreach (var stock in input.Inventory.Where(x => !x.WarehouseIsActive && x.OnHandQty != 0))
             AddException(exceptions, new(stock.ItemId, null, "INACTIVE_WAREHOUSE_STOCK_INCLUDED",
@@ -99,29 +112,35 @@ public sealed class MrpCalculator
             AddException(exceptions, new(supply.ItemId, supply.Eta, "OVERDUE_FIRM_SUPPLY",
                 MrpExceptionSeverities.Warning, false, "Overdue firm supply is excluded from timed projection.", supply.PurchaseOrderNumber));
 
-        var eventDates = rootDemand.Keys.Select(x => x.Date)
-            .Concat(firmByDate.Keys.Select(x => x.Value).Where(x => x > input.AsOfDate))
-            .Distinct().Order().ToList();
-        foreach (var date in eventDates)
-        {
-            var gross = rootDemand.Where(x => x.Key.Date == date)
-                .ToDictionary(x => x.Key.ProductId, x => x.Value);
-            var rootsToday = gross.Keys.ToHashSet();
-            var graph = BuildGraph(date, rootsToday, items, input.BomEdges, availability, effectiveChoices, exceptions);
-            var order = TopologicalOrder(graph, rootsToday, date, exceptions);
+        var orderingGraph = BuildOrderingGraph(input, items, effectiveChoices);
+        var roots = rootDemand.Keys.Select(x => x.ProductId)
+            .Concat(firmByDate.Keys.Select(x => x.ItemId)).Distinct().ToList();
+        var processingOrder = TopologicalOrder(orderingGraph, roots, input.AsOfDate, exceptions)
+            .Concat(items.Keys.Except(orderingGraph.Keys)
+                .Except(orderingGraph.Values.SelectMany(x => x).Select(x => x.ChildItemId))
+                .Except(roots).Order()).Distinct().ToList();
 
-            var processingOrder = order.Concat(firmByDate.Keys.Where(x => x.Value == date)
-                    .Select(x => x.ItemId).Where(x => !order.Contains(x))).ToList();
-            foreach (var itemId in processingOrder)
+        foreach (var itemId in processingOrder)
+        {
+            if (!items.TryGetValue(itemId, out var item)) continue;
+            var eventDates = gross.Keys.Where(x => x.ItemId == itemId).Select(x => x.Date)
+                .Concat(firmByDate.Keys.Where(x => x.ItemId == itemId).Select(x => x.Value))
+                .Where(x => x >= input.AsOfDate && x <= input.HorizonEndDate)
+                .Distinct().Order().ToList();
+            foreach (var date in eventDates)
             {
-                var item = items[itemId];
-                var grossQty = gross.GetValueOrDefault(itemId);
+                var grossQty = gross.GetValueOrDefault((itemId, date));
                 var incoming = firmByDate.GetValueOrDefault((itemId, date));
-                if (item.ItemType == ItemTypes.Product && rootsToday.Contains(itemId))
+                var isRootProduct = item.ItemType == ItemTypes.Product && rootDemand.ContainsKey((itemId, date));
+                var edges = EffectiveEdges(item, date, input.BomEdges, items, exceptions);
+                var hasBomRoute = edges.Count > 0;
+                if (isRootProduct)
                 {
                     daily.Add(new(itemId, date, grossQty, 0, 0, 0, grossQty, 0, true,
                         HasDemandError(exceptions, itemId, date) ? MrpCompleteness.Incomplete : MrpCompleteness.Complete));
-                    Explode(itemId, grossQty, date, graph, items, gross, traces, exceptions);
+                    var materialDate = ManufacturingMaterialDate(item, date, manufacturingByItem,
+                        enforceManufacturingRoutes, exceptions, input.AsOfDate);
+                    Explode(itemId, grossQty, date, materialDate, edges, items, gross, traces);
                     continue;
                 }
 
@@ -136,9 +155,6 @@ public sealed class MrpCalculator
                 daily.Add(new(itemId, date, grossQty, incoming, beforeFirm, beforePlanning, net, afterPlanning,
                     false, incomplete ? MrpCompleteness.Incomplete : MrpCompleteness.Complete));
 
-                var hasBomRoute = graph.ContainsKey(itemId) || item.SupplyMethod == SupplyMethods.Outsource &&
-                    input.BomEdges.Any(edge => edge.ParentItemId == itemId && edge.EffectiveFrom <= date &&
-                        (!edge.EffectiveTo.HasValue || edge.EffectiveTo.Value >= date));
                 var route = ResolveRoute(item, date, hasBomRoute, availability, effectiveChoices, exceptions);
                 if (grossQty > 0 || net > 0)
                 {
@@ -151,12 +167,16 @@ public sealed class MrpCalculator
                     resolvedRoutes[(itemId, date)] = new(itemId, date, resolved, origin, reason);
                 }
                 if (route == MrpRoutes.External && net > 0 &&
-                    (!availability.TryGetValue((itemId, date), out var ready) || !ready.ExternalReady))
+                    !RouteAvailability(availability, itemId, date).ExternalReady)
                     AddException(exceptions, new(itemId, date, "NO_PLANNING_READY_EXTERNAL_SOURCE",
                         MrpExceptionSeverities.Warning, false,
                         "No planning-ready external source exists; computed net requirement is unchanged."));
                 if (route == MrpRoutes.Bom && net > 0)
-                    Explode(itemId, net, date, graph, items, gross, traces, exceptions);
+                {
+                    var materialDate = ManufacturingMaterialDate(item, date, manufacturingByItem,
+                        enforceManufacturingRoutes, exceptions, input.AsOfDate);
+                    Explode(itemId, net, date, materialDate, edges, items, gross, traces);
+                }
             }
         }
 
@@ -166,6 +186,93 @@ public sealed class MrpCalculator
             : exceptions.Count > 0 ? MrpCompleteness.CompleteWithWarnings : MrpCompleteness.Complete;
         return new(daily, summaries, exceptions, traces, effectiveChoices.Values.OrderBy(x => x.ItemId).ToList(),
             resolvedRoutes.Values.OrderBy(x => x.ItemId).ThenBy(x => x.DemandDate).ToList(), completeness);
+    }
+
+    private static Dictionary<Guid, IReadOnlyList<MrpBomEdge>> BuildOrderingGraph(
+        MrpCalculationInput input, IReadOnlyDictionary<Guid, MrpItemSnapshot> items,
+        IReadOnlyDictionary<Guid, MrpRouteChoice> choices)
+    {
+        var candidates = input.BomEdges.Where(edge => items.TryGetValue(edge.ParentItemId, out var parent) &&
+            (parent.ItemType == ItemTypes.Product || parent.SupplyMethod == SupplyMethods.Make ||
+             parent.SupplyMethod == SupplyMethods.Outsource ||
+             parent.SupplyMethod == SupplyMethods.Hybrid &&
+             (!choices.TryGetValue(parent.ItemId, out var choice) || choice.Route == MrpRoutes.Bom)))
+            .GroupBy(x => new { x.ParentItemId, x.ChildItemId })
+            .Select(x => x.First())
+            .GroupBy(x => x.ParentItemId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<MrpBomEdge>)x.ToList());
+        return candidates;
+    }
+
+    private static IReadOnlyList<MrpBomEdge> EffectiveEdges(MrpItemSnapshot parent, DateOnly date,
+        IReadOnlyList<MrpBomEdge> allEdges, IReadOnlyDictionary<Guid, MrpItemSnapshot> items,
+        ICollection<MrpCalculationException> exceptions)
+    {
+        var effective = allEdges.Where(x => x.ParentItemId == parent.ItemId && x.EffectiveFrom <= date &&
+            (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= date)).ToList();
+        if (effective.Select(x => x.RevisionId).Distinct().Count() > 1)
+        {
+            AddException(exceptions, new(parent.ItemId, date, "AMBIGUOUS_EFFECTIVE_BOM",
+                MrpExceptionSeverities.Error, true, "Multiple effective BOM revisions were found."));
+            return [];
+        }
+        var valid = new List<MrpBomEdge>();
+        foreach (var edge in effective)
+        {
+            if (!items.TryGetValue(edge.ChildItemId, out var child) || !parent.IsActive || !child.IsActive)
+            {
+                AddException(exceptions, new(parent.ItemId, date, "INACTIVE_BOM_ITEM",
+                    MrpExceptionSeverities.Error, true, "BOM parent or child is inactive.", edge.RevisionCode));
+                continue;
+            }
+            if (parent.BaseUnitId != edge.ParentBaseUnitId || child.BaseUnitId != edge.ChildBaseUnitId)
+            {
+                AddException(exceptions, new(parent.ItemId, date, "BASE_UNIT_CHANGED",
+                    MrpExceptionSeverities.Error, true,
+                    "BOM base-unit snapshot no longer matches Item master.", edge.RevisionCode));
+                continue;
+            }
+            valid.Add(edge);
+        }
+        if (valid.Count == 0 && (parent.ItemType == ItemTypes.Product || parent.SupplyMethod == SupplyMethods.Make))
+            AddException(exceptions, new(parent.ItemId, date, "MISSING_EFFECTIVE_BOM",
+                MrpExceptionSeverities.Error, true, "No effective approved BOM exists."));
+        return valid;
+    }
+
+    private static DateOnly ManufacturingMaterialDate(MrpItemSnapshot item, DateOnly completionDate,
+        IReadOnlyDictionary<Guid, IReadOnlyList<MrpManufacturingOperationSnapshot>> operationsByItem,
+        bool enforceRoutes, ICollection<MrpCalculationException> exceptions, DateOnly asOfDate)
+    {
+        if (!operationsByItem.TryGetValue(item.ItemId, out var operations) || operations.Count == 0)
+        {
+            if (enforceRoutes)
+                AddException(exceptions, new(item.ItemId, completionDate,
+                    "MISSING_APPROVED_MANUFACTURING_ROUTE", MrpExceptionSeverities.Error, true,
+                    "No approved manufacturing route exists for this internally planned item."));
+            return completionDate;
+        }
+        var cursor = completionDate;
+        foreach (var operation in operations.OrderByDescending(x => x.Sequence))
+            cursor = SubtractWorkingDays(cursor,
+                operation.PreparationWorkingDays + operation.ExecutionWorkingDays,
+                operation.WorkingWeekMask);
+        if (cursor >= asOfDate) return cursor;
+        AddException(exceptions, new(item.ItemId, completionDate, "MANUFACTURING_START_OVERDUE",
+            MrpExceptionSeverities.Warning, false,
+            $"Manufacturing material requirement starts before As-Of ({cursor:yyyy-MM-dd})."));
+        return asOfDate;
+    }
+
+    internal static DateOnly SubtractWorkingDays(DateOnly finish, int days, int workingWeekMask)
+    {
+        var cursor = finish;
+        while (days > 0)
+        {
+            cursor = cursor.AddDays(-1);
+            if ((workingWeekMask & (1 << (int)cursor.DayOfWeek)) != 0) days--;
+        }
+        return cursor;
     }
 
     private static string? RouteOrigin(string? supplyMethod, string route) => supplyMethod switch
@@ -248,9 +355,9 @@ public sealed class MrpCalculator
         if (item.SupplyMethod == SupplyMethods.Outsource) return hasBom ? MrpRoutes.Bom : MrpRoutes.External;
         if (item.SupplyMethod != SupplyMethods.Hybrid) return MrpRoutes.External;
 
-        var state = availability.GetValueOrDefault((item.ItemId, date));
-        var bomReady = state?.BomReady == true && hasBom;
-        var externalReady = state?.ExternalReady == true;
+        var state = RouteAvailability(availability, item.ItemId, date);
+        var bomReady = state.BomReady && hasBom;
+        var externalReady = state.ExternalReady;
         if (choices.TryGetValue(item.ItemId, out var selected))
         {
             var valid = selected.Route == MrpRoutes.Bom ? bomReady : externalReady;
@@ -303,12 +410,23 @@ public sealed class MrpCalculator
         return result;
     }
 
-    private static void Explode(Guid parentId, decimal parentNet, DateOnly date,
-        IReadOnlyDictionary<Guid, IReadOnlyList<MrpBomEdge>> graph,
-        IReadOnlyDictionary<Guid, MrpItemSnapshot> items, IDictionary<Guid, decimal> gross,
-        ICollection<MrpTraceCalculation> traces, ICollection<MrpCalculationException> exceptions)
+    private static MrpRouteAvailability RouteAvailability(
+        IReadOnlyDictionary<(Guid, DateOnly), MrpRouteAvailability> availability,
+        Guid itemId, DateOnly date)
     {
-        if (parentNet <= 0 || !graph.TryGetValue(parentId, out var edges)) return;
+        if (availability.TryGetValue((itemId, date), out var exact)) return exact;
+        return availability.Values.FirstOrDefault(x => x.ItemId == itemId)
+            ?? new MrpRouteAvailability(itemId, date, false, false);
+    }
+
+    private static void Explode(Guid parentId, decimal parentNet, DateOnly parentDemandDate,
+        DateOnly childDemandDate,
+        IReadOnlyList<MrpBomEdge> edges,
+        IReadOnlyDictionary<Guid, MrpItemSnapshot> items,
+        IDictionary<(Guid ItemId, DateOnly Date), decimal> gross,
+        ICollection<MrpTraceCalculation> traces)
+    {
+        if (parentNet <= 0 || edges.Count == 0) return;
         foreach (var edge in edges)
         {
             if (edge.BaseOutputQty <= 0 || edge.UsageQty <= 0) continue;
@@ -317,9 +435,11 @@ public sealed class MrpCalculator
             var scrap = edge.ScrapOverridePercent ?? child.DefaultScrapPercent;
             var source = edge.ScrapOverridePercent.HasValue ? "BOM_OVERRIDE" : "ITEM_DEFAULT";
             var childGross = baseRequirement * (1 + scrap / 100m);
-            gross.TryGetValue(edge.ChildItemId, out var existingGross);
-            gross[edge.ChildItemId] = existingGross + childGross;
-            traces.Add(new(date, parentId, edge.ChildItemId, edge.RevisionId, edge.LineId,
+            var key = (edge.ChildItemId, childDemandDate);
+            gross.TryGetValue(key, out var existingGross);
+            gross[key] = existingGross + childGross;
+            traces.Add(new(childDemandDate, parentDemandDate, parentId, edge.ChildItemId,
+                edge.RevisionId, edge.LineId,
                 parentNet, baseRequirement, scrap, source, childGross));
         }
     }

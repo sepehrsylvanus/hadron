@@ -1,0 +1,53 @@
+{
+  "controlPlane": {
+    "internalUsers": 50,
+    "externalGuests": 100,
+    "maximumHttpConcurrencyInIntegrationTest": 25,
+    "minimumSuccessRatePercent": 99.0,
+    "maximumUnexpectedRateLimitedResponses": 0,
+    "maximumServerErrorRatePercent": 0.5,
+    "maximumP95Milliseconds": 500,
+    "maximumP99Milliseconds": 1000
+  },
+  "media": {
+    "cliMeasured": {
+      "minimumTrackDeliverySuccessRatePercent": 99.0,
+      "maximumTrackLatencyP95Milliseconds": 200,
+      "maximumReportedTrackDropPercent": 2.0
+    },
+    "requiredQoe": {
+      "minimumJoinSuccessRatePercent": 99.0,
+      "maximumJoinP95Milliseconds": 3000,
+      "maximumRttP95Milliseconds": 200,
+      "maximumAudioJitterP95Milliseconds": 30,
+      "maximumPacketLossP95Percent": 2.0,
+      "maximumVideoFrameDropPercent": 3.0,
+      "maximumFreezeRatioPercent": 1.0
+    }
+  },
+  "hostAbort": {
+    "minimumFreeMemoryGigabytesMediaSmoke": 2,
+    "minimumFreeMemoryGigabytesLocal150": 8,
+    "minimumFreeDiskGigabytes": 10,
+    "maximumSustainedCpuPercent": 85,
+    "sustainedCpuWindowSeconds": 10,
+    "maximumBurstCpuPercent": 95,
+    "maximumDockerMemoryGigabytes": 8,
+    "sampleIntervalSeconds": 2,
+    "dockerSampleIntervalSeconds": 10,
+    "controlProcessHardTimeoutSeconds": 900,
+    "mediaProcessHardTimeoutSeconds": 600
+  },
+  "qualification": {
+    "requiredConsecutiveSuccessfulLoops": 3,
+    "requiredProfiles": [
+      "ControlPlane",
+      "MediaSmoke",
+      "Local150"
+    ],
+    "requiredExternalDeviceUat": true,
+    "requiredTurnAndTcpFallbackUat": true,
+    "requiredHumanAccessibilityReview": true,
+    "requiredNoOpenPriorityZeroOrOneDefects": true
+  }
+}

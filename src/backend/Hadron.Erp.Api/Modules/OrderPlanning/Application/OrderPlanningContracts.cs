@@ -2,7 +2,8 @@ namespace Hadron.Erp.Api.Modules.OrderPlanning.Application;
 
 public sealed record GenerateOrderPlanningRequest(Guid RunId);
 public sealed record SaveExpertDecisionRequest(string DecisionType, long ExpectedVersion, string? Reason,
-    DateOnly? ReviewDate, Guid? SourcingOptionId, decimal? FinalQty, DateOnly? TargetReceiptDate);
+    DateOnly? ReviewDate, Guid? SourcingOptionId, decimal? FinalQty, DateOnly? TargetReceiptDate,
+    decimal? UnitPrice = null, Guid? CurrencyId = null);
 
 public sealed record OrderPlanningGenerationResponse(Guid Id, Guid RunId, string RunNumber,
     int GenerationSequence, DateOnly EvaluationDate, DateTime GeneratedAtUtc, string Status,

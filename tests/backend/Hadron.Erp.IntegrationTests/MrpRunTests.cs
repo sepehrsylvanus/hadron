@@ -77,6 +77,11 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
     public async Task Run_uses_server_number_default_twelve_period_horizon_and_locked_assumptions()
     {
         var asOf = new DateOnly(2026, 8, 24);
+        var defaults = await _client.GetFromJsonAsync<MrpRunDefaultsResponse>(
+            $"/api/mrp-runs/default-parameters?asOfDate={asOf:yyyy-MM-dd}");
+        Assert.NotNull(defaults);
+        Assert.Equal(asOf, defaults.AsOfDate);
+        Assert.Equal("14050602", defaults.AsOfJalaliDate);
         var responses = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
             _client.PostAsJsonAsync("/api/mrp-runs", new CreateMrpRunRequest(asOf, null, []))));
 
@@ -87,7 +92,7 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
         Assert.Equal(4, runs.Select(run => run!.RunNumber).Distinct().Count());
         Assert.All(runs, run => Assert.Matches("^MRP-RUN-[0-9]{6,}$", run!.RunNumber));
         Assert.All(runs, run => Assert.Equal(MrpRunStatuses.Completed, run!.Status));
-        Assert.All(runs, run => Assert.Contains("INTERNAL_PROCESS_LEAD_TIME_DAYS=0", run!.Assumptions));
+        Assert.All(runs, run => Assert.Contains("WORKING_DAY_MANUFACTURING_ROUTES", run!.Assumptions));
 
         var calendar = _factory.Services.GetRequiredService<IPlanningCalendar>();
         var (year, month) = calendar.GetJalaliPeriod(asOf);
@@ -99,6 +104,7 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             year++;
         }
         var expectedEnd = calendar.GetPeriodBounds(year, month).EndDate;
+        Assert.Equal(expectedEnd, defaults.DefaultHorizonEndDate);
         Assert.All(runs, run => Assert.Equal(expectedEnd, run!.HorizonEndDate));
         Assert.Equal(4, _factory.AuditSink.Snapshot().Count(x => x.Action == "EXECUTE"));
     }
@@ -191,6 +197,10 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             $"/api/mrp-runs/{missingRun.Id}/exceptions?page=1&pageSize=100");
         Assert.Contains(missingExceptions!.Items, x => x.ItemId is null &&
             x.Code == "MISSING_BUSINESS_PERIOD" && x.AffectsDemand);
+        var missingSummary = await _client.GetFromJsonAsync<MrpExceptionSummaryListResponse>(
+            $"/api/mrp-runs/{missingRun.Id}/exception-summary?page=1&pageSize=25");
+        Assert.Contains(missingSummary!.Items, x => x.ItemId is null &&
+            x.Code == "MISSING_BUSINESS_PERIOD" && x.Count == 1);
     }
 
     [Fact]
@@ -262,6 +272,37 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
     }
 
     [Fact]
+    public async Task Inactive_product_preserves_forecast_history_without_entering_operational_planning()
+    {
+        var product = await AddProduct();
+        var calendar = _factory.Services.GetRequiredService<IPlanningCalendar>();
+        var bounds = calendar.GetPeriodBounds(1405, 6);
+        await AddForecast(product.ProductId, product.UnitId, 1405, 6,
+            bounds.StartDate, bounds.EndDate, 100);
+        await using (var db = await Db())
+        {
+            var item = await db.Items.SingleAsync(x => x.Id == product.ProductId);
+            item.ChangeState(false);
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync("/api/mrp-runs",
+            new CreateMrpRunRequest(bounds.StartDate, bounds.StartDate, []));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var run = (await response.Content.ReadFromJsonAsync<MrpRunResponse>())!;
+
+        await using var verify = await Db();
+        Assert.Equal(MrpRunStatuses.Completed, run.Status);
+        Assert.Empty(await verify.MrpRunForecastPeriodInputs
+            .Where(x => x.RunId == run.Id && x.ProductId == product.ProductId).ToListAsync());
+        Assert.Empty(await verify.MrpRunForecastInputs
+            .Where(x => x.RunId == run.Id && x.ProductId == product.ProductId).ToListAsync());
+        Assert.Empty(await verify.MrpRunExceptions
+            .Where(x => x.RunId == run.Id && x.ItemId == product.ProductId).ToListAsync());
+        Assert.True(await verify.ForecastSeries.AnyAsync(x => x.ProductId == product.ProductId));
+    }
+
+    [Fact]
     public async Task Gd09_persisted_run_snapshot_output_and_trace_do_not_drift_after_current_forecast_changes()
     {
         var product = await AddProduct();
@@ -313,7 +354,7 @@ public sealed class MrpRunTests : IClassFixture<FoundationApiFactory>, IAsyncLif
             await mutate.SaveChangesAsync();
             _categories.Add(category.Id); _items.Add(part.Id);
             var bom = new BomRevision($"BOM-GD09-{Guid.NewGuid():N}"[..28], product.ProductId,
-                product.UnitId, 1, bounds.StartDate, null, "created after historical run");
+                product.UnitId, 1, "created after historical run");
             var line = new BomLine(bom.Id, part.Id, product.UnitId, 1, 0, 1);
             mutate.AddRange(bom, line);
             await mutate.SaveChangesAsync();

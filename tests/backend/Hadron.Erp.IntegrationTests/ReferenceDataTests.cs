@@ -56,27 +56,53 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
     }
 
     [Fact]
-    public async Task Reference_value_enforces_code_but_allows_duplicate_localized_names()
+    public async Task Reference_value_generates_code_and_allows_duplicate_localized_names()
     {
-        var first = await CreateValue("IR", "ایران", "Iran");
-        var duplicateName = await CreateValue("AF", "ایران", "Iran");
+        using var first = await CreateValue("ایران", "Iran", "MANUAL-CODE");
+        using var duplicateName = await CreateValue("ایران", "Iran", "ANOTHER-MANUAL-CODE");
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.Created, duplicateName.StatusCode);
 
-        using var duplicateCode = await PostJson("/api/reference-data/types/COUNTRY/values",
-            new { code = "ir", nameFa = "نام دیگر", nameEn = "Different", sortOrder = 2 });
-        Assert.Equal(HttpStatusCode.Conflict, duplicateCode.StatusCode);
-        Assert.Equal("DUPLICATE_CODE", await ProblemCode(duplicateCode));
-
         var original = await first.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("IR", original.GetProperty("code").GetString());
+        var second = await duplicateName.Content.ReadFromJsonAsync<JsonElement>();
+        var originalCode = original.GetProperty("code").GetString()!;
+        var secondCode = second.GetProperty("code").GetString()!;
+        Assert.Matches("^[0-9]{3,}$", originalCode);
+        Assert.Matches("^[0-9]{3,}$", secondCode);
+        Assert.NotEqual("MANUAL-CODE", originalCode);
+        Assert.NotEqual("ANOTHER-MANUAL-CODE", secondCode);
+        Assert.NotEqual(originalCode, secondCode);
+        Assert.Equal(long.Parse(originalCode) + 1, long.Parse(secondCode));
+    }
+
+    [Fact]
+    public async Task Concurrent_reference_value_creation_generates_unique_codes()
+    {
+        var responses = await Task.WhenAll(Enumerable.Range(1, 12).Select(index =>
+            PostJson("/api/reference-data/types/SHIPPING_MODE/values",
+                new { code = $"CLIENT-{index}", nameFa = $"روش {index}", nameEn = $"Mode {index}", sortOrder = index })));
+        try
+        {
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
+            var values = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<JsonElement>()));
+            var codes = values.Select(value => value.GetProperty("code").GetString()!).ToArray();
+            Assert.Equal(codes.Length, codes.Distinct().Count());
+            Assert.All(codes, code => Assert.Matches("^[0-9]{3,}$", code));
+            Assert.DoesNotContain(codes, code => code.StartsWith("CLIENT-", StringComparison.Ordinal));
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
     }
 
     [Fact]
     public async Task Ordinary_edit_keeps_code_and_advances_version()
     {
-        using var created = await CreateValue("FAST", "سریع", "Fast");
+        using var created = await CreateValue("سریع", "Fast");
         var value = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = value.GetProperty("id").GetGuid();
+        var generatedCode = value.GetProperty("code").GetString();
 
         using var updated = await PutJson($"/api/reference-data/values/{id}", new
         {
@@ -88,14 +114,14 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
         });
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
         var result = await updated.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("FAST", result.GetProperty("code").GetString());
+        Assert.Equal(generatedCode, result.GetProperty("code").GetString());
         Assert.Equal(2, result.GetProperty("version").GetInt64());
     }
 
     [Fact]
     public async Task Stale_update_deactivate_and_reactivate_return_structured_conflict()
     {
-        using var created = await CreateValue("SEA", "دریایی", "Sea");
+        using var created = await CreateValue("دریایی", "Sea");
         var value = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = value.GetProperty("id").GetGuid();
         var version = value.GetProperty("version").GetInt64();
@@ -128,7 +154,7 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
     [Fact]
     public async Task Inactive_values_are_excluded_from_selection_but_resolve_by_id()
     {
-        using var created = await CreateValue("CASH", "نقدی", "Cash");
+        using var created = await CreateValue("نقدی", "Cash");
         var value = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = value.GetProperty("id").GetGuid();
         using var deactivated = await PostJson($"/api/reference-data/values/{id}/deactivate",
@@ -276,13 +302,20 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
     }
 
     [Theory]
+    [InlineData("", "Name")]
+    [InlineData("نام", "")]
+    public async Task Reference_value_requires_labels_but_not_client_code(string nameFa, string nameEn)
+    {
+        using var referenceValue = await CreateValue(nameFa, nameEn);
+        Assert.Equal(HttpStatusCode.BadRequest, referenceValue.StatusCode);
+    }
+
+    [Theory]
     [InlineData("", "نام", "Name")]
     [InlineData("CODE", "", "Name")]
     [InlineData("CODE", "نام", "")]
-    public async Task Required_code_and_labels_are_validated(string code, string nameFa, string nameEn)
+    public async Task Unit_requires_code_and_labels(string code, string nameFa, string nameEn)
     {
-        using var referenceValue = await CreateValue(code, nameFa, nameEn);
-        Assert.Equal(HttpStatusCode.BadRequest, referenceValue.StatusCode);
         using var unit = await CreateUnit(code, nameFa, nameEn);
         Assert.Equal(HttpStatusCode.BadRequest, unit.StatusCode);
     }
@@ -314,7 +347,7 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
     [Fact]
     public async Task Reference_value_mutations_emit_audit_integration_events()
     {
-        using var created = await CreateValue("AUDIT", "ممیزی", "Audit");
+        using var created = await CreateValue("ممیزی", "Audit");
         var value = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = value.GetProperty("id").GetGuid();
         using var edited = await PutJson($"/api/reference-data/values/{id}",
@@ -337,7 +370,7 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
     [Fact]
     public async Task Delete_is_not_exposed()
     {
-        using var created = await CreateValue("AIR", "هوایی", "Air");
+        using var created = await CreateValue("هوایی", "Air");
         var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         using var response = await _client.DeleteAsync($"/api/reference-data/values/{id}");
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
@@ -362,8 +395,8 @@ public sealed class ReferenceDataTests : IClassFixture<FoundationApiFactory>, IA
         Assert.Throws<InvalidOperationException>(() => TestDatabaseSafety.EnsureSafeDatabaseName("some_database"));
     }
 
-    private Task<HttpResponseMessage> CreateValue(string code, string nameFa, string nameEn) =>
-        PostJson("/api/reference-data/types/COUNTRY/values", new { code, nameFa, nameEn, sortOrder = 1 });
+    private Task<HttpResponseMessage> CreateValue(string nameFa, string nameEn, string? suppliedCode = null) =>
+        PostJson("/api/reference-data/types/COUNTRY/values", new { code = suppliedCode, nameFa, nameEn, sortOrder = 1 });
 
     private Task<HttpResponseMessage> CreateCurrency(string code, string nameFa, string nameEn) =>
         PostJson("/api/reference-data/currencies",

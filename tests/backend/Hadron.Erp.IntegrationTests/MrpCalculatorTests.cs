@@ -374,6 +374,53 @@ public sealed class MrpCalculatorTests
         Assert.All(routes.Values, route => Assert.Equal(Day, route.DemandDate));
     }
 
+    [Fact]
+    public void Approved_manufacturing_route_moves_polymer_need_back_by_working_days()
+    {
+        var product = Guid.NewGuid(); var body = Guid.NewGuid(); var polymer = Guid.NewGuid();
+        var unit = Guid.NewGuid(); var route = Guid.NewGuid(); var workCenter = Guid.NewGuid();
+        var completion = new DateOnly(2026, 9, 10); // Thursday
+        const int saturdayThroughThursday = 0b1011111;
+        var output = new MrpCalculator().Calculate(new(
+            new DateOnly(2026, 9, 1), completion,
+            [Item(product, "PRD-ROUTE", ItemTypes.Product, null, unit),
+             Item(body, "PRT-BODY", ItemTypes.Part, SupplyMethods.Make, unit),
+             Item(polymer, "CMP-ABS", ItemTypes.Component, SupplyMethods.Buy, unit)],
+            [new MrpProductDemand(product, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                completion, 1_000m, 1_000m, 0, unit)],
+            [Edge(product, body, unit, 1, 0), Edge(body, polymer, unit, 0.014m, 0)],
+            [], [], [new(polymer, completion, false, true)], [], [],
+            [new(route, "RTE-0001", product, Guid.NewGuid(), 10, workCenter, "WC-0001",
+                saturdayThroughThursday, 0, 1),
+             new(route, "RTE-0002", body, Guid.NewGuid(), 10, workCenter, "WC-0001",
+                saturdayThroughThursday, 4, 0)]));
+
+        var bodyNeed = completion.AddDays(-1);
+        var polymerNeed = new DateOnly(2026, 9, 5); // Saturday; Friday is not a working day.
+        Assert.Contains(output.Daily, x => x.ItemId == body && x.Date == bodyNeed && x.GrossDemand == 1_000m);
+        Assert.Contains(output.Daily, x => x.ItemId == polymer && x.Date == polymerNeed && x.GrossDemand == 14m);
+        var polymerTrace = output.Traces.Single(x => x.ParentItemId == body && x.ChildItemId == polymer);
+        Assert.Equal(bodyNeed, polymerTrace.ParentDemandDate);
+        Assert.Equal(polymerNeed, polymerTrace.Date);
+        Assert.DoesNotContain(output.Exceptions, x => x.Code == "MISSING_APPROVED_MANUFACTURING_ROUTE");
+    }
+
+    [Fact]
+    public void Missing_internal_route_is_blocking_but_keeps_material_quantity_visible()
+    {
+        var product = Guid.NewGuid(); var material = Guid.NewGuid(); var unit = Guid.NewGuid();
+        var output = new MrpCalculator().Calculate(new(Day.AddDays(-1), Day,
+            [Item(product, "PRD-NO-ROUTE", ItemTypes.Product, null, unit),
+             Item(material, "CMP-MATERIAL", ItemTypes.Component, SupplyMethods.Buy, unit)],
+            [Demand(product, 10)], [Edge(product, material, unit, 2, 0)], [], [],
+            [new(material, Day, false, true)], [], [], []));
+
+        Assert.Contains(output.Exceptions, x => x.ItemId == product &&
+            x.Code == "MISSING_APPROVED_MANUFACTURING_ROUTE" && x.AffectsDemand);
+        Assert.Contains(output.Daily, x => x.ItemId == material && x.GrossDemand == 20m);
+        Assert.Equal(MrpCompleteness.Incomplete, output.Completeness);
+    }
+
     private static MrpCalculationInput DirectMaterialInput(Guid itemId, Guid unit, DateOnly asOf,
         IReadOnlyList<decimal> quantities, decimal stock, IReadOnlyList<MrpFirmSupply> firm) =>
         new(asOf, asOf.AddDays(quantities.Count),

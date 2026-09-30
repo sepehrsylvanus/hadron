@@ -3,13 +3,15 @@ using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Platform.Audit;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Globalization;
 
 namespace Hadron.Erp.Api.Modules.ReferenceData.Application;
 
 public sealed class ReferenceDataService(
     IDbContextFactory<HadronDbContext> dbContextFactory,
     IAuditEventSink auditEventSink,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<ReferenceDataService> logger)
 {
     public async Task<IReadOnlyList<ReferenceTypeResponse>> GetTypes(CancellationToken cancellationToken)
     {
@@ -50,13 +52,14 @@ public sealed class ReferenceDataService(
     public async Task<ReferenceValueResponse> CreateValue(
         string typeCode, CreateReferenceValueRequest request, CancellationToken cancellationToken)
     {
-        ValidateCommon(request.Code, request.NameFa, request.NameEn);
+        ValidateLabels(request.NameFa, request.NameEn);
         ValidateSortOrder(request.SortOrder);
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var normalizedType = NormalizeCode(typeCode);
         var type = await db.ReferenceTypes.SingleOrDefaultAsync(x => x.Code == normalizedType, cancellationToken)
             ?? throw new ReferenceDataValidationException(Error("typeCode", "نوع داده مرجع معتبر نیست."));
-        var entity = new ReferenceValue(type.Id, CleanCode(request.Code), NormalizeCode(request.Code),
+        var generatedCode = await NextReferenceValueCode(db, normalizedType, cancellationToken);
+        var entity = new ReferenceValue(type.Id, generatedCode, generatedCode,
             request.NameFa.Trim(), request.NameEn.Trim(), request.SortOrder);
         db.ReferenceValues.Add(entity);
         await Save(db, cancellationToken);
@@ -244,6 +247,35 @@ public sealed class ReferenceDataService(
     private static UnitResponse ToResponse(Unit x) => new(x.Id, x.Code, x.NameFa, x.NameEn, x.Symbol,
         x.IsActive, x.SortOrder, x.Version, x.CreatedAtUtc, x.UpdatedAtUtc);
 
+    private static async Task<string> NextReferenceValueCode(
+        HadronDbContext db,
+        string typeCode,
+        CancellationToken cancellationToken)
+    {
+        var sequence = typeCode switch
+        {
+            "COUNTRY" => "country_value_code_seq",
+            "BUSINESS_UNIT" => "business_unit_value_code_seq",
+            "PRODUCT_CATEGORY" => "product_category_value_code_seq",
+            "PART_CATEGORY" => "part_category_value_code_seq",
+            "COMPONENT_CATEGORY" => "component_category_value_code_seq",
+            "PAYMENT_TERM" => "payment_term_value_code_seq",
+            "SHIPPING_MODE" => "shipping_mode_value_code_seq",
+            "INCOTERM" => "incoterm_value_code_seq",
+            _ => throw new ReferenceDataValidationException(Error("typeCode", "نوع داده مرجع معتبر نیست."))
+        };
+
+        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = new NpgsqlCommand($"SELECT nextval('reference_data.{sequence}')", connection);
+        var value = (long)(await command.ExecuteScalarAsync(cancellationToken))!;
+        return value.ToString("D3", CultureInfo.InvariantCulture);
+    }
+
     private async Task Emit(
         string entityType,
         Guid entityId,
@@ -253,16 +285,32 @@ public sealed class ReferenceDataService(
         CancellationToken cancellationToken)
     {
         var context = httpContextAccessor.HttpContext;
-        await auditEventSink.WriteAsync(new AuditEvent(
-            entityType,
-            entityId,
-            action,
-            DateTime.UtcNow,
-            AuditEventContext.ActorId(context),
-            AuditEventContext.CorrelationId(context),
-            oldValues,
-            newValues,
-            null), cancellationToken);
+        try
+        {
+            await auditEventSink.WriteAsync(new AuditEvent(
+                entityType,
+                entityId,
+                action,
+                DateTime.UtcNow,
+                AuditEventContext.ActorId(context),
+                AuditEventContext.CorrelationId(context),
+                oldValues,
+                newValues,
+                null), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // Reference-data mutations have already committed at this point. A transient audit-store
+            // failure must be observable to operations without misleading the user into retrying the
+            // same mutation and creating duplicate business data.
+            logger.LogError(exception,
+                "Post-commit reference-data audit emission failed for {EntityType}/{EntityId} {Action}.",
+                entityType, entityId, action);
+        }
     }
 
     private static Dictionary<string, object?> Snapshot(MutableReferenceData entity)

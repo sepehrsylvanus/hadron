@@ -15,7 +15,8 @@ public sealed class MaterialItemService(
     IItemBaseUnitChangeGuard? baseUnitChangeGuard = null)
 {
     public async Task<MaterialItemListResponse> GetList(string itemType, string? search, bool includeInactive,
-        Guid? categoryId, string? supplyMethod, int page, int pageSize, CancellationToken token)
+        Guid? categoryId, string? supplyMethod, bool externalSourcingEligible, int page, int pageSize,
+        CancellationToken token)
     {
         EnsureItemType(itemType);
         if (page < 1 || pageSize is < 1 or > 100)
@@ -27,6 +28,9 @@ public sealed class MaterialItemService(
         var query = db.MaterialItemProfiles.AsNoTracking()
             .Where(x => x.Item.ItemType == itemType && (includeInactive || x.Item.IsActive));
         if (categoryId.HasValue) query = query.Where(x => x.CategoryId == categoryId);
+        if (externalSourcingEligible)
+            query = query.Where(x => x.SupplyMethod == SupplyMethods.Buy ||
+                x.SupplyMethod == SupplyMethods.Outsource || x.SupplyMethod == SupplyMethods.Hybrid);
         if (!string.IsNullOrWhiteSpace(supplyMethod))
         {
             var method = NormalizeSupplyMethod(supplyMethod);

@@ -19,5 +19,39 @@ services:
       retries: 12
       start_period: 10s
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - hadron-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  livekit:
+    image: livekit/livekit-server:v1.9.6
+    profiles: ["collaboration-calls"]
+    restart: unless-stopped
+    command: --bind 0.0.0.0
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-configure-livekit-key}: ${LIVEKIT_API_SECRET:-configure-livekit-secret-before-enabling-profile}"
+      NODE_IP: "${LIVEKIT_NODE_IP:?LIVEKIT_NODE_IP is required when collaboration calls are enabled}"
+      UDP_PORT: "50000-50100"
+    ports:
+      - "${LIVEKIT_PORT:-7880}:7880"
+      - "${LIVEKIT_RTC_TCP_PORT:-7881}:7881"
+      - "50000-50100:50000-50100/udp"
+
 volumes:
   hadron-postgres-data:
+  hadron-minio-data:

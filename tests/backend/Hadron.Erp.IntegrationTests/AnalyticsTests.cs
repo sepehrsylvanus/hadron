@@ -15,6 +15,7 @@ using Hadron.Erp.Api.Modules.PurchaseSupply.Domain;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Sourcing.Domain;
 using Hadron.Erp.Api.Modules.Suppliers.Domain;
+using Hadron.Erp.Api.Platform.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -80,7 +81,6 @@ public sealed class AnalyticsEndpointTests : IClassFixture<FoundationApiFactory>
     [Theory]
     [InlineData("/api/v1/analytics/lead-time?evaluationDate=2026-08-25&page=1&pageSize=25")]
     [InlineData("/api/v1/analytics/forecast-accuracy?page=1&pageSize=25")]
-    [InlineData("/api/v1/analytics/commercial-commitments?evaluationDate=2026-08-25&page=1&pageSize=25")]
     [InlineData("/api/v1/analytics/inventory/positions?asOfDate=2026-08-25&page=1&pageSize=25")]
     [InlineData("/api/v1/analytics/inventory/movements?fromDate=2026-08-01&toDate=2026-08-25&page=1&pageSize=25")]
     public async Task Versioned_read_contracts_are_bounded_and_read_only(string path)
@@ -89,6 +89,64 @@ public sealed class AnalyticsEndpointTests : IClassFixture<FoundationApiFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"totalCount\":0", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Specialized_analytics_reads_require_their_exact_permission()
+    {
+        var cases = new (string Permission, string Path)[]
+        {
+            (Permissions.AnalyticsLeadTimeView,
+                "/api/v1/analytics/lead-time?evaluationDate=2026-08-25&page=1&pageSize=25"),
+            (Permissions.AnalyticsForecastAccuracyView,
+                "/api/v1/analytics/forecast-accuracy?page=1&pageSize=25"),
+            (Permissions.AnalyticsView,
+                "/api/v1/analytics/inventory/positions?asOfDate=2026-08-25&page=1&pageSize=25")
+        };
+
+        foreach (var granted in cases)
+        {
+            using var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", granted.Permission);
+            foreach (var endpoint in cases)
+            {
+                using var response = await client.GetAsync(endpoint.Path);
+                Assert.Equal(granted.Permission == endpoint.Permission
+                    ? HttpStatusCode.OK
+                    : HttpStatusCode.Forbidden, response.StatusCode);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Legacy_commercial_surfaces_cannot_bypass_cash_flow_permissions()
+    {
+        using var legacyAnalytics = _factory.CreateClient();
+        legacyAnalytics.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions",
+            $"{Permissions.AnalyticsFinancialCommitmentView},{Permissions.AnalyticsExport}");
+
+        using var query = await legacyAnalytics.GetAsync(
+            "/api/v1/analytics/commercial-commitments?evaluationDate=2026-08-25&page=1&pageSize=25");
+        Assert.Equal(HttpStatusCode.NotFound, query.StatusCode);
+
+        using var export = await legacyAnalytics.GetAsync(
+            "/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-08-25&language=en&maximumRows=100");
+        Assert.Equal(HttpStatusCode.BadRequest, export.StatusCode);
+        var exportProblem = await export.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Unsupported report.", exportProblem.GetProperty("errors").GetProperty("report")[0].GetString());
+
+        using var cashFlow = await legacyAnalytics.GetAsync(
+            "/api/v1/cash-flow/dashboard?asOfDate=2026-08-25&horizonEnd=2026-09-25");
+        Assert.Equal(HttpStatusCode.Forbidden, cashFlow.StatusCode);
+
+        using var operationalExport = await legacyAnalytics.GetAsync(
+            "/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-08-25&language=en&maximumRows=100");
+        operationalExport.EnsureSuccessStatusCode();
+        var operationalXml = await Sheet(operationalExport);
+        Assert.DoesNotContain("OriginalAmount", operationalXml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Currency", operationalXml, StringComparison.Ordinal);
+        Assert.DoesNotContain("AnchorDate", operationalXml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExpectedCreditDate", operationalXml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -126,6 +184,15 @@ public sealed class AnalyticsEndpointTests : IClassFixture<FoundationApiFactory>
             .SingleAsync();
 
         Assert.Equal(1, triggerCount);
+    }
+
+    private static async Task<string> Sheet(HttpResponseMessage response)
+    {
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var archive = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
+        await using var stream = archive.GetEntry("xl/worksheets/sheet1.xml")!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return await reader.ReadToEndAsync();
     }
 }
 
@@ -230,7 +297,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
             $"/api/v1/analytics/exports/lead-time/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={_master.Option.SourcingNumber}{Cutoff(cutoff)}");
         var commercialExportBefore = await ExportData(
-            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
         var inventoryExportBefore = await ExportData(
             $"/api/v1/analytics/exports/inventory-position/xlsx?evaluationDate=2026-08-01&language=en" +
@@ -282,7 +349,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
             $"/api/v1/analytics/exports/lead-time/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={_master.Option.SourcingNumber}{Cutoff(cutoff)}");
         var commercialExportAfter = await ExportData(
-            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
         var inventoryExportAfter = await ExportData(
             $"/api/v1/analytics/exports/inventory-position/xlsx?evaluationDate=2026-08-01&language=en" +
@@ -442,7 +509,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         var cutoff = DateTime.UtcNow;
         var historicalBefore = await Commercial(order.Number, cutoff);
         var exportBefore = await ExportData(
-            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
 
         await AddRevisedPlans(order, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 22),
@@ -451,7 +518,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
 
         var historical = await Commercial(order.Number, cutoff);
         var exportAfter = await ExportData(
-            $"/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en" +
+            $"/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-12-01&language=en" +
             $"&maximumRows=100&search={order.Number}{Cutoff(cutoff)}");
         var newerCutoff = DateTime.UtcNow;
         var current = await Commercial(order.Number, newerCutoff);
@@ -521,17 +588,17 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
         var row = await Commercial(order.Number, cutoff);
         var query = $"evaluationDate=2026-12-01&language=en&maximumRows=100&search={order.Number}" +
             $"&dataCutoffUtc={Uri.EscapeDataString(cutoff.ToString("O"))}";
-        var response = await _client.GetAsync($"/api/v1/analytics/exports/commercial-commitments/xlsx?{query}");
+        var response = await _client.GetAsync($"/api/v1/analytics/exports/purchase-order-receipt/xlsx?{query}");
         var xml = await Sheet(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(order.Number, xml, StringComparison.Ordinal);
-        Assert.Contains(row.GetProperty("creditAnchorDate").GetString()!, xml, StringComparison.Ordinal);
+        Assert.Contains(row.GetProperty("currentEta").GetString()!, xml, StringComparison.Ordinal);
         Assert.Contains($"search={order.Number}", xml, StringComparison.Ordinal);
         Assert.Contains($"dataCutoffUtc={cutoff:O}", xml, StringComparison.Ordinal);
 
         var limited = await _client.GetAsync(
-            "/api/v1/analytics/exports/commercial-commitments/xlsx?evaluationDate=2026-12-01&language=en&maximumRows=1");
+            "/api/v1/analytics/exports/purchase-order-receipt/xlsx?evaluationDate=2026-12-01&language=en&maximumRows=1");
         Assert.Equal(HttpStatusCode.Conflict, limited.StatusCode);
         Assert.Equal("EXPORT_LIMIT_EXCEEDED", (await Read(limited)).GetProperty("code").GetString());
     }
@@ -621,7 +688,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
             PurchaseMilestoneCodes.WarehouseReceipt, _master.Shipping.Id, _master.Incoterm.Id, null);
         db.PurchaseOrders.Add(po);
         await db.SaveChangesAsync();
-        var line = new PurchaseOrderLine(po.Id, 1, _master.Item.Id, _master.Option.Id, _master.Price.Id,
+        var line = new PurchaseOrderLine(po.Id, 1, _master.Item.Id, _master.Option.Id, null,
             _master.Unit.Id, 80m, 7m, 0m, 2, 1, 3, 1, null);
         var first = new DeliverySchedule(line.Id, 1, 30m, firstWarehouseDate);
         var second = new DeliverySchedule(line.Id, 2, 50m, secondWarehouseDate);
@@ -688,7 +755,7 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
             PurchaseMilestoneCodes.WarehouseReceipt, _master.Shipping.Id, _master.Incoterm.Id, null);
         db.PurchaseOrders.Add(po);
         await db.SaveChangesAsync();
-        var line = new PurchaseOrderLine(po.Id, 1, _master.Item.Id, _master.Option.Id, _master.Price.Id,
+        var line = new PurchaseOrderLine(po.Id, 1, _master.Item.Id, _master.Option.Id, null,
             _master.Unit.Id, 1m, 7m, 0m, 2, 1, 3, 1, null);
         var schedule = new DeliverySchedule(line.Id, 1, 1m, originalReceiptDate);
         db.AddRange(line, schedule);
@@ -757,11 +824,12 @@ public sealed class AnalyticsRemediationTests : IClassFixture<FoundationApiFacto
 
     private async Task<JsonElement> CommercialPage(string? search, DateTime? cutoff)
     {
-        var url = "/api/v1/analytics/commercial-commitments?evaluationDate=2026-12-01&page=1&pageSize=200" +
-            (search is null ? string.Empty : $"&search={search}") + Cutoff(cutoff);
-        var response = await _client.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-        return (await Read(response)).GetProperty("page");
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<AnalyticsService>();
+        var response = await service.Commercial(new DateOnly(2026, 12, 1), cutoff, search, 1, 200,
+            CancellationToken.None);
+        return JsonSerializer.SerializeToElement(response.Page,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
 
     private static string Cutoff(DateTime? cutoff) => cutoff.HasValue
