@@ -66,6 +66,65 @@ WATCH_COUNT = collections.Counter(WATCHED)
 
 E = html.escape
 
+# ------------------------------------------------- SVG bidi / anchor helpers
+# The page is dir="rtl", so every <svg><text> inherits direction:rtl. With the
+# default text-anchor:start that pins the RIGHT edge of the string at x and
+# lets it flow off-canvas to the left, and mixed FA/Latin strings come out
+# visually scrambled. Every generated <text> therefore gets explicit classes:
+#   mid  -> text-anchor:middle (x is the centre of its box)
+#   ltr  -> direction:ltr (Latin/digit-led strings keep natural left-to-right order)
+#   en   -> text-anchor:end (left edge pinned at x, text grows rightwards,
+#           used for Persian-led strings that sit left-aligned)
+_AR_RANGES = (("\u0600", "\u06FF"), ("\u0750", "\u077F"),
+              ("\u08A0", "\u08FF"), ("\uFB50", "\uFDFF"), ("\uFE70", "\uFEFC"))
+
+
+def _is_fa_led(s):
+    """True when the first alphabetic char of s (entities decoded) is an
+    Arabic-script letter, i.e. the string should read right-to-left first.
+    Digits (incl. Persian ۰-۹) are weak and skipped, so '35 API · 12 جدول'
+    and '۴۰۱ SESSION_REVOKED' count as Latin-led."""
+    for ch in html.unescape(s):
+        if ch.isalpha():
+            return any(lo <= ch <= hi for lo, hi in _AR_RANGES)
+    return False
+
+
+_DIA_TEXT_RE = re.compile(r"<text([^>]*)>(.*?)</text>", re.S)
+_DIA_CLS_RE = re.compile(r'class="([^"]*)"')
+
+
+def _bidi_autofix(svg, centered):
+    """Add explicit anchor/direction classes to every <text> in an SVG.
+    centered=True  -> every text is centred on its x (add mid, plus ltr when Latin-led)
+    centered=False -> texts sit left-aligned at x (ltr for Latin-led, en for Persian-led)
+    Texts marked data-keep are left untouched."""
+    def fix(m):
+        attrs, body = m.group(1), m.group(2)
+        if "data-keep" in attrs:
+            return m.group(0)
+        cls = _DIA_CLS_RE.search(attrs)
+        parts = cls.group(1).split() if cls else []
+        if "ltr" in parts:
+            if centered and "mid" not in parts:
+                parts.append("mid")
+        elif "mid" in parts:
+            if _is_fa_led(body) is False and "ltr" not in parts:
+                parts.append("ltr")
+        elif centered:
+            parts.append("mid")
+            if not _is_fa_led(body):
+                parts.append("ltr")
+        else:
+            parts.append("ltr" if not _is_fa_led(body) else "en")
+        tag = " ".join(parts)
+        if cls:
+            attrs = _DIA_CLS_RE.sub('class="%s"' % tag, attrs, count=1)
+        else:
+            attrs = attrs.rstrip() + ' class="%s"' % tag
+        return "<text%s>%s</text>" % (attrs, body)
+    return _DIA_TEXT_RE.sub(fix, svg)
+
 
 # ============================================================== SVG diagrams
 def svg_overview():
@@ -81,7 +140,9 @@ def svg_overview():
   <text x="{x+71}" y="{y+25}" class="lbl b">{name}</text>
   <text x="{x+71}" y="{y+43}" class="lbl s">{mods[name]["endpoints"]} API · {len(mods[name]["tables"])} جدول</text>
 </g>'''
-    return f'''<svg viewBox="0 0 1080 620" class="dia" role="img" aria-label="معماری کلی">
+    sch = sorted(ALL_SCHEMAS)
+    h = (len(sch) + 1) // 2
+    return _bidi_autofix(f'''<svg viewBox="0 0 1080 620" class="dia" role="img" aria-label="معماری کلی">
   <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
   <rect x="60" y="24" width="960" height="74" rx="10" class="layer fe"/>
@@ -89,7 +150,7 @@ def svg_overview():
   <text x="540" y="76" class="lbl s">دو زبانه FA/EN · RTL/LTR · دسترسی‌ها فقط برای پنهان‌کردن منو (امنیت نیست)</text>
 
   <line x1="540" y1="98" x2="540" y2="126" class="flow" marker-end="url(#ar)"/>
-  <text x="556" y="118" class="lbl s ltr">HTTP /api · Cookie session · X-CSRF-TOKEN</text>
+  <text x="556" y="118" class="lbl s ltr" data-keep>HTTP /api · Cookie session · X-CSRF-TOKEN</text>
 
   <rect x="60" y="130" width="960" height="112" rx="10" class="layer api"/>
   <text x="540" y="158" class="lbl b t1">یک هاست ASP.NET Core — Modular Monolith</text>
@@ -99,13 +160,14 @@ def svg_overview():
   <rect x="560" y="196" width="200" height="32" rx="6" class="chip"/><text x="660" y="217" class="lbl s">Platform/Storage</text>
   <rect x="780" y="196" width="180" height="32" rx="6" class="chip"/><text x="870" y="217" class="lbl s">Platform/Errors</text>
 
-  <text x="60" y="258" class="lbl b t2">{len(BUSINESS_MODS)} ماژول تجاری — هر ماژول: Api / Application / Domain / Infrastructure</text>
+  <text x="992" y="258" class="lbl b t2" data-keep>{len(BUSINESS_MODS)} ماژول تجاری — هر ماژول: Api / Application / Domain / Infrastructure</text>
   {mod_boxes}
 
   <rect x="60" y="500" width="620" height="96" rx="10" class="layer db"/>
-  <text x="370" y="530" class="lbl b t1">PostgreSQL 18 — یک دیتابیس، {len(ALL_SCHEMAS)} اسکیما، {TOTAL_TABLES} جدول</text>
-  <text x="370" y="556" class="lbl s ltr">{E(", ".join(sorted(ALL_SCHEMAS)))}</text>
-  <text x="370" y="578" class="lbl s">EF Core + Migration · Isolation بین ماژول‌ها فقط قراردادی است</text>
+  <text x="370" y="528" class="lbl b t1">PostgreSQL 18 — یک دیتابیس، {len(ALL_SCHEMAS)} اسکیما، {TOTAL_TABLES} جدول</text>
+  <text x="370" y="550" class="lbl s ltr">{E(", ".join(sch[:h]))}</text>
+  <text x="370" y="566" class="lbl s ltr">{E(", ".join(sch[h:]))}</text>
+  <text x="370" y="586" class="lbl s">EF Core + Migration · Isolation بین ماژول‌ها فقط قراردادی است</text>
 
   <rect x="710" y="500" width="310" height="96" rx="10" class="layer sto"/>
   <text x="865" y="530" class="lbl b t1">MinIO — S3 سازگار</text>
@@ -114,7 +176,7 @@ def svg_overview():
 
   <line x1="370" y1="440" x2="370" y2="496" class="flow" marker-end="url(#ar)"/>
   <line x1="865" y1="440" x2="865" y2="496" class="flow" marker-end="url(#ar)"/>
-</svg>'''
+</svg>''', centered=True)
 
 
 def svg_pipeline():
@@ -142,10 +204,10 @@ def svg_pipeline():
         if n != "9":
             rows += f'<line x1="380" y1="{y+56}" x2="380" y2="{y+72}" class="flow" marker-end="url(#ar2)"/>'
         y += 72
-    return f'''<svg viewBox="0 0 1120 {y}" class="dia" role="img" aria-label="مسیر یک درخواست">
+    return _bidi_autofix(f'''<svg viewBox="0 0 1120 {y}" class="dia" role="img" aria-label="مسیر یک درخواست">
   <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
   {rows}
-</svg>'''
+</svg>''', centered=False)
 
 
 def svg_product():
@@ -154,42 +216,50 @@ def svg_product():
     for name, x in lanes:
         heads += f'''<g><rect x="{x-88}" y="18" width="176" height="40" rx="8" class="lane"/>
   <text x="{x}" y="44" class="lbl b">{name}</text></g>
-  <line x1="{x}" y1="58" x2="{x}" y2="700" class="life"/>'''
+  <line x1="{x}" y1="58" x2="{x}" y2="942" class="life"/>'''
     steps = [
-        (78, 90, 300, "s", "POST /api/products/", "بدنه: nameFa, nameEn, productCategoryId, baseUnitId, businessUnitId, safetyStockQty, criticalDays, safeStartDays, excessStartDays, notes"),
-        (126, 300, 545, "s", "service.Create(request)", "RequirePermission(catalog.product.manage) قبلاً در pipeline چک شده"),
-        (174, 545, 545, "n", "۱) Validate(...)", "طول نام‌ها · safetyStockQty ≥ ۰ · ۰ ≤ Critical ≤ SafeStart ≤ ExcessStart → خطا: ProductValidationException → ۴۰۰"),
-        (222, 545, 830, "s", "۲) ValidateReferences", "PRODUCT_CATEGORY فعال؟ · Unit فعال؟ · BUSINESS_UNIT فعال؟"),
-        (270, 830, 545, "r", "dictionary خطاها", "اگر مرجع نامعتبر باشد → ۴۰۰ با کلید فیلد فارسی"),
-        (318, 545, 830, "s", "۳) nextval('catalog.product_number_seq')", "کد یکتا: PRD-0001, PRD-0002 …"),
-        (366, 545, 545, "n", "۴) new Item(PRODUCT, …) + new Product(…)", "Item جدول مشترک PRODUCT/PART/COMPONENT است · Product فقط فیلدهای برنامه‌ریزی"),
-        (414, 545, 830, "s", "۵) AddRange + SaveChangesAsync", "INSERT catalog.items  ←  INSERT catalog.products (1:1 روی ItemId)"),
-        (462, 830, 545, "r", "Check Constraints دیتابیس", "ck_items_item_type · ck_items_business_number_format · ck_products_thresholds · ck_products_safety_stock"),
-        (510, 545, 830, "s", "۶) LoadResponse (بازخوانی)", "SELECT با Include روی Category / BaseUnit / BusinessUnit"),
-        (558, 545, 830, "s", "۷) DuplicateWarnings", "نام تکراری فقط Warning است: DUPLICATE_NAME_FA / DUPLICATE_NAME_EN"),
-        (606, 545, 1035, "s", "۸) Emit(audit)", "EntityType=Product · Action=CREATE · Old=null · New=Snapshot"),
-        (654, 1035, 830, "s", "INSERT platform.operational_audit_events", "Post-Commit · اگر شکست بخورد فقط Log می‌شود، تراکنش اصلی برنمی‌گردد"),
-        (702, 300, 90, "r", "۲۰۱ Created + ProductMutationResponse", "{ product, warnings[] }"),
+        (78, 90, 300, "s", "POST /api/products/", "بدنه: nameFa, nameEn, productCategoryId, baseUnitId, | businessUnitId, safetyStockQty, criticalDays, …"),
+        (168, 300, 545, "s", "service.Create(request)", "RequirePermission(catalog.product.manage) قبلاً در pipeline چک شده"),
+        (232, 545, 545, "n", "۱) Validate(...)", "طول نام‌ها · safetyStockQty ≥ ۰ · ۰ ≤ Critical ≤ SafeStart ≤ ExcessStart → خطا: ProductValidationException → ۴۰۰"),
+        (296, 545, 830, "s", "۲) ValidateReferences", "PRODUCT_CATEGORY فعال؟ · Unit فعال؟ · BUSINESS_UNIT فعال؟"),
+        (360, 830, 545, "r", "dictionary خطاها", "اگر مرجع نامعتبر باشد → ۴۰۰ با کلید فیلد فارسی"),
+        (424, 545, 830, "s", "۳) nextval('catalog.product_number_seq')", "کد یکتا: PRD-0001, PRD-0002 …"),
+        (488, 545, 545, "n", "۴) new Item(PRODUCT, …) + new Product(…)", "Item جدول مشترک PRODUCT/PART/COMPONENT است · Product فقط فیلدهای برنامه‌ریزی"),
+        (552, 545, 830, "s", "۵) AddRange + SaveChangesAsync", "INSERT catalog.items  ←  INSERT catalog.products (1:1 روی ItemId)"),
+        (616, 830, 545, "r", "Check Constraints دیتابیس", "ck_items_item_type · ck_items_business_number_format · ck_products_thresholds · ck_products_safety_stock"),
+        (680, 545, 830, "s", "۶) LoadResponse (بازخوانی)", "SELECT با Include روی Category / BaseUnit / BusinessUnit"),
+        (744, 545, 830, "s", "۷) DuplicateWarnings", "نام تکراری فقط Warning است: DUPLICATE_NAME_FA / DUPLICATE_NAME_EN"),
+        (808, 545, 1035, "s", "۸) Emit(audit)", "EntityType=Product · Action=CREATE · Old=null · New=Snapshot"),
+        (872, 1035, 830, "s", "INSERT platform.operational_audit_events", "Post-Commit · اگر شکست بخورد فقط Log می‌شود، تراکنش اصلی برنمی‌گردد"),
+        (936, 300, 90, "r", "۲۰۱ Created + ProductMutationResponse", "{ product, warnings[] }"),
     ]
     body = ""
     for y, x1, x2, kind, title, note in steps:
+        mx = (x1 + x2) / 2
+        self_box = (x1 == x2)
+        if "|" in note:
+            a, b = note.split("|", 1)
+            note_svg = (f'<text x="{mx}" y="{y + (38 if self_box else 18)}" class="lbl s mid">{a.strip()}</text>'
+                        f'<text x="{mx}" y="{y+34}" class="lbl s mid">{b.strip()}</text>')
+        else:
+            note_svg = f'<text x="{mx}" y="{y + (38 if self_box else 18)}" class="lbl s mid">{note}</text>'
         if x1 == x2:
+            note_svg = note_svg.replace('y="{y+18}"', 'y="{y+38}"')
             body += f'''<g><rect x="{x1-230}" y="{y-16}" width="460" height="34" rx="7" class="self"/>
   <text x="{x1}" y="{y+6}" class="lbl b">{title}</text></g>
-  <text x="{x1}" y="{y+32}" class="lbl s mid">{note}</text>'''
+  {note_svg}'''
         else:
             body += f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" class="msg {kind}" marker-end="url(#ar3)"/>'
-            mx = (x1 + x2) / 2
             body += f'<text x="{mx}" y="{y-8}" class="lbl b mid">{title}</text>'
-            body += f'<text x="{mx}" y="{y+18}" class="lbl s mid">{note}</text>'
-    return f'''<svg viewBox="0 0 1140 740" class="dia" role="img" aria-label="ثبت کالا">
+            body += note_svg
+    return _bidi_autofix(f'''<svg viewBox="0 0 1140 980" class="dia" role="img" aria-label="ثبت کالا">
   <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
   {heads}{body}
-</svg>'''
+</svg>''', centered=True)
 
 
 def svg_mrp():
-    return '''<svg viewBox="0 0 1120 760" class="dia" role="img" aria-label="موتور MRP">
+    return _bidi_autofix('''<svg viewBox="0 0 1120 760" class="dia" role="img" aria-label="موتور MRP">
   <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
   <rect x="40" y="20" width="330" height="112" rx="10" class="blk a"/>
@@ -257,11 +327,11 @@ def svg_mrp():
   <text x="560" y="676" class="lbl s">Topological Order روی گراف BOM (Kahn) · در صورت حلقه: BOM_CYCLE_DETECTED</text>
   <text x="560" y="698" class="lbl s ltr">beforePlanning = balance + incoming − grossQty   ·   net = max(SafetyStock − beforePlanning, 0)</text>
   <text x="560" y="720" class="lbl s ltr">childGross = parentNet × usage / baseOutput × (1 + scrap/100)   ·   scrap: BOM_OVERRIDE یا ITEM_DEFAULT</text>
-</svg>'''
+</svg>''', centered=True)
 
 
 def svg_auth():
-    return '''<svg viewBox="0 0 1120 700" class="dia" role="img" aria-label="مدل دسترسی">
+    return _bidi_autofix('''<svg viewBox="0 0 1120 700" class="dia" role="img" aria-label="مدل دسترسی">
   <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
   <text x="560" y="34" class="lbl b t1">فرمول دسترسی مؤثر — هنگام لاگین در HadronClaimsPrincipalFactory محاسبه و داخل کوکی Claim می‌شود</text>
@@ -330,7 +400,7 @@ def svg_auth():
   <rect x="60" y="600" width="1000" height="76" rx="10" class="note"/>
   <text x="560" y="628" class="lbl b">UI Visibility امنیت نیست</text>
   <text x="560" y="652" class="lbl s">منو، Route و دکمه‌ها از همان effective permissions استفاده می‌کنند تا رابط تمیز بماند — اما منبع حقیقت همیشه بک‌اند است</text>
-</svg>'''
+</svg>''', centered=True)
 
 
 # ============================================================== HTML parts
@@ -475,6 +545,7 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
 .dia text.t1{font-size:15px}
 .dia text.t2{font-size:13.5px}
 .dia text.mid{text-anchor:middle}
+.dia text.en{text-anchor:end}
 .dia text.code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;fill:var(--warn)}
 .dia text.num{font-size:13px;fill:#04122b;text-anchor:middle;font-weight:800}
 .dia .arw{fill:var(--line2)}

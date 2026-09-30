@@ -94,6 +94,7 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
 .dia text.t1{font-size:15px}
 .dia text.t2{font-size:13.5px}
 .dia text.mid{text-anchor:middle}
+.dia text.en{text-anchor:end}
 .dia text.code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;fill:var(--warn)}
 .dia text.num{font-size:13px;fill:#04122b;text-anchor:middle;font-weight:800}
 .dia .arw{fill:var(--line2)}
@@ -181,100 +182,101 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
   <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
   <rect x="60" y="24" width="960" height="74" rx="10" class="layer fe"/>
-  <text x="540" y="52" class="lbl b t1">فرانت‌اند — React + TypeScript + Vite</text>
-  <text x="540" y="76" class="lbl s">دو زبانه FA/EN · RTL/LTR · دسترسی‌ها فقط برای پنهان‌کردن منو (امنیت نیست)</text>
+  <text x="540" y="52" class="lbl b t1 mid">فرانت‌اند — React + TypeScript + Vite</text>
+  <text x="540" y="76" class="lbl s mid">دو زبانه FA/EN · RTL/LTR · دسترسی‌ها فقط برای پنهان‌کردن منو (امنیت نیست)</text>
 
   <line x1="540" y1="98" x2="540" y2="126" class="flow" marker-end="url(#ar)"/>
-  <text x="556" y="118" class="lbl s ltr">HTTP /api · Cookie session · X-CSRF-TOKEN</text>
+  <text x="556" y="118" class="lbl s ltr" data-keep>HTTP /api · Cookie session · X-CSRF-TOKEN</text>
 
   <rect x="60" y="130" width="960" height="112" rx="10" class="layer api"/>
-  <text x="540" y="158" class="lbl b t1">یک هاست ASP.NET Core — Modular Monolith</text>
-  <text x="540" y="182" class="lbl s">Program.cs · ProblemDetails · RateLimiter · SignalR · HealthChecks</text>
-  <rect x="120" y="196" width="200" height="32" rx="6" class="chip"/><text x="220" y="217" class="lbl s">Platform/Security</text>
-  <rect x="340" y="196" width="200" height="32" rx="6" class="chip"/><text x="440" y="217" class="lbl s">Platform/Audit</text>
-  <rect x="560" y="196" width="200" height="32" rx="6" class="chip"/><text x="660" y="217" class="lbl s">Platform/Storage</text>
-  <rect x="780" y="196" width="180" height="32" rx="6" class="chip"/><text x="870" y="217" class="lbl s">Platform/Errors</text>
+  <text x="540" y="158" class="lbl b t1 mid">یک هاست ASP.NET Core — Modular Monolith</text>
+  <text x="540" y="182" class="lbl s mid ltr">Program.cs · ProblemDetails · RateLimiter · SignalR · HealthChecks</text>
+  <rect x="120" y="196" width="200" height="32" rx="6" class="chip"/><text x="220" y="217" class="lbl s mid ltr">Platform/Security</text>
+  <rect x="340" y="196" width="200" height="32" rx="6" class="chip"/><text x="440" y="217" class="lbl s mid ltr">Platform/Audit</text>
+  <rect x="560" y="196" width="200" height="32" rx="6" class="chip"/><text x="660" y="217" class="lbl s mid ltr">Platform/Storage</text>
+  <rect x="780" y="196" width="180" height="32" rx="6" class="chip"/><text x="870" y="217" class="lbl s mid ltr">Platform/Errors</text>
 
-  <text x="60" y="258" class="lbl b t2">17 ماژول تجاری — هر ماژول: Api / Application / Domain / Infrastructure</text>
+  <text x="992" y="258" class="lbl b t2" data-keep>17 ماژول تجاری — هر ماژول: Api / Application / Domain / Infrastructure</text>
   <g>
   <rect x="60" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="131" y="293" class="lbl b">Identity</text>
-  <text x="131" y="311" class="lbl s">35 API · 12 جدول</text>
+  <text x="131" y="293" class="lbl b mid ltr">Identity</text>
+  <text x="131" y="311" class="lbl s mid ltr">35 API · 12 جدول</text>
 </g><g>
   <rect x="218" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="289" y="293" class="lbl b">ReferenceData</text>
-  <text x="289" y="311" class="lbl s">19 API · 4 جدول</text>
+  <text x="289" y="293" class="lbl b mid ltr">ReferenceData</text>
+  <text x="289" y="311" class="lbl s mid ltr">19 API · 4 جدول</text>
 </g><g>
   <rect x="376" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="447" y="293" class="lbl b">Catalog</text>
-  <text x="447" y="311" class="lbl s">6 API · 2 جدول</text>
+  <text x="447" y="293" class="lbl b mid ltr">Catalog</text>
+  <text x="447" y="311" class="lbl s mid ltr">6 API · 2 جدول</text>
 </g><g>
   <rect x="534" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="605" y="293" class="lbl b">Products</text>
-  <text x="605" y="311" class="lbl s">6 API · 1 جدول</text>
+  <text x="605" y="293" class="lbl b mid ltr">Products</text>
+  <text x="605" y="311" class="lbl s mid ltr">6 API · 1 جدول</text>
 </g><g>
   <rect x="692" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="763" y="293" class="lbl b">Suppliers</text>
-  <text x="763" y="311" class="lbl s">15 API · 4 جدول</text>
+  <text x="763" y="293" class="lbl b mid ltr">Suppliers</text>
+  <text x="763" y="311" class="lbl s mid ltr">15 API · 4 جدول</text>
 </g><g>
   <rect x="850" y="268" width="142" height="58" rx="8" class="mod"/>
-  <text x="921" y="293" class="lbl b">Sourcing</text>
-  <text x="921" y="311" class="lbl s">10 API · 3 جدول</text>
+  <text x="921" y="293" class="lbl b mid ltr">Sourcing</text>
+  <text x="921" y="311" class="lbl s mid ltr">10 API · 3 جدول</text>
 </g><g>
   <rect x="60" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="131" y="367" class="lbl b">Bom</text>
-  <text x="131" y="385" class="lbl s">21 API · 3 جدول</text>
+  <text x="131" y="367" class="lbl b mid ltr">Bom</text>
+  <text x="131" y="385" class="lbl s mid ltr">21 API · 3 جدول</text>
 </g><g>
   <rect x="218" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="289" y="367" class="lbl b">Planning</text>
-  <text x="289" y="385" class="lbl s">22 API · 9 جدول</text>
+  <text x="289" y="367" class="lbl b mid ltr">Planning</text>
+  <text x="289" y="385" class="lbl s mid ltr">22 API · 9 جدول</text>
 </g><g>
   <rect x="376" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="447" y="367" class="lbl b">Inventory</text>
-  <text x="447" y="385" class="lbl s">31 API · 5 جدول</text>
+  <text x="447" y="367" class="lbl b mid ltr">Inventory</text>
+  <text x="447" y="385" class="lbl s mid ltr">31 API · 5 جدول</text>
 </g><g>
   <rect x="534" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="605" y="367" class="lbl b">Production</text>
-  <text x="605" y="385" class="lbl s">22 API · 9 جدول</text>
+  <text x="605" y="367" class="lbl b mid ltr">Production</text>
+  <text x="605" y="385" class="lbl s mid ltr">22 API · 9 جدول</text>
 </g><g>
   <rect x="692" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="763" y="367" class="lbl b">PurchaseSupply</text>
-  <text x="763" y="385" class="lbl s">23 API · 10 جدول</text>
+  <text x="763" y="367" class="lbl b mid ltr">PurchaseSupply</text>
+  <text x="763" y="385" class="lbl s mid ltr">23 API · 10 جدول</text>
 </g><g>
   <rect x="850" y="342" width="142" height="58" rx="8" class="mod"/>
-  <text x="921" y="367" class="lbl b">Mrp</text>
-  <text x="921" y="385" class="lbl s">34 API · 29 جدول</text>
+  <text x="921" y="367" class="lbl b mid ltr">Mrp</text>
+  <text x="921" y="385" class="lbl s mid ltr">34 API · 29 جدول</text>
 </g><g>
   <rect x="60" y="416" width="142" height="58" rx="8" class="mod"/>
-  <text x="131" y="441" class="lbl b">OrderPlanning</text>
-  <text x="131" y="459" class="lbl s">6 API · 4 جدول</text>
+  <text x="131" y="441" class="lbl b mid ltr">OrderPlanning</text>
+  <text x="131" y="459" class="lbl s mid ltr">6 API · 4 جدول</text>
 </g><g>
   <rect x="218" y="416" width="142" height="58" rx="8" class="mod"/>
-  <text x="289" y="441" class="lbl b">Analytics</text>
-  <text x="289" y="459" class="lbl s">7 API · 0 جدول</text>
+  <text x="289" y="441" class="lbl b mid ltr">Analytics</text>
+  <text x="289" y="459" class="lbl s mid ltr">7 API · 0 جدول</text>
 </g><g>
   <rect x="376" y="416" width="142" height="58" rx="8" class="mod"/>
-  <text x="447" y="441" class="lbl b">CashFlow</text>
-  <text x="447" y="459" class="lbl s">36 API · 7 جدول</text>
+  <text x="447" y="441" class="lbl b mid ltr">CashFlow</text>
+  <text x="447" y="459" class="lbl s mid ltr">36 API · 7 جدول</text>
 </g><g>
   <rect x="534" y="416" width="142" height="58" rx="8" class="mod"/>
-  <text x="605" y="441" class="lbl b">Trading</text>
-  <text x="605" y="459" class="lbl s">31 API · 11 جدول</text>
+  <text x="605" y="441" class="lbl b mid ltr">Trading</text>
+  <text x="605" y="459" class="lbl s mid ltr">31 API · 11 جدول</text>
 </g><g>
   <rect x="692" y="416" width="142" height="58" rx="8" class="mod"/>
-  <text x="763" y="441" class="lbl b">Collaboration</text>
-  <text x="763" y="459" class="lbl s">55 API · 15 جدول</text>
+  <text x="763" y="441" class="lbl b mid ltr">Collaboration</text>
+  <text x="763" y="459" class="lbl s mid ltr">55 API · 15 جدول</text>
 </g>
 
   <rect x="60" y="500" width="620" height="96" rx="10" class="layer db"/>
-  <text x="370" y="530" class="lbl b t1">PostgreSQL 18 — یک دیتابیس، 13 اسکیما، 129 جدول</text>
-  <text x="370" y="556" class="lbl s ltr">cash_flow, catalog, collaboration, engineering, identity, inventory, organization, planning, platform, procurement, production, reference_data, trading</text>
-  <text x="370" y="578" class="lbl s">EF Core + Migration · Isolation بین ماژول‌ها فقط قراردادی است</text>
+  <text x="370" y="528" class="lbl b t1 mid ltr">PostgreSQL 18 — یک دیتابیس، 13 اسکیما، 129 جدول</text>
+  <text x="370" y="550" class="lbl s ltr mid">cash_flow, catalog, collaboration, engineering, identity, inventory, organization</text>
+  <text x="370" y="566" class="lbl s ltr mid">planning, platform, procurement, production, reference_data, trading</text>
+  <text x="370" y="586" class="lbl s mid ltr">EF Core + Migration · Isolation بین ماژول‌ها فقط قراردادی است</text>
 
   <rect x="710" y="500" width="310" height="96" rx="10" class="layer sto"/>
-  <text x="865" y="530" class="lbl b t1">MinIO — S3 سازگار</text>
-  <text x="865" y="556" class="lbl s">عکس پرسنلی (خصوصی)</text>
-  <text x="865" y="578" class="lbl s">فایل‌های Collaboration</text>
+  <text x="865" y="530" class="lbl b t1 mid ltr">MinIO — S3 سازگار</text>
+  <text x="865" y="556" class="lbl s mid">عکس پرسنلی (خصوصی)</text>
+  <text x="865" y="578" class="lbl s mid">فایل‌های Collaboration</text>
 
   <line x1="370" y1="440" x2="370" y2="496" class="flow" marker-end="url(#ar)"/>
   <line x1="865" y1="440" x2="865" y2="496" class="flow" marker-end="url(#ar)"/>
@@ -352,58 +354,58 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
   <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
   <g>
   <rect x="30" y="30" width="700" height="56" rx="9" class="st n"/>
-  <circle cx="60" cy="58" r="15" class="num"/><text x="60" y="64" class="lbl num">1</text>
+  <circle cx="60" cy="58" r="15" class="num"/><text x="60" y="64" class="lbl num ltr">1</text>
   <text x="90" y="54" class="lbl b ltr">UseExceptionHandler</text>
-  <text x="90" y="73" class="lbl s">HadronExceptionHandler → ProblemDetails</text>
-  <text x="742" y="63" class="lbl s code">همه خطاها به یک شکل JSON استاندارد</text>
+  <text x="90" y="73" class="lbl s ltr">HadronExceptionHandler → ProblemDetails</text>
+  <text x="742" y="63" class="lbl s code en">همه خطاها به یک شکل JSON استاندارد</text>
 </g><line x1="380" y1="86" x2="380" y2="102" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="102" width="700" height="56" rx="9" class="st n"/>
-  <circle cx="60" cy="130" r="15" class="num"/><text x="60" y="136" class="lbl num">2</text>
+  <circle cx="60" cy="130" r="15" class="num"/><text x="60" y="136" class="lbl num ltr">2</text>
   <text x="90" y="126" class="lbl b ltr">UseRateLimiter</text>
-  <text x="90" y="145" class="lbl s">۴ پالیسی: login ۱۰/دقیقه · bootstrap ۵/۱۵دقیقه · guest-invitation ۳۰۰/دقیقه · guest-session ۱۲۰۰/دقیقه</text>
-  <text x="742" y="135" class="lbl s code">۴۲۹ + code=RATE_LIMITED</text>
+  <text x="90" y="145" class="lbl s en">۴ پالیسی: login ۱۰/دقیقه · bootstrap ۵/۱۵دقیقه · guest-invitation ۳۰۰/دقیقه · guest-session ۱۲۰۰/دقیقه</text>
+  <text x="742" y="135" class="lbl s code ltr">۴۲۹ + code=RATE_LIMITED</text>
 </g><line x1="380" y1="158" x2="380" y2="174" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="174" width="700" height="56" rx="9" class="st g"/>
-  <circle cx="60" cy="202" r="15" class="num"/><text x="60" y="208" class="lbl num">3</text>
+  <circle cx="60" cy="202" r="15" class="num"/><text x="60" y="208" class="lbl num ltr">3</text>
   <text x="90" y="198" class="lbl b ltr">UseAuthentication</text>
-  <text x="90" y="217" class="lbl s">کوکی hadron.erp.session · HttpOnly · SameSite=Lax · ۸ ساعت Sliding</text>
-  <text x="742" y="207" class="lbl s code">۴۰۱ AUTHENTICATION_REQUIRED</text>
+  <text x="90" y="217" class="lbl s en">کوکی hadron.erp.session · HttpOnly · SameSite=Lax · ۸ ساعت Sliding</text>
+  <text x="742" y="207" class="lbl s code ltr">۴۰۱ AUTHENTICATION_REQUIRED</text>
 </g><line x1="380" y1="230" x2="380" y2="246" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="246" width="700" height="56" rx="9" class="st g"/>
-  <circle cx="60" cy="274" r="15" class="num"/><text x="60" y="280" class="lbl num">4</text>
+  <circle cx="60" cy="274" r="15" class="num"/><text x="60" y="280" class="lbl num ltr">4</text>
   <text x="90" y="270" class="lbl b ltr">IdentitySessionMiddleware</text>
-  <text x="90" y="289" class="lbl s">IsActive؟ · AccessVersion مطابقت؟ · Session باطل نشده؟ · MustChangePassword؟</text>
-  <text x="742" y="279" class="lbl s code">۴۰۱ SESSION_REVOKED / ۴۰۳ PASSWORD_CHANGE_REQUIRED</text>
+  <text x="90" y="289" class="lbl s ltr">IsActive؟ · AccessVersion مطابقت؟ · Session باطل نشده؟ · MustChangePassword؟</text>
+  <text x="742" y="279" class="lbl s code ltr">۴۰۱ SESSION_REVOKED / ۴۰۳ PASSWORD_CHANGE_REQUIRED</text>
 </g><line x1="380" y1="302" x2="380" y2="318" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="318" width="700" height="56" rx="9" class="st g"/>
-  <circle cx="60" cy="346" r="15" class="num"/><text x="60" y="352" class="lbl num">5</text>
+  <circle cx="60" cy="346" r="15" class="num"/><text x="60" y="352" class="lbl num ltr">5</text>
   <text x="90" y="342" class="lbl b ltr">ApiAntiforgeryMiddleware</text>
-  <text x="90" y="361" class="lbl s">متدهای ناامن روی /api (جز /api/auth/bootstrap) باید توکن CSRF داشته باشند</text>
-  <text x="742" y="351" class="lbl s code">۴۰۰ CSRF_VALIDATION_FAILED</text>
+  <text x="90" y="361" class="lbl s en">متدهای ناامن روی /api (جز /api/auth/bootstrap) باید توکن CSRF داشته باشند</text>
+  <text x="742" y="351" class="lbl s code ltr">۴۰۰ CSRF_VALIDATION_FAILED</text>
 </g><line x1="380" y1="374" x2="380" y2="390" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="390" width="700" height="56" rx="9" class="st r"/>
-  <circle cx="60" cy="418" r="15" class="num"/><text x="60" y="424" class="lbl num">6</text>
+  <circle cx="60" cy="418" r="15" class="num"/><text x="60" y="424" class="lbl num ltr">6</text>
   <text x="90" y="414" class="lbl b ltr">ApiPermissionMiddleware</text>
-  <text x="90" y="433" class="lbl s">Fail-Closed: هر endpoint زیر /api بدون RequiredPermissionMetadata رد می‌شود</text>
-  <text x="742" y="423" class="lbl s code">۴۰۳ UNREGISTERED_API_PERMISSION</text>
+  <text x="90" y="433" class="lbl s ltr">Fail-Closed: هر endpoint زیر /api بدون RequiredPermissionMetadata رد می‌شود</text>
+  <text x="742" y="423" class="lbl s code ltr">۴۰۳ UNREGISTERED_API_PERMISSION</text>
 </g><line x1="380" y1="446" x2="380" y2="462" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="462" width="700" height="56" rx="9" class="st r"/>
-  <circle cx="60" cy="490" r="15" class="num"/><text x="60" y="496" class="lbl num">7</text>
+  <circle cx="60" cy="490" r="15" class="num"/><text x="60" y="496" class="lbl num ltr">7</text>
   <text x="90" y="486" class="lbl b ltr">UseAuthorization</text>
-  <text x="90" y="505" class="lbl s">پالیسی هم‌نام با کد دسترسی → Assertion روی Claimها</text>
-  <text x="742" y="495" class="lbl s code">۴۰۳ PERMISSION_DENIED</text>
+  <text x="90" y="505" class="lbl s en">پالیسی هم‌نام با کد دسترسی → Assertion روی Claimها</text>
+  <text x="742" y="495" class="lbl s code ltr">۴۰۳ PERMISSION_DENIED</text>
 </g><line x1="380" y1="518" x2="380" y2="534" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="534" width="700" height="56" rx="9" class="st b"/>
-  <circle cx="60" cy="562" r="15" class="num"/><text x="60" y="568" class="lbl num">8</text>
+  <circle cx="60" cy="562" r="15" class="num"/><text x="60" y="568" class="lbl num ltr">8</text>
   <text x="90" y="558" class="lbl b ltr">Endpoint Handler</text>
-  <text x="90" y="577" class="lbl s">Minimal API · فقط اعتبارسنجی ورودی و نگاشت خطا</text>
-  <text x="742" y="567" class="lbl s code">—</text>
+  <text x="90" y="577" class="lbl s ltr">Minimal API · فقط اعتبارسنجی ورودی و نگاشت خطا</text>
+  <text x="742" y="567" class="lbl s code ltr">—</text>
 </g><line x1="380" y1="590" x2="380" y2="606" class="flow" marker-end="url(#ar2)"/><g>
   <rect x="30" y="606" width="700" height="56" rx="9" class="st b"/>
-  <circle cx="60" cy="634" r="15" class="num"/><text x="60" y="640" class="lbl num">9</text>
+  <circle cx="60" cy="634" r="15" class="num"/><text x="60" y="640" class="lbl num ltr">9</text>
   <text x="90" y="630" class="lbl b ltr">Module Service</text>
-  <text x="90" y="649" class="lbl s">منطق دامنه + DbContext جدید از Factory + Audit</text>
-  <text x="742" y="639" class="lbl s code">—</text>
+  <text x="90" y="649" class="lbl s en">منطق دامنه + DbContext جدید از Factory + Audit</text>
+  <text x="742" y="639" class="lbl s code ltr">—</text>
 </g>
 </svg></div>
 
@@ -466,23 +468,23 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
     (Supplier, Part, Component, BOM, Purchase Order) <b>همین الگو</b> را تکرار می‌کنند.
   </p>
 
-  <div class="card"><svg viewBox="0 0 1140 740" class="dia" role="img" aria-label="ثبت کالا">
+  <div class="card"><svg viewBox="0 0 1140 980" class="dia" role="img" aria-label="ثبت کالا">
   <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
   <g><rect x="2" y="18" width="176" height="40" rx="8" class="lane"/>
-  <text x="90" y="44" class="lbl b">مرورگر</text></g>
-  <line x1="90" y1="58" x2="90" y2="700" class="life"/><g><rect x="212" y="18" width="176" height="40" rx="8" class="lane"/>
-  <text x="300" y="44" class="lbl b">ProductEndpoints</text></g>
-  <line x1="300" y1="58" x2="300" y2="700" class="life"/><g><rect x="457" y="18" width="176" height="40" rx="8" class="lane"/>
-  <text x="545" y="44" class="lbl b">ProductService</text></g>
-  <line x1="545" y1="58" x2="545" y2="700" class="life"/><g><rect x="742" y="18" width="176" height="40" rx="8" class="lane"/>
-  <text x="830" y="44" class="lbl b">PostgreSQL</text></g>
-  <line x1="830" y1="58" x2="830" y2="700" class="life"/><g><rect x="947" y="18" width="176" height="40" rx="8" class="lane"/>
-  <text x="1035" y="44" class="lbl b">AuditSink</text></g>
-  <line x1="1035" y1="58" x2="1035" y2="700" class="life"/><line x1="90" y1="78" x2="300" y2="78" class="msg s" marker-end="url(#ar3)"/><text x="195.0" y="70" class="lbl b mid">POST /api/products/</text><text x="195.0" y="96" class="lbl s mid">بدنه: nameFa, nameEn, productCategoryId, baseUnitId, businessUnitId, safetyStockQty, criticalDays, safeStartDays, excessStartDays, notes</text><line x1="300" y1="126" x2="545" y2="126" class="msg s" marker-end="url(#ar3)"/><text x="422.5" y="118" class="lbl b mid">service.Create(request)</text><text x="422.5" y="144" class="lbl s mid">RequirePermission(catalog.product.manage) قبلاً در pipeline چک شده</text><g><rect x="315" y="158" width="460" height="34" rx="7" class="self"/>
-  <text x="545" y="180" class="lbl b">۱) Validate(...)</text></g>
-  <text x="545" y="206" class="lbl s mid">طول نام‌ها · safetyStockQty ≥ ۰ · ۰ ≤ Critical ≤ SafeStart ≤ ExcessStart → خطا: ProductValidationException → ۴۰۰</text><line x1="545" y1="222" x2="830" y2="222" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="214" class="lbl b mid">۲) ValidateReferences</text><text x="687.5" y="240" class="lbl s mid">PRODUCT_CATEGORY فعال؟ · Unit فعال؟ · BUSINESS_UNIT فعال؟</text><line x1="830" y1="270" x2="545" y2="270" class="msg r" marker-end="url(#ar3)"/><text x="687.5" y="262" class="lbl b mid">dictionary خطاها</text><text x="687.5" y="288" class="lbl s mid">اگر مرجع نامعتبر باشد → ۴۰۰ با کلید فیلد فارسی</text><line x1="545" y1="318" x2="830" y2="318" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="310" class="lbl b mid">۳) nextval('catalog.product_number_seq')</text><text x="687.5" y="336" class="lbl s mid">کد یکتا: PRD-0001, PRD-0002 …</text><g><rect x="315" y="350" width="460" height="34" rx="7" class="self"/>
-  <text x="545" y="372" class="lbl b">۴) new Item(PRODUCT, …) + new Product(…)</text></g>
-  <text x="545" y="398" class="lbl s mid">Item جدول مشترک PRODUCT/PART/COMPONENT است · Product فقط فیلدهای برنامه‌ریزی</text><line x1="545" y1="414" x2="830" y2="414" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="406" class="lbl b mid">۵) AddRange + SaveChangesAsync</text><text x="687.5" y="432" class="lbl s mid">INSERT catalog.items  ←  INSERT catalog.products (1:1 روی ItemId)</text><line x1="830" y1="462" x2="545" y2="462" class="msg r" marker-end="url(#ar3)"/><text x="687.5" y="454" class="lbl b mid">Check Constraints دیتابیس</text><text x="687.5" y="480" class="lbl s mid">ck_items_item_type · ck_items_business_number_format · ck_products_thresholds · ck_products_safety_stock</text><line x1="545" y1="510" x2="830" y2="510" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="502" class="lbl b mid">۶) LoadResponse (بازخوانی)</text><text x="687.5" y="528" class="lbl s mid">SELECT با Include روی Category / BaseUnit / BusinessUnit</text><line x1="545" y1="558" x2="830" y2="558" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="550" class="lbl b mid">۷) DuplicateWarnings</text><text x="687.5" y="576" class="lbl s mid">نام تکراری فقط Warning است: DUPLICATE_NAME_FA / DUPLICATE_NAME_EN</text><line x1="545" y1="606" x2="1035" y2="606" class="msg s" marker-end="url(#ar3)"/><text x="790.0" y="598" class="lbl b mid">۸) Emit(audit)</text><text x="790.0" y="624" class="lbl s mid">EntityType=Product · Action=CREATE · Old=null · New=Snapshot</text><line x1="1035" y1="654" x2="830" y2="654" class="msg s" marker-end="url(#ar3)"/><text x="932.5" y="646" class="lbl b mid">INSERT platform.operational_audit_events</text><text x="932.5" y="672" class="lbl s mid">Post-Commit · اگر شکست بخورد فقط Log می‌شود، تراکنش اصلی برنمی‌گردد</text><line x1="300" y1="702" x2="90" y2="702" class="msg r" marker-end="url(#ar3)"/><text x="195.0" y="694" class="lbl b mid">۲۰۱ Created + ProductMutationResponse</text><text x="195.0" y="720" class="lbl s mid">{ product, warnings[] }</text>
+  <text x="90" y="44" class="lbl b mid">مرورگر</text></g>
+  <line x1="90" y1="58" x2="90" y2="942" class="life"/><g><rect x="212" y="18" width="176" height="40" rx="8" class="lane"/>
+  <text x="300" y="44" class="lbl b mid ltr">ProductEndpoints</text></g>
+  <line x1="300" y1="58" x2="300" y2="942" class="life"/><g><rect x="457" y="18" width="176" height="40" rx="8" class="lane"/>
+  <text x="545" y="44" class="lbl b mid ltr">ProductService</text></g>
+  <line x1="545" y1="58" x2="545" y2="942" class="life"/><g><rect x="742" y="18" width="176" height="40" rx="8" class="lane"/>
+  <text x="830" y="44" class="lbl b mid ltr">PostgreSQL</text></g>
+  <line x1="830" y1="58" x2="830" y2="942" class="life"/><g><rect x="947" y="18" width="176" height="40" rx="8" class="lane"/>
+  <text x="1035" y="44" class="lbl b mid ltr">AuditSink</text></g>
+  <line x1="1035" y1="58" x2="1035" y2="942" class="life"/><line x1="90" y1="78" x2="300" y2="78" class="msg s" marker-end="url(#ar3)"/><text x="195.0" y="70" class="lbl b mid ltr">POST /api/products/</text><text x="195.0" y="96" class="lbl s mid">بدنه: nameFa, nameEn, productCategoryId, baseUnitId,</text><text x="195.0" y="112" class="lbl s mid ltr">businessUnitId, safetyStockQty, criticalDays, …</text><line x1="300" y1="168" x2="545" y2="168" class="msg s" marker-end="url(#ar3)"/><text x="422.5" y="160" class="lbl b mid ltr">service.Create(request)</text><text x="422.5" y="186" class="lbl s mid ltr">RequirePermission(catalog.product.manage) قبلاً در pipeline چک شده</text><g><rect x="315" y="216" width="460" height="34" rx="7" class="self"/>
+  <text x="545" y="238" class="lbl b mid ltr">۱) Validate(...)</text></g>
+  <text x="545.0" y="270" class="lbl s mid">طول نام‌ها · safetyStockQty ≥ ۰ · ۰ ≤ Critical ≤ SafeStart ≤ ExcessStart → خطا: ProductValidationException → ۴۰۰</text><line x1="545" y1="296" x2="830" y2="296" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="288" class="lbl b mid ltr">۲) ValidateReferences</text><text x="687.5" y="314" class="lbl s mid ltr">PRODUCT_CATEGORY فعال؟ · Unit فعال؟ · BUSINESS_UNIT فعال؟</text><line x1="830" y1="360" x2="545" y2="360" class="msg r" marker-end="url(#ar3)"/><text x="687.5" y="352" class="lbl b mid ltr">dictionary خطاها</text><text x="687.5" y="378" class="lbl s mid">اگر مرجع نامعتبر باشد → ۴۰۰ با کلید فیلد فارسی</text><line x1="545" y1="424" x2="830" y2="424" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="416" class="lbl b mid ltr">۳) nextval('catalog.product_number_seq')</text><text x="687.5" y="442" class="lbl s mid">کد یکتا: PRD-0001, PRD-0002 …</text><g><rect x="315" y="472" width="460" height="34" rx="7" class="self"/>
+  <text x="545" y="494" class="lbl b mid ltr">۴) new Item(PRODUCT, …) + new Product(…)</text></g>
+  <text x="545.0" y="526" class="lbl s mid ltr">Item جدول مشترک PRODUCT/PART/COMPONENT است · Product فقط فیلدهای برنامه‌ریزی</text><line x1="545" y1="552" x2="830" y2="552" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="544" class="lbl b mid ltr">۵) AddRange + SaveChangesAsync</text><text x="687.5" y="570" class="lbl s mid ltr">INSERT catalog.items  ←  INSERT catalog.products (1:1 روی ItemId)</text><line x1="830" y1="616" x2="545" y2="616" class="msg r" marker-end="url(#ar3)"/><text x="687.5" y="608" class="lbl b mid ltr">Check Constraints دیتابیس</text><text x="687.5" y="634" class="lbl s mid ltr">ck_items_item_type · ck_items_business_number_format · ck_products_thresholds · ck_products_safety_stock</text><line x1="545" y1="680" x2="830" y2="680" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="672" class="lbl b mid ltr">۶) LoadResponse (بازخوانی)</text><text x="687.5" y="698" class="lbl s mid ltr">SELECT با Include روی Category / BaseUnit / BusinessUnit</text><line x1="545" y1="744" x2="830" y2="744" class="msg s" marker-end="url(#ar3)"/><text x="687.5" y="736" class="lbl b mid ltr">۷) DuplicateWarnings</text><text x="687.5" y="762" class="lbl s mid">نام تکراری فقط Warning است: DUPLICATE_NAME_FA / DUPLICATE_NAME_EN</text><line x1="545" y1="808" x2="1035" y2="808" class="msg s" marker-end="url(#ar3)"/><text x="790.0" y="800" class="lbl b mid ltr">۸) Emit(audit)</text><text x="790.0" y="826" class="lbl s mid ltr">EntityType=Product · Action=CREATE · Old=null · New=Snapshot</text><line x1="1035" y1="872" x2="830" y2="872" class="msg s" marker-end="url(#ar3)"/><text x="932.5" y="864" class="lbl b mid ltr">INSERT platform.operational_audit_events</text><text x="932.5" y="890" class="lbl s mid ltr">Post-Commit · اگر شکست بخورد فقط Log می‌شود، تراکنش اصلی برنمی‌گردد</text><line x1="300" y1="936" x2="90" y2="936" class="msg r" marker-end="url(#ar3)"/><text x="195.0" y="928" class="lbl b mid ltr">۲۰۱ Created + ProductMutationResponse</text><text x="195.0" y="954" class="lbl s mid ltr">{ product, warnings[] }</text>
 </svg></div>
 
   <h3>چه چیزی، در کدام جدول ثبت می‌شود</h3>
@@ -560,70 +562,70 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
   <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
   <rect x="40" y="20" width="330" height="112" rx="10" class="blk a"/>
-  <text x="205" y="48" class="lbl b t1">۱. تغییر ورودی در هر ماژول</text>
-  <text x="205" y="72" class="lbl s">Forecast · BOM Approve · Inventory Post</text>
-  <text x="205" y="92" class="lbl s">Purchase Order Status · Sourcing · Item</text>
-  <text x="205" y="112" class="lbl s">db.SaveChangesAsync()</text>
+  <text x="205" y="48" class="lbl b t1 mid">۱. تغییر ورودی در هر ماژول</text>
+  <text x="205" y="72" class="lbl s mid ltr">Forecast · BOM Approve · Inventory Post</text>
+  <text x="205" y="92" class="lbl s mid ltr">Purchase Order Status · Sourcing · Item</text>
+  <text x="205" y="112" class="lbl s mid ltr">db.SaveChangesAsync()</text>
 
   <line x1="370" y1="76" x2="418" y2="76" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="422" y="20" width="330" height="112" rx="10" class="blk b"/>
-  <text x="587" y="48" class="lbl b t1">۲. MrpInputChangeInterceptor</text>
-  <text x="587" y="72" class="lbl s">EF SaveChangesInterceptor — Singleton</text>
-  <text x="587" y="92" class="lbl s">ChangeTracker را اسکن می‌کند</text>
-  <text x="587" y="112" class="lbl s">فقط entity های watched</text>
+  <text x="587" y="48" class="lbl b t1 mid ltr">۲. MrpInputChangeInterceptor</text>
+  <text x="587" y="72" class="lbl s mid ltr">EF SaveChangesInterceptor — Singleton</text>
+  <text x="587" y="92" class="lbl s mid ltr">ChangeTracker را اسکن می‌کند</text>
+  <text x="587" y="112" class="lbl s mid">فقط entity های watched</text>
 
   <line x1="752" y1="76" x2="800" y2="76" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="804" y="20" width="276" height="112" rx="10" class="blk c"/>
-  <text x="942" y="48" class="lbl b t1">۳. Transactional Outbox</text>
-  <text x="942" y="72" class="lbl s ltr">planning.mrp_refresh_outbox</text>
-  <text x="942" y="92" class="lbl s">در همان تراکنش INSERT می‌شود</text>
-  <text x="942" y="112" class="lbl s">Debounce = ۴ ثانیه</text>
+  <text x="942" y="48" class="lbl b t1 mid ltr">۳. Transactional Outbox</text>
+  <text x="942" y="72" class="lbl s ltr mid">planning.mrp_refresh_outbox</text>
+  <text x="942" y="92" class="lbl s mid">در همان تراکنش INSERT می‌شود</text>
+  <text x="942" y="112" class="lbl s mid ltr">Debounce = ۴ ثانیه</text>
 
   <line x1="942" y1="132" x2="942" y2="168" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="40" y="172" width="1040" height="96" rx="10" class="blk d"/>
-  <text x="560" y="200" class="lbl b t1">۴. AutomaticMrpRefreshWorker — یک Background Service در همان هاست</text>
-  <text x="560" y="224" class="lbl s ltr">pg_try_advisory_lock('hadron:planning:automatic-mrp-refresh:v1')  →  فقط یک worker در کل کلاستر</text>
-  <text x="560" y="248" class="lbl s">Poll هر ۳ ثانیه · Lease ۱۰ دقیقه · MaxAttempts = ۳ · Backoff = ۲^n × ۵ ثانیه</text>
+  <text x="560" y="200" class="lbl b t1 mid ltr">۴. AutomaticMrpRefreshWorker — یک Background Service در همان هاست</text>
+  <text x="560" y="224" class="lbl s ltr mid">pg_try_advisory_lock('hadron:planning:automatic-mrp-refresh:v1')  →  فقط یک worker در کل کلاستر</text>
+  <text x="560" y="248" class="lbl s mid ltr">Poll هر ۳ ثانیه · Lease ۱۰ دقیقه · MaxAttempts = ۳ · Backoff = ۲^n × ۵ ثانیه</text>
 
   <line x1="240" y1="268" x2="240" y2="300" class="flow" marker-end="url(#ar4)"/>
   <line x1="880" y1="268" x2="880" y2="300" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="40" y="304" width="400" height="98" rx="10" class="blk e"/>
-  <text x="240" y="332" class="lbl b t1">۴a. Coalesce</text>
-  <text x="240" y="356" class="lbl s">اگر snapshot پلن CURRENT از جدیدترین</text>
-  <text x="240" y="376" class="lbl s">تغییر جدیدتر است → همه PENDING ها</text>
-  <text x="240" y="394" class="lbl s">بدون اجرای مجدد COMPLETED می‌شوند</text>
+  <text x="240" y="332" class="lbl b t1 mid ltr">۴a. Coalesce</text>
+  <text x="240" y="356" class="lbl s mid">اگر snapshot پلن CURRENT از جدیدترین</text>
+  <text x="240" y="376" class="lbl s mid">تغییر جدیدتر است → همه PENDING ها</text>
+  <text x="240" y="394" class="lbl s mid">بدون اجرای مجدد COMPLETED می‌شوند</text>
 
   <rect x="680" y="304" width="400" height="98" rx="10" class="blk e"/>
-  <text x="880" y="332" class="lbl b t1">۴b. قبل از هر Run</text>
-  <text x="880" y="356" class="lbl s">RecoverExpiredLeases (اجاره‌های منقضی)</text>
-  <text x="880" y="376" class="lbl s">EnsurePreviousDayCertified (گواهی روز قبل)</text>
-  <text x="880" y="394" class="lbl s">EnsureCalendarRefresh (تغییر روز تهران)</text>
+  <text x="880" y="332" class="lbl b t1 mid ltr">۴b. قبل از هر Run</text>
+  <text x="880" y="356" class="lbl s mid ltr">RecoverExpiredLeases (اجاره‌های منقضی)</text>
+  <text x="880" y="376" class="lbl s mid ltr">EnsurePreviousDayCertified (گواهی روز قبل)</text>
+  <text x="880" y="394" class="lbl s mid ltr">EnsureCalendarRefresh (تغییر روز تهران)</text>
 
   <line x1="560" y1="402" x2="560" y2="434" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="40" y="438" width="1040" height="150" rx="10" class="blk f"/>
-  <text x="560" y="466" class="lbl b t1">۵. MrpService.ExecuteCore — ارکستراسیون یک Run</text>
+  <text x="560" y="466" class="lbl b t1 mid ltr">۵. MrpService.ExecuteCore — ارکستراسیون یک Run</text>
   <g class="steps">
-    <rect x="66" y="486" width="180" height="42" rx="7" class="sub"/><text x="156" y="505" class="lbl b s">۱ Create MrpRun</text><text x="156" y="521" class="lbl s ltr">MRP-10.2.0</text>
-    <rect x="262" y="486" width="180" height="42" rx="7" class="sub"/><text x="352" y="505" class="lbl b s">۲ CaptureSnapshot</text><text x="352" y="521" class="lbl s">ورودی‌ها فریز می‌شوند</text>
-    <rect x="458" y="486" width="180" height="42" rx="7" class="sub"/><text x="548" y="505" class="lbl b s">۳ LoadCalcInput</text><text x="548" y="521" class="lbl s">از روی snapshot</text>
-    <rect x="654" y="486" width="180" height="42" rx="7" class="sub"/><text x="744" y="505" class="lbl b s">۴ Calculator</text><text x="744" y="521" class="lbl s">کاملاً خالص · بدون DB</text>
-    <rect x="850" y="486" width="204" height="42" rx="7" class="sub"/><text x="952" y="505" class="lbl b s">۵ PersistResults</text><text x="952" y="521" class="lbl s">+ Activate / Certify</text>
+    <rect x="66" y="486" width="180" height="42" rx="7" class="sub"/><text x="156" y="505" class="lbl b s mid ltr">۱ Create MrpRun</text><text x="156" y="521" class="lbl s ltr mid">MRP-10.2.0</text>
+    <rect x="262" y="486" width="180" height="42" rx="7" class="sub"/><text x="352" y="505" class="lbl b s mid ltr">۲ CaptureSnapshot</text><text x="352" y="521" class="lbl s mid">ورودی‌ها فریز می‌شوند</text>
+    <rect x="458" y="486" width="180" height="42" rx="7" class="sub"/><text x="548" y="505" class="lbl b s mid ltr">۳ LoadCalcInput</text><text x="548" y="521" class="lbl s mid">از روی snapshot</text>
+    <rect x="654" y="486" width="180" height="42" rx="7" class="sub"/><text x="744" y="505" class="lbl b s mid ltr">۴ Calculator</text><text x="744" y="521" class="lbl s mid">کاملاً خالص · بدون DB</text>
+    <rect x="850" y="486" width="204" height="42" rx="7" class="sub"/><text x="952" y="505" class="lbl b s mid ltr">۵ PersistResults</text><text x="952" y="521" class="lbl s mid ltr">+ Activate / Certify</text>
   </g>
-  <text x="560" y="558" class="lbl s">اگر خطا: MarkFailed + DiscardTransientRun (برای Run های PUBLISHED حذف نمی‌شود تا قابل بررسی بماند)</text>
-  <text x="560" y="578" class="lbl s">سه purpose: PUBLISHED (دستی توسط کاربر) · CURRENT (خودکار) · CERTIFIED (پایان روز)</text>
+  <text x="560" y="558" class="lbl s mid">اگر خطا: MarkFailed + DiscardTransientRun (برای Run های PUBLISHED حذف نمی‌شود تا قابل بررسی بماند)</text>
+  <text x="560" y="578" class="lbl s mid">سه purpose: PUBLISHED (دستی توسط کاربر) · CURRENT (خودکار) · CERTIFIED (پایان روز)</text>
 
   <line x1="560" y1="588" x2="560" y2="620" class="flow" marker-end="url(#ar4)"/>
 
   <rect x="40" y="624" width="1040" height="112" rx="10" class="blk g"/>
-  <text x="560" y="652" class="lbl b t1">۶. MrpCalculator — الگوریتم (خالص، بدون I/O → راحت تست می‌شود)</text>
-  <text x="560" y="676" class="lbl s">Topological Order روی گراف BOM (Kahn) · در صورت حلقه: BOM_CYCLE_DETECTED</text>
-  <text x="560" y="698" class="lbl s ltr">beforePlanning = balance + incoming − grossQty   ·   net = max(SafetyStock − beforePlanning, 0)</text>
-  <text x="560" y="720" class="lbl s ltr">childGross = parentNet × usage / baseOutput × (1 + scrap/100)   ·   scrap: BOM_OVERRIDE یا ITEM_DEFAULT</text>
+  <text x="560" y="652" class="lbl b t1 mid ltr">۶. MrpCalculator — الگوریتم (خالص، بدون I/O → راحت تست می‌شود)</text>
+  <text x="560" y="676" class="lbl s mid ltr">Topological Order روی گراف BOM (Kahn) · در صورت حلقه: BOM_CYCLE_DETECTED</text>
+  <text x="560" y="698" class="lbl s ltr mid">beforePlanning = balance + incoming − grossQty   ·   net = max(SafetyStock − beforePlanning, 0)</text>
+  <text x="560" y="720" class="lbl s ltr mid">childGross = parentNet × usage / baseOutput × (1 + scrap/100)   ·   scrap: BOM_OVERRIDE یا ITEM_DEFAULT</text>
 </svg></div>
 
   <h3>چه تغییراتی MRP را بیدار می‌کنند</h3>
@@ -751,27 +753,27 @@ explode(parent, qty, date):
   <div class="card"><svg viewBox="0 0 1120 700" class="dia" role="img" aria-label="مدل دسترسی">
   <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
 
-  <text x="560" y="34" class="lbl b t1">فرمول دسترسی مؤثر — هنگام لاگین در HadronClaimsPrincipalFactory محاسبه و داخل کوکی Claim می‌شود</text>
+  <text x="560" y="34" class="lbl b t1 mid">فرمول دسترسی مؤثر — هنگام لاگین در HadronClaimsPrincipalFactory محاسبه و داخل کوکی Claim می‌شود</text>
 
   <rect x="60" y="58" width="240" height="88" rx="10" class="src a"/>
-  <text x="180" y="88" class="lbl b">Role Permissions</text>
-  <text x="180" y="112" class="lbl s ltr">identity.role_claims</text>
-  <text x="180" y="132" class="lbl s ltr">ClaimType = hadron:permission</text>
+  <text x="180" y="88" class="lbl b mid ltr">Role Permissions</text>
+  <text x="180" y="112" class="lbl s ltr mid">identity.role_claims</text>
+  <text x="180" y="132" class="lbl s ltr mid">ClaimType = hadron:permission</text>
 
   <rect x="330" y="58" width="240" height="88" rx="10" class="src b"/>
-  <text x="450" y="88" class="lbl b">Direct GRANT</text>
-  <text x="450" y="112" class="lbl s ltr">identity.user_permission_overrides</text>
-  <text x="450" y="132" class="lbl s ltr">Effect = GRANT</text>
+  <text x="450" y="88" class="lbl b mid ltr">Direct GRANT</text>
+  <text x="450" y="112" class="lbl s ltr mid">identity.user_permission_overrides</text>
+  <text x="450" y="132" class="lbl s ltr mid">Effect = GRANT</text>
 
   <rect x="600" y="58" width="240" height="88" rx="10" class="src c"/>
-  <text x="720" y="88" class="lbl b">Direct DENY</text>
-  <text x="720" y="112" class="lbl s ltr">identity.user_permission_overrides</text>
-  <text x="720" y="132" class="lbl s ltr">Effect = DENY</text>
+  <text x="720" y="88" class="lbl b mid ltr">Direct DENY</text>
+  <text x="720" y="112" class="lbl s ltr mid">identity.user_permission_overrides</text>
+  <text x="720" y="132" class="lbl s ltr mid">Effect = DENY</text>
 
   <rect x="870" y="58" width="200" height="88" rx="10" class="src d"/>
-  <text x="970" y="88" class="lbl b">SystemAdministrator</text>
-  <text x="970" y="112" class="lbl s">همه ۱۳۵ کد</text>
-  <text x="970" y="132" class="lbl s">Deny رویش اثر ندارد</text>
+  <text x="970" y="88" class="lbl b mid ltr">SystemAdministrator</text>
+  <text x="970" y="112" class="lbl s mid">همه ۱۳۵ کد</text>
+  <text x="970" y="132" class="lbl s mid ltr">Deny رویش اثر ندارد</text>
 
   <line x1="180" y1="146" x2="420" y2="196" class="flow" marker-end="url(#ar5)"/>
   <line x1="450" y1="146" x2="500" y2="196" class="flow" marker-end="url(#ar5)"/>
@@ -779,44 +781,44 @@ explode(parent, qty, date):
   <line x1="970" y1="146" x2="700" y2="196" class="flow" marker-end="url(#ar5)"/>
 
   <rect x="330" y="200" width="460" height="70" rx="10" class="res"/>
-  <text x="560" y="230" class="lbl b t1">Effective Permissions</text>
-  <text x="560" y="254" class="lbl s ltr">(roleClaims ∪ grants) − denies</text>
+  <text x="560" y="230" class="lbl b t1 mid ltr">Effective Permissions</text>
+  <text x="560" y="254" class="lbl s ltr mid">(roleClaims ∪ grants) − denies</text>
 
   <line x1="560" y1="270" x2="560" y2="304" class="flow" marker-end="url(#ar5)"/>
 
   <rect x="120" y="308" width="880" height="64" rx="10" class="claim"/>
-  <text x="560" y="334" class="lbl b">Claims داخل کوکی نشست</text>
-  <text x="560" y="358" class="lbl s ltr">hadron:permission (چندتایی) · hadron:permission-deny · hadron:access-version · hadron:session-id · hadron:must-change-password · hadron:full-name</text>
+  <text x="560" y="334" class="lbl b mid ltr">Claims داخل کوکی نشست</text>
+  <text x="560" y="358" class="lbl s ltr mid">hadron:permission (چندتایی) · hadron:permission-deny · hadron:access-version · hadron:session-id · hadron:must-change-password · hadron:full-name</text>
 
-  <text x="560" y="404" class="lbl b t1">سه لایه مستقل — هر سه باید جواب مثبت بدهند</text>
+  <text x="560" y="404" class="lbl b t1 mid">سه لایه مستقل — هر سه باید جواب مثبت بدهند</text>
 
   <rect x="60" y="424" width="320" height="150" rx="10" class="lay1"/>
-  <text x="220" y="452" class="lbl b t1">RBAC — چه کاری مجاز است</text>
-  <text x="220" y="478" class="lbl s">پالیسی هم‌نام با کد دسترسی</text>
-  <text x="220" y="500" class="lbl s ltr">RequireAuthenticatedUser()</text>
-  <text x="220" y="522" class="lbl s ltr">&amp;&amp; HasClaim(permission, code)</text>
-  <text x="220" y="544" class="lbl s ltr">&amp;&amp; !HasClaim(deny, code)</text>
-  <text x="220" y="566" class="lbl s">خروجی: ۴۰۳ PERMISSION_DENIED</text>
+  <text x="220" y="452" class="lbl b t1 mid ltr">RBAC — چه کاری مجاز است</text>
+  <text x="220" y="478" class="lbl s mid">پالیسی هم‌نام با کد دسترسی</text>
+  <text x="220" y="500" class="lbl s ltr mid">RequireAuthenticatedUser()</text>
+  <text x="220" y="522" class="lbl s ltr mid">&amp;&amp; HasClaim(permission, code)</text>
+  <text x="220" y="544" class="lbl s ltr mid">&amp;&amp; !HasClaim(deny, code)</text>
+  <text x="220" y="566" class="lbl s mid">خروجی: ۴۰۳ PERMISSION_DENIED</text>
 
   <rect x="400" y="424" width="320" height="150" rx="10" class="lay2"/>
-  <text x="560" y="452" class="lbl b t1">Data Scope — کدام رکوردها</text>
-  <text x="560" y="478" class="lbl s ltr">identity.user_data_scopes</text>
-  <text x="560" y="500" class="lbl s ltr">ALL | WAREHOUSE:{id}</text>
-  <text x="560" y="522" class="lbl s">داخل Service اعمال می‌شود،</text>
-  <text x="560" y="544" class="lbl s">نه در Middleware</text>
-  <text x="560" y="566" class="lbl s">خروجی: ۴۰۹ WAREHOUSE_SCOPE_DENIED</text>
+  <text x="560" y="452" class="lbl b t1 mid ltr">Data Scope — کدام رکوردها</text>
+  <text x="560" y="478" class="lbl s ltr mid">identity.user_data_scopes</text>
+  <text x="560" y="500" class="lbl s ltr mid">ALL | WAREHOUSE:{id}</text>
+  <text x="560" y="522" class="lbl s mid">داخل Service اعمال می‌شود،</text>
+  <text x="560" y="544" class="lbl s mid">نه در Middleware</text>
+  <text x="560" y="566" class="lbl s mid">خروجی: ۴۰۹ WAREHOUSE_SCOPE_DENIED</text>
 
   <rect x="740" y="424" width="320" height="150" rx="10" class="lay3"/>
-  <text x="900" y="452" class="lbl b t1">Business Policy — آیا الان معتبر است</text>
-  <text x="900" y="478" class="lbl s">وضعیت چرخه عمر رکورد</text>
-  <text x="900" y="500" class="lbl s">قوانین دامنه و یکپارچگی</text>
-  <text x="900" y="522" class="lbl s">Optimistic Concurrency (Version)</text>
-  <text x="900" y="544" class="lbl s">دسترسی هرگز این‌ها را</text>
-  <text x="900" y="566" class="lbl s">دور نمی‌زند</text>
+  <text x="900" y="452" class="lbl b t1 mid ltr">Business Policy — آیا الان معتبر است</text>
+  <text x="900" y="478" class="lbl s mid">وضعیت چرخه عمر رکورد</text>
+  <text x="900" y="500" class="lbl s mid">قوانین دامنه و یکپارچگی</text>
+  <text x="900" y="522" class="lbl s mid ltr">Optimistic Concurrency (Version)</text>
+  <text x="900" y="544" class="lbl s mid">دسترسی هرگز این‌ها را</text>
+  <text x="900" y="566" class="lbl s mid">دور نمی‌زند</text>
 
   <rect x="60" y="600" width="1000" height="76" rx="10" class="note"/>
-  <text x="560" y="628" class="lbl b">UI Visibility امنیت نیست</text>
-  <text x="560" y="652" class="lbl s">منو، Route و دکمه‌ها از همان effective permissions استفاده می‌کنند تا رابط تمیز بماند — اما منبع حقیقت همیشه بک‌اند است</text>
+  <text x="560" y="628" class="lbl b mid ltr">UI Visibility امنیت نیست</text>
+  <text x="560" y="652" class="lbl s mid">منو، Route و دکمه‌ها از همان effective permissions استفاده می‌کنند تا رابط تمیز بماند — اما منبع حقیقت همیشه بک‌اند است</text>
 </svg></div>
 
   <h3>مراحل احراز هویت — از صفر تا نشست فعال</h3>
