@@ -36,6 +36,7 @@ h3{font-size:16px;margin:26px 0 8px;color:var(--ac)}
 p.lead{color:var(--mut);margin:8px 0 18px;max-width:960px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto}
 .dia{width:100%;height:auto;min-width:820px;display:block}
+.dia.wide{min-width:1300px}
 .note{background:#12203a;border:1px solid #25406b;border-right:4px solid var(--ac);
   border-radius:9px;padding:13px 16px;margin:14px 0}
 .note.w{background:#2a2312;border-color:#5c4a1c;border-right-color:var(--warn)}
@@ -124,6 +125,7 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
 .dia .blk.e{fill:#1a2130;stroke:var(--line2)}.dia .blk.f{fill:#12203a;stroke:#25406b}
 .dia .blk.g{fill:#0f2426;stroke:#1d5c5c}
 .dia .sub{fill:#222c3d;stroke:var(--line2)}
+.dia .sub.miss{fill:#2b1416;stroke:#6b2529;stroke-dasharray:5 4}
 .dia .src{fill:#1a2130;stroke:var(--line2)}
 .dia .src.a{fill:#11231a;stroke:#1d5c34}.dia .src.b{fill:#12203a;stroke:#25406b}
 .dia .src.c{fill:#2b1416;stroke:#6b2529}.dia .src.d{fill:#241a38;stroke:#4a3568}
@@ -165,7 +167,7 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
   <button data-t="catalog">۶ · کاتالوگ دسترسی‌ها</button>
   <button data-t="modules">۷ · نقشه ماژول‌ها</button>
   <button data-t="rewrite">۸ · راهنمای بازنویسی</button>
-  <button data-t="chain">۹ · زنجیره سفارش</button>
+  <button data-t="chain">۹ · سفارش تا تولید</button>
 </nav>
 
 <main>
@@ -1326,7 +1328,7 @@ explode(parent, qty, date):
 
 <!-- ============================ 9 ============================ -->
 <section id="chain">
-  <h2>زنجیره‌ی سفارش — وقتی یک API باید ماژول‌های دیگر را خبر کند</h2>
+  <h2>زنجیره‌ی سفارش تا تولید — نقشه کامل flow و شاخه‌های هر API</h2>
   <p class="lead">
     سؤال: «وقتی سفارش کالا ثبت می‌شود، functionهای دیگری مثل informToSell و informToTrade هم صدا زده می‌شوند؟»
     پاسخ کوتاه: <b>نه — چنین رابطه‌ای در سورس فعلی وجود ندارد و جای خالی‌اش هم دقیق مشخص است.</b>
@@ -1336,6 +1338,147 @@ explode(parent, qty, date):
     ۲) <code>IAuditEventSink</code> (فقط audit — و طبق ARCHITECTURE.md هاست فعلاً no-op ثبت می‌کند)،
     ۳) جدول audit محلی خود Trading.
   </p>
+
+  <h3>نقشه کل جریان — هر API اصلی و شاخه‌هایی که صدا می‌زند</h3>
+  <div class="card"><svg viewBox="0 0 1332 800" class="dia wide" role="img" aria-label="نقشه کل جریان از سفارش تا تولید">
+  <defs><marker id="arf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
+  <text x="650" y="36" class="lbl b t1 mid">ردیف ۱ — چرخه سفارش و واردات (Trading)</text>
+  <rect x="1054" y="64" width="240" height="86" rx="10" class="blk b"/>
+  <text x="1174" y="96" class="lbl b t2 mid">۱. ثبت سفارش</text>
+  <text x="1174" y="122" class="code mid ltr">/api/trading/order-registrations</text>
+  <line x1="1174" y1="166" x2="1174" y2="332" class="life"/>
+  <rect x="1074" y="190" width="200" height="34" rx="7" class="sub"/>
+  <text x="1174" y="212" class="lbl s mid ltr">{id}/status ✓</text>
+  <rect x="1074" y="234" width="200" height="34" rx="7" class="sub"/>
+  <text x="1174" y="256" class="lbl s mid ltr">audit محلی Trading ✓</text>
+  <rect x="1074" y="278" width="200" height="34" rx="7" class="sub miss"/>
+  <text x="1174" y="300" class="lbl s mid">تعهد پرداخت CashFlow ✗</text>
+  <rect x="1074" y="322" width="200" height="34" rx="7" class="sub miss"/>
+  <text x="1174" y="344" class="lbl s mid">اعلان Collaboration ✗</text>
+  <rect x="802" y="64" width="240" height="86" rx="10" class="blk b"/>
+  <text x="922" y="96" class="lbl b t2 mid">۲. تخصیص ارز</text>
+  <text x="922" y="122" class="code mid ltr">/api/trading/fx-allocations</text>
+  <line x1="922" y1="166" x2="922" y2="244" class="life"/>
+  <rect x="822" y="190" width="200" height="34" rx="7" class="sub"/>
+  <text x="922" y="212" class="lbl s mid ltr">{id}/status REQUEST→RECEIPT ✓</text>
+  <rect x="822" y="234" width="200" height="34" rx="7" class="sub"/>
+  <text x="922" y="256" class="lbl s mid">چک پرونده عملیاتی ✓</text>
+  <rect x="550" y="64" width="240" height="86" rx="10" class="blk b"/>
+  <text x="670" y="96" class="lbl b t2 mid">۳. محموله</text>
+  <text x="670" y="122" class="code mid ltr">/api/trading/shipments</text>
+  <line x1="670" y1="166" x2="670" y2="288" class="life"/>
+  <rect x="570" y="190" width="200" height="34" rx="7" class="sub"/>
+  <text x="670" y="212" class="lbl s mid ltr">{id}/legs + legs/status ✓</text>
+  <rect x="570" y="234" width="200" height="34" rx="7" class="sub"/>
+  <text x="670" y="256" class="lbl s mid ltr">{id}/actuals ✓</text>
+  <rect x="570" y="278" width="200" height="34" rx="7" class="sub"/>
+  <text x="670" y="300" class="lbl s mid ltr">{id}/projects لینک ✓</text>
+  <rect x="298" y="64" width="240" height="86" rx="10" class="blk b"/>
+  <text x="418" y="96" class="lbl b t2 mid">۴. ترخیص گمرک</text>
+  <text x="418" y="122" class="code mid ltr">/api/trading/customs-clearances</text>
+  <line x1="418" y1="166" x2="418" y2="244" class="life"/>
+  <rect x="318" y="190" width="200" height="34" rx="7" class="sub"/>
+  <text x="418" y="212" class="lbl s mid ltr">{id}/status ✓</text>
+  <rect x="318" y="234" width="200" height="34" rx="7" class="sub"/>
+  <text x="418" y="256" class="lbl s mid ltr">POST /costs ✓</text>
+  <rect x="46" y="64" width="240" height="86" rx="10" class="blk b"/>
+  <text x="166" y="96" class="lbl b t2 mid">۵. تحویل پرونده</text>
+  <text x="166" y="122" class="code mid ltr">/api/trading/projects/{id}/status</text>
+  <line x1="166" y1="166" x2="166" y2="244" class="life"/>
+  <rect x="66" y="190" width="200" height="34" rx="7" class="sub"/>
+  <text x="166" y="212" class="lbl s mid ltr">{id}/reopen ✓</text>
+  <rect x="66" y="234" width="200" height="34" rx="7" class="sub"/>
+  <text x="166" y="256" class="lbl s mid ltr">POST /report-notes ✓</text>
+  <line x1="1052" y1="107" x2="1044" y2="107" class="flow" marker-end="url(#arf)"/>
+  <line x1="800" y1="107" x2="792" y2="107" class="flow" marker-end="url(#arf)"/>
+  <line x1="548" y1="107" x2="540" y2="107" class="flow" marker-end="url(#arf)"/>
+  <line x1="296" y1="107" x2="288" y2="107" class="flow" marker-end="url(#arf)"/>
+  <path d="M 1294 107 L 1316 107 L 1316 473 L 1304 473" class="msg miss" fill="none" marker-end="url(#arf)"/>
+  <text x="1110" y="392" class="lbl s miss mid">✗ سفارش تجاری MRP را بیدار نمی‌کند — watched نیست</text>
+  <text x="650" y="412" class="lbl b t1 mid">ردیف ۲ — چرخه برنامه‌ریزی، تأمین و تولید</text>
+  <rect x="1126" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="1212" y="462" class="lbl b t2 mid">۶. پیش‌بینی تولید</text>
+  <text x="1212" y="488" class="code mid ltr">planning/forecast-plans</text>
+  <line x1="1212" y1="532" x2="1212" y2="654" class="life"/>
+  <rect x="1126" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="1212" y="578" class="lbl s mid ltr">/forecast-entry-grid ✓</text>
+  <rect x="1126" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="1212" y="622" class="lbl s mid ltr">/actuals ✓</text>
+  <rect x="1126" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="1212" y="666" class="lbl s mid ltr">Outbox FORECAST ✓</text>
+  <rect x="944" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="1030" y="462" class="lbl b t2 mid ltr">۷. BOM</text>
+  <text x="1030" y="488" class="code mid ltr">bom-revisions</text>
+  <line x1="1030" y1="532" x2="1030" y2="654" class="life"/>
+  <rect x="944" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="1030" y="578" class="lbl s mid ltr">approve / obsolete ✓</text>
+  <rect x="944" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="1030" y="622" class="lbl s mid ltr">Outbox BOM ✓</text>
+  <rect x="944" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="1030" y="666" class="lbl s mid ltr">/where-used ✓</text>
+  <rect x="761" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="847" y="462" class="lbl b t2 mid">۸. اجرای MRP</text>
+  <text x="847" y="488" class="code mid ltr">mrp-runs</text>
+  <line x1="847" y1="532" x2="847" y2="654" class="life"/>
+  <rect x="761" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="847" y="578" class="lbl s mid ltr">Worker خودکار + Outbox ✓</text>
+  <rect x="761" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="847" y="622" class="lbl s mid ltr">snapshot → persist ✓</text>
+  <rect x="761" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="847" y="666" class="lbl s mid ltr">order-planning ✓</text>
+  <rect x="578" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="664" y="462" class="lbl b t2 mid">۹. سفارش خرید</text>
+  <text x="664" y="488" class="code mid ltr">purchase-orders</text>
+  <line x1="664" y1="532" x2="664" y2="654" class="life"/>
+  <rect x="578" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="664" y="578" class="lbl s mid ltr">{id}/approve ✓</text>
+  <rect x="578" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="664" y="622" class="lbl s mid ltr">{id}/mark-ordered ✓</text>
+  <rect x="578" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="664" y="666" class="lbl s mid ltr">Outbox FIRM_SUPPLY ✓</text>
+  <rect x="395" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="481" y="462" class="lbl b t2 mid">۱۰. رسید انبار</text>
+  <text x="481" y="488" class="code mid ltr">inventory/receipts</text>
+  <line x1="481" y1="532" x2="481" y2="654" class="life"/>
+  <rect x="395" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="481" y="578" class="lbl s mid ltr">Outbox INVENTORY ✓</text>
+  <rect x="395" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="481" y="622" class="lbl s mid ltr">transfers · issues ✓</text>
+  <rect x="395" y="644" width="172" height="34" rx="7" class="sub miss"/>
+  <text x="481" y="666" class="lbl s mid">تعهد پرداخت ✗</text>
+  <rect x="212" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="298" y="462" class="lbl b t2 mid">۱۱. دستور تولید</text>
+  <text x="298" y="488" class="code mid ltr">production-orders</text>
+  <line x1="298" y1="532" x2="298" y2="654" class="life"/>
+  <rect x="212" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="298" y="578" class="lbl s mid ltr">{id}/release ✓</text>
+  <rect x="212" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="298" y="622" class="lbl s mid ltr">materials stage ✓</text>
+  <rect x="212" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="298" y="666" class="lbl s mid ltr">{id}/reports ✓</text>
+  <rect x="29" y="430" width="172" height="86" rx="10" class="blk c"/>
+  <text x="115" y="462" class="lbl b t2 mid">۱۲. بهای و گزارش</text>
+  <text x="115" y="488" class="code mid ltr">cash-flow</text>
+  <line x1="115" y1="532" x2="115" y2="654" class="life"/>
+  <rect x="29" y="556" width="172" height="34" rx="7" class="sub"/>
+  <text x="115" y="578" class="lbl s mid ltr">/dashboard ✓</text>
+  <rect x="29" y="600" width="172" height="34" rx="7" class="sub"/>
+  <text x="115" y="622" class="lbl s mid ltr">/material-cost-books ✓</text>
+  <rect x="29" y="644" width="172" height="34" rx="7" class="sub"/>
+  <text x="115" y="666" class="lbl s mid ltr">/v1/analytics ✓</text>
+  <line x1="1124" y1="473" x2="1118" y2="473" class="flow" marker-end="url(#arf)"/>
+  <line x1="942" y1="473" x2="935" y2="473" class="flow" marker-end="url(#arf)"/>
+  <line x1="759" y1="473" x2="752" y2="473" class="flow" marker-end="url(#arf)"/>
+  <line x1="576" y1="473" x2="569" y2="473" class="flow" marker-end="url(#arf)"/>
+  <line x1="393" y1="473" x2="386" y2="473" class="flow" marker-end="url(#arf)"/>
+  <line x1="210" y1="473" x2="203" y2="473" class="flow" marker-end="url(#arf)"/>
+  <rect x="90" y="712" width="30" height="20" rx="5" class="sub"/>
+  <text x="310" y="727" class="lbl s mid">پیاده‌شده — از سورس</text>
+  <rect x="420" y="712" width="30" height="20" rx="5" class="sub miss"/>
+  <text x="665" y="727" class="lbl s mid">پیشنهادی / جای خالی طراحی</text>
+  <text x="1105" y="727" class="lbl s mid">جریان هر ردیف از راست به چپ است · همه مسیرها از سورس استخراج شده</text>
+  <text x="650" y="766" class="lbl s mid">جزئیات هر گام و طرح پیشنهادیِ نقطه‌های ✗ در دیاگرام‌های بعدی همین بخش آمده است</text>
+</svg></div>
 
   <h3>وضعیت فعلی — CreateOrder گام‌به‌گام (از سورس)</h3>
   <div class="card"><svg viewBox="0 0 1140 692" class="dia" role="img" aria-label="وضعیت فعلی زنجیره سفارش">

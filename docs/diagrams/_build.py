@@ -532,6 +532,113 @@ def svg_chain_design():
 </svg>''', centered=True)
 
 
+
+# ---------------------------------------------------------- end-to-end map
+def svg_flow():
+    F = []
+    F.append('<svg viewBox="0 0 1332 800" class="dia wide" role="img" aria-label="نقشه کل جریان از سفارش تا تولید">')
+    F.append('  <defs><marker id="arf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>')
+
+    def spine(cx, y, w, num, title, path, cls):
+        F.append(f'  <rect x="{cx - w // 2}" y="{y}" width="{w}" height="86" rx="10" class="{cls}"/>')
+        F.append(f'  <text x="{cx}" y="{y + 32}" class="lbl b t2">{num}. {title}</text>')
+        F.append(f'  <text x="{cx}" y="{y + 58}" class="code">{path}</text>')
+
+    def fan(cx, y, w, items):
+        cy = y
+        bottoms = []
+        for label, miss in items:
+            klass = "sub miss" if miss else "sub"
+            F.append(f'  <rect x="{cx - w // 2}" y="{cy}" width="{w}" height="34" rx="7" class="{klass}"/>')
+            F.append(f'  <text x="{cx}" y="{cy + 22}" class="lbl s">{label}</text>')
+            cy += 44
+            bottoms.append(cy - 10)
+        F.insert(-2 * len(items),
+                 f'  <line x1="{cx}" y1="{y - 24}" x2="{cx}" y2="{bottoms[-1] - 24}" class="life"/>')
+
+    # ---- row 1 : trading chain (right to left)
+    F.append('  <text x="650" y="36" class="lbl b t1">ردیف ۱ — چرخه سفارش و واردات (Trading)</text>')
+    R1 = [
+        ("۱", "ثبت سفارش", "/api/trading/order-registrations", [
+            ("{id}/status ✓", 0),
+            ("audit محلی Trading ✓", 0),
+            ("تعهد پرداخت CashFlow ✗", 1),
+            ("اعلان Collaboration ✗", 1)]),
+        ("۲", "تخصیص ارز", "/api/trading/fx-allocations", [
+            ("{id}/status REQUEST→RECEIPT ✓", 0),
+            ("چک پرونده عملیاتی ✓", 0)]),
+        ("۳", "محموله", "/api/trading/shipments", [
+            ("{id}/legs + legs/status ✓", 0),
+            ("{id}/actuals ✓", 0),
+            ("{id}/projects لینک ✓", 0)]),
+        ("۴", "ترخیص گمرک", "/api/trading/customs-clearances", [
+            ("{id}/status ✓", 0),
+            ("POST /costs ✓", 0)]),
+        ("۵", "تحویل پرونده", "/api/trading/projects/{id}/status", [
+            ("{id}/reopen ✓", 0),
+            ("POST /report-notes ✓", 0)]),
+    ]
+    c1 = [1174, 922, 670, 418, 166]
+    for (num, title, path, items), cx in zip(R1, c1):
+        spine(cx, 64, 240, num, title, path, "blk b")
+        fan(cx, 190, 200, items)
+    for i in range(len(c1) - 1):
+        F.append(f'  <line x1="{c1[i] - 122}" y1="107" x2="{c1[i + 1] + 122}" y2="107" class="flow" marker-end="url(#arf)"/>')
+
+    # ---- bridge : order -> MRP (the missing link)
+    F.append('  <path d="M 1294 107 L 1316 107 L 1316 473 L 1304 473" class="msg miss" fill="none" marker-end="url(#arf)"/>')
+    F.append('  <text x="1110" y="392" class="lbl s miss">✗ سفارش تجاری MRP را بیدار نمی‌کند — watched نیست</text>')
+
+    # ---- row 2 : planning / supply / production chain
+    F.append('  <text x="650" y="412" class="lbl b t1">ردیف ۲ — چرخه برنامه‌ریزی، تأمین و تولید</text>')
+    R2 = [
+        ("۶", "پیش‌بینی تولید", "planning/forecast-plans", [
+            ("/forecast-entry-grid ✓", 0),
+            ("/actuals ✓", 0),
+            ("Outbox FORECAST ✓", 0)]),
+        ("۷", "BOM", "bom-revisions", [
+            ("approve / obsolete ✓", 0),
+            ("Outbox BOM ✓", 0),
+            ("/where-used ✓", 0)]),
+        ("۸", "اجرای MRP", "mrp-runs", [
+            ("Worker خودکار + Outbox ✓", 0),
+            ("snapshot → persist ✓", 0),
+            ("order-planning ✓", 0)]),
+        ("۹", "سفارش خرید", "purchase-orders", [
+            ("{id}/approve ✓", 0),
+            ("{id}/mark-ordered ✓", 0),
+            ("Outbox FIRM_SUPPLY ✓", 0)]),
+        ("۱۰", "رسید انبار", "inventory/receipts", [
+            ("Outbox INVENTORY ✓", 0),
+            ("transfers · issues ✓", 0),
+            ("تعهد پرداخت ✗", 1)]),
+        ("۱۱", "دستور تولید", "production-orders", [
+            ("{id}/release ✓", 0),
+            ("materials stage ✓", 0),
+            ("{id}/reports ✓", 0)]),
+        ("۱۲", "بهای و گزارش", "cash-flow", [
+            ("/dashboard ✓", 0),
+            ("/material-cost-books ✓", 0),
+            ("/v1/analytics ✓", 0)]),
+    ]
+    c2 = [1212, 1030, 847, 664, 481, 298, 115]
+    for (num, title, path, items), cx in zip(R2, c2):
+        spine(cx, 430, 172, num, title, path, "blk c")
+        fan(cx, 556, 172, items)
+    for i in range(len(c2) - 1):
+        F.append(f'  <line x1="{c2[i] - 88}" y1="473" x2="{c2[i + 1] + 88}" y2="473" class="flow" marker-end="url(#arf)"/>')
+
+    # ---- legend
+    F.append('  <rect x="90" y="712" width="30" height="20" rx="5" class="sub"/>')
+    F.append('  <text x="310" y="727" class="lbl s">پیاده‌شده — از سورس</text>')
+    F.append('  <rect x="420" y="712" width="30" height="20" rx="5" class="sub miss"/>')
+    F.append('  <text x="665" y="727" class="lbl s">پیشنهادی / جای خالی طراحی</text>')
+    F.append('  <text x="1105" y="727" class="lbl s">جریان هر ردیف از راست به چپ است · همه مسیرها از سورس استخراج شده</text>')
+    F.append('  <text x="650" y="766" class="lbl s">جزئیات هر گام و طرح پیشنهادیِ نقطه‌های ✗ در دیاگرام‌های بعدی همین بخش آمده است</text>')
+    F.append('</svg>')
+    return _bidi_autofix("\n".join(F), centered=True)
+
+
 # ============================================================== HTML parts
 def perm_rows():
     out = []
@@ -616,6 +723,7 @@ h3{font-size:16px;margin:26px 0 8px;color:var(--ac)}
 p.lead{color:var(--mut);margin:8px 0 18px;max-width:960px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto}
 .dia{width:100%;height:auto;min-width:820px;display:block}
+.dia.wide{min-width:1300px}
 .note{background:#12203a;border:1px solid #25406b;border-right:4px solid var(--ac);
   border-radius:9px;padding:13px 16px;margin:14px 0}
 .note.w{background:#2a2312;border-color:#5c4a1c;border-right-color:var(--warn)}
@@ -704,6 +812,7 @@ footer{border-top:1px solid var(--line);padding:20px 32px;color:var(--mut);font-
 .dia .blk.e{fill:#1a2130;stroke:var(--line2)}.dia .blk.f{fill:#12203a;stroke:#25406b}
 .dia .blk.g{fill:#0f2426;stroke:#1d5c5c}
 .dia .sub{fill:#222c3d;stroke:var(--line2)}
+.dia .sub.miss{fill:#2b1416;stroke:#6b2529;stroke-dasharray:5 4}
 .dia .src{fill:#1a2130;stroke:var(--line2)}
 .dia .src.a{fill:#11231a;stroke:#1d5c34}.dia .src.b{fill:#12203a;stroke:#25406b}
 .dia .src.c{fill:#2b1416;stroke:#6b2529}.dia .src.d{fill:#241a38;stroke:#4a3568}
@@ -790,7 +899,7 @@ HTML = f"""<!doctype html>
   <button data-t="catalog">۶ · کاتالوگ دسترسی‌ها</button>
   <button data-t="modules">۷ · نقشه ماژول‌ها</button>
   <button data-t="rewrite">۸ · راهنمای بازنویسی</button>
-  <button data-t="chain">۹ · زنجیره سفارش</button>
+  <button data-t="chain">۹ · سفارش تا تولید</button>
 </nav>
 
 <main>
@@ -1440,7 +1549,7 @@ explode(parent, qty, date):
 
 <!-- ============================ 9 ============================ -->
 <section id="chain">
-  <h2>زنجیره‌ی سفارش — وقتی یک API باید ماژول‌های دیگر را خبر کند</h2>
+  <h2>زنجیره‌ی سفارش تا تولید — نقشه کامل flow و شاخه‌های هر API</h2>
   <p class="lead">
     سؤال: «وقتی سفارش کالا ثبت می‌شود، functionهای دیگری مثل informToSell و informToTrade هم صدا زده می‌شوند؟»
     پاسخ کوتاه: <b>نه — چنین رابطه‌ای در سورس فعلی وجود ندارد و جای خالی‌اش هم دقیق مشخص است.</b>
@@ -1450,6 +1559,9 @@ explode(parent, qty, date):
     ۲) <code>IAuditEventSink</code> (فقط audit — و طبق ARCHITECTURE.md هاست فعلاً no-op ثبت می‌کند)،
     ۳) جدول audit محلی خود Trading.
   </p>
+
+  <h3>نقشه کل جریان — هر API اصلی و شاخه‌هایی که صدا می‌زند</h3>
+  <div class="card">{svg_flow()}</div>
 
   <h3>وضعیت فعلی — CreateOrder گام‌به‌گام (از سورس)</h3>
   <div class="card">{svg_chain()}</div>
