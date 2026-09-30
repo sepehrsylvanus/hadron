@@ -403,6 +403,135 @@ def svg_auth():
 </svg>''', centered=True)
 
 
+
+# ============================================================== order chain
+def svg_chain():
+    lanes = [("مرورگر", 90), ("TradingEndpoints", 300), ("TradingService", 545),
+             ("PostgreSQL", 830), ("سایر ماژول‌ها", 1035)]
+    heads = ""
+    for name, x in lanes:
+        heads += f'''<g><rect x="{x-88}" y="18" width="176" height="40" rx="8" class="lane"/>
+  <text x="{x}" y="44" class="lbl b">{name}</text></g>
+  <line x1="{x}" y1="58" x2="{x}" y2="676" class="life"/>'''
+    # (y, x1, x2, kind, title, note) — kind: s/r/miss/n(self)
+    steps = [
+        (78, 90, 300, "s", "POST /api/trading/order-registrations",
+         "بدنه: projectId, registrationNumber, status, registrationDate, | registeredAmount, currencyId, notes"),
+        (142, 300, 545, "s", "service.CreateOrder(request)",
+         "RequirePermission(trading.order_registration.manage) قبلاً در pipeline چک شده"),
+        (198, 545, 545, "n", "۱) Validate(...)",
+         "status فقط DRAFT · registeredAmount &gt; ۰ · registrationNumber ≤ ۸۰ نویسه"),
+        (276, 545, 830, "s", "۲) OpenProject + Currency",
+         "پرونده باید عملیاتی باشد · ارز باید فعال باشد"),
+        (332, 545, 830, "s", "۳) INSERT trading.order_registrations",
+         "ck_trade_order_status · ck_trade_order_amount (RegisteredAmount &gt; 0)"),
+        (388, 545, 830, "s", "۴) AddAudit — audit محلی Trading",
+         "جدول audit خود ماژول Trading — نه platform.operational_audit_events"),
+        (444, 545, 545, "n", "۵) SaveChangesAsync",
+         "MrpInputChangeInterceptor: TradeOrderRegistration watched نیست → MRP هم بیدار نمی‌شود"),
+        (516, 300, 90, "r", "۶) 201 Created + TradeOrderRegistrationResponse",
+         "پایان ماجرا — بدون هیچ خبری به بیرون ماژول"),
+        (578, 830, 1035, "miss", "✗ هیچ ردیفی به ماژول دیگر",
+         "پس از Commit هیچ رویداد یا رکوردی برای CashFlow / FX / Collaboration ساخته نمی‌شود"),
+        (642, 545, 1035, "miss", "✗ informToSell / informToTrade وجود ندارد",
+         "اینجا دقیقاً نقطه‌ای است که باید طراحی شود — طرح پیشنهادی در دیاگرام بعدی"),
+    ]
+    body = ""
+    for y, x1, x2, kind, title, note in steps:
+        mx = (x1 + x2) / 2
+        self_box = (x1 == x2)
+        if "|" in note:
+            a, b = note.split("|", 1)
+            dy2 = 40 if self_box else 34
+            note_svg = (f'<text x="{mx}" y="{y + (38 if self_box else 18)}" class="lbl s mid">{a.strip()}</text>'
+                        f'<text x="{mx}" y="{y + dy2 + 16}" class="lbl s mid">{b.strip()}</text>')
+        else:
+            note_svg = f'<text x="{mx}" y="{y + (38 if self_box else 18)}" class="lbl s mid">{note}</text>'
+        if kind == "miss":
+            body += f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" class="msg miss" marker-end="url(#arc)"/>'
+            body += f'<text x="{mx}" y="{y-8}" class="lbl b mid miss">{title}</text>'
+            body += note_svg.replace('class="lbl s mid"', 'class="lbl s mid miss"')
+        elif self_box:
+            body += f'''<g><rect x="{x1-230}" y="{y-16}" width="460" height="34" rx="7" class="self"/>
+  <text x="{x1}" y="{y+6}" class="lbl b">{title}</text></g>
+  {note_svg}'''
+        else:
+            body += f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" class="msg {kind}" marker-end="url(#arc)"/>'
+            body += f'<text x="{mx}" y="{y-8}" class="lbl b mid">{title}</text>'
+            body += note_svg
+    return _bidi_autofix(f'''<svg viewBox="0 0 1140 692" class="dia" role="img" aria-label="وضعیت فعلی زنجیره سفارش">
+  <defs><marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
+  {heads}{body}
+</svg>''', centered=True)
+
+
+def svg_chain_design():
+    return _bidi_autofix('''<svg viewBox="0 0 1120 700" class="dia" role="img" aria-label="طرح پیشنهادی زنجیره سفارش">
+  <defs><marker id="ard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>
+
+  <rect x="40" y="20" width="500" height="92" rx="10" class="blk a"/>
+  <text x="290" y="48" class="lbl b t1">۱. CreateOrder — همان امروز، فقط دو INSERT</text>
+  <text x="290" y="72" class="lbl s">INSERT trading.order_registrations (همان اعتبارسنجی‌های فعلی)</text>
+  <text x="290" y="92" class="lbl s">+ INSERT ردیف ORDER_REGISTERED در Outbox — در همان تراکنش</text>
+
+  <rect x="580" y="20" width="500" height="92" rx="10" class="blk c"/>
+  <text x="830" y="48" class="lbl b t1">الگوی مرجع — planning.mrp_refresh_outbox</text>
+  <text x="830" y="72" class="lbl s">همین الگو همین امروز برای MRP کار می‌کند: صف در تراکنش،</text>
+  <text x="830" y="92" class="lbl s">Worker جدا با advisory lock و retry — کپی همین قرارداد است</text>
+
+  <line x1="290" y1="112" x2="290" y2="140" class="flow" marker-end="url(#ard)"/>
+
+  <rect x="40" y="144" width="1040" height="86" rx="10" class="blk b"/>
+  <text x="560" y="172" class="lbl b t1">۲. Integration Outbox — صف رویداد یکپارچگی عمومی (جدید — مثلاً platform.integration_outbox)</text>
+  <text x="560" y="196" class="lbl s ltr">EventId · Kind = ORDER_REGISTERED · Payload (OrderId, ProjectId, Amount, Currency) · AvailableAtUtc · AttemptCount · Status</text>
+  <text x="560" y="218" class="lbl s">تا وقتی تراکنش Commit نشده ردیف دیده نمی‌شود — پس هیچ ماژولی خبر سفارشِ نیمه‌کاره را نمی‌گیرد</text>
+
+  <line x1="560" y1="230" x2="560" y2="258" class="flow" marker-end="url(#ard)"/>
+
+  <rect x="40" y="262" width="1040" height="88" rx="10" class="blk d"/>
+  <text x="560" y="290" class="lbl b t1">۳. OutboxDispatcher Worker — پس از Commit · حداقل یک‌بار · کلید Idempotency = (OrderId, Kind)</text>
+  <text x="560" y="314" class="lbl s">advisory lock مثل AutomaticMrpRefreshWorker · Backoff نمایی ۲^n × ۵ ثانیه · بعد از N تلاش → FAILED + Log + Audit</text>
+  <text x="560" y="336" class="lbl s">شکست هر Handler هیچ‌وقت سفارش را برنمی‌گرداند — سفارش همین حالا ثبت شده است</text>
+
+  <line x1="200" y1="350" x2="200" y2="376" class="flow" marker-end="url(#ard)"/>
+  <line x1="440" y1="350" x2="440" y2="376" class="flow" marker-end="url(#ard)"/>
+  <line x1="680" y1="350" x2="680" y2="376" class="flow" marker-end="url(#ard)"/>
+  <line x1="920" y1="350" x2="920" y2="376" class="flow" marker-end="url(#ard)"/>
+
+  <rect x="40" y="380" width="310" height="180" rx="10" class="blk g"/>
+  <text x="195" y="400" class="lbl b t1">informToSell</text>
+  <text x="195" y="424" class="lbl s">مقصد: CashFlow</text>
+  <text x="195" y="446" class="lbl s">ایجاد پیش‌نویس تعهد پرداخت</text>
+  <text x="195" y="468" class="lbl s ltr">POST /api/cash-flow/obligations</text>
+  <text x="195" y="490" class="lbl s">کد دسترسی جدید:</text>
+  <text x="195" y="512" class="lbl s ltr">cash_flow.obligation.manage</text>
+  <text x="195" y="534" class="lbl s">امروز فقط .view وجود دارد!</text>
+
+  <rect x="404" y="380" width="310" height="180" rx="10" class="blk f"/>
+  <text x="559" y="400" class="lbl b t1">informToTrade</text>
+  <text x="559" y="424" class="lbl s">مقصد: Trading — درون‌ماژولی</text>
+  <text x="559" y="446" class="lbl s">چک‌لیست ارز و محمل روی پرونده</text>
+  <text x="559" y="468" class="lbl s">DomainEvent داخلی کافی است —</text>
+  <text x="559" y="490" class="lbl s">مصرف‌کننده و تولیدکننده یک</text>
+  <text x="559" y="512" class="lbl s">ماژول‌اند، Outbox لازم نیست</text>
+  <text x="559" y="534" class="lbl s ltr">trading.fx.manage</text>
+
+  <rect x="768" y="380" width="312" height="180" rx="10" class="blk e"/>
+  <text x="924" y="400" class="lbl b t1">notifyUsers</text>
+  <text x="924" y="424" class="lbl s">مقصد: Collaboration</text>
+  <text x="924" y="446" class="lbl s">اعلان به کارشناس خرید/فروش</text>
+  <text x="924" y="468" class="lbl s">ردیف اعلان + SignalR push</text>
+  <text x="924" y="490" class="lbl s">Collaboration چیزی از Trading</text>
+  <text x="924" y="512" class="lbl s">نمی‌نویسد — فقط رویداد می‌خواند</text>
+  <text x="924" y="534" class="lbl s ltr">collaboration.*</text>
+
+  <rect x="40" y="576" width="1040" height="96" rx="10" class="note"/>
+  <text x="560" y="606" class="lbl b">قانون طلایی هر inform — چهار شرط</text>
+  <text x="560" y="630" class="lbl s">۱) مصرف‌کننده فقط با Endpoint/Handler خودش و کد دسترسی خودش — هرگز نوشتن مستقیم در جدول ماژول دیگر</text>
+  <text x="560" y="652" class="lbl s">۲) همیشه پس از Commit و حداقل یک‌بار — ۳) Handler باید Idempotent باشد (OrderId + Kind) — ۴) هر اثر جانبی Audit خودش را دارد</text>
+</svg>''', centered=True)
+
+
 # ============================================================== HTML parts
 def perm_rows():
     out = []
@@ -661,6 +790,7 @@ HTML = f"""<!doctype html>
   <button data-t="catalog">۶ · کاتالوگ دسترسی‌ها</button>
   <button data-t="modules">۷ · نقشه ماژول‌ها</button>
   <button data-t="rewrite">۸ · راهنمای بازنویسی</button>
+  <button data-t="chain">۹ · زنجیره سفارش</button>
 </nav>
 
 <main>
@@ -1306,6 +1436,81 @@ explode(parent, qty, date):
       <tr><td class="mono">src/frontend/src/workspaceNavigation.ts</td><td>منبع حقیقت قواعد Route</td></tr>
     </tbody>
   </table>
+</section>
+
+<!-- ============================ 9 ============================ -->
+<section id="chain">
+  <h2>زنجیره‌ی سفارش — وقتی یک API باید ماژول‌های دیگر را خبر کند</h2>
+  <p class="lead">
+    سؤال: «وقتی سفارش کالا ثبت می‌شود، functionهای دیگری مثل informToSell و informToTrade هم صدا زده می‌شوند؟»
+    پاسخ کوتاه: <b>نه — چنین رابطه‌ای در سورس فعلی وجود ندارد و جای خالی‌اش هم دقیق مشخص است.</b>
+    ثبت سفارش یعنی <code>POST /api/trading/order-registrations</code> → <code>TradingService.CreateOrder</code>
+    که فقط داخل اسکیمای <code>trading</code> می‌نویسد و برمی‌گردد. نزدیک‌ترین مکانیزم‌های موجود به «خبرکردن بقیه»
+    این سه‌تاست: ۱) <code>MrpInputChangeInterceptor</code> + <code>planning.mrp_refresh_outbox</code> (فقط برای MRP)،
+    ۲) <code>IAuditEventSink</code> (فقط audit — و طبق ARCHITECTURE.md هاست فعلاً no-op ثبت می‌کند)،
+    ۳) جدول audit محلی خود Trading.
+  </p>
+
+  <h3>وضعیت فعلی — CreateOrder گام‌به‌گام (از سورس)</h3>
+  <div class="card">{svg_chain()}</div>
+
+  <table>
+    <thead><tr><th>گام</th><th>چه می‌شود</th><th>مرجع در سورس</th></tr></thead>
+    <tbody>
+      <tr><td class="num">۱</td><td>اعتبارسنجی: <code>status</code> فقط DRAFT · <code>registeredAmount &gt; 0</code> · شماره ثبت ≤ ۸۰ نویسه</td>
+        <td class="mono sm">TradingService.CreateOrder</td></tr>
+      <tr><td class="num">۲</td><td>بررسی پرونده عملیاتی (OpenProject) و ارز فعال</td>
+        <td class="mono sm">TradingService.OpenProject / Currency</td></tr>
+      <tr><td class="num">۳</td><td>INSERT <code>trading.order_registrations</code> — با Check Constraint وضعیت و مبلغ</td>
+        <td class="mono sm">TradingConfiguration — ToTable("order_registrations", "trading")</td></tr>
+      <tr><td class="num">۴</td><td>INSERT audit محلی — نه platform.operational_audit_events</td>
+        <td class="mono sm">TradingService.AddAudit → TradeAuditEvents</td></tr>
+      <tr><td class="num">۵</td><td>SaveChanges از روی MrpInputChangeInterceptor رد می‌شود ولی TradeOrderRegistration در لیست watched نیست → هیچ</td>
+        <td class="mono sm">MrpInputChangeInterceptor.cs — Change("...")</td></tr>
+      <tr><td class="miss b">✗</td><td class="miss">هیچ informToSell / informToTrade / notify — هیچ ردیفی در هیچ ماژول دیگر</td>
+        <td class="mono sm">— وجود ندارد</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note w"><b>چرا همان فراخوانی همگام (informToSell() داخل CreateOrder) توصیه نمی‌شود؟</b>
+    اگر داخل تابع، متد ماژول دیگر را هم صدا بزنی: ۱) شکست CashFlow یعنی Rollback شدن خود سفارش — دو دامنه‌ی مستقل به هم قفل می‌شوند؛
+    ۲) latency و تراکنش طولانی؛ ۳) وابستگی چرخه‌ای که ARCHITECTURE.md صریحاً ممنوعش کرده
+    («Modules must not write directly to another module's tables or create circular dependencies»).
+    فراخوانی همگام فقط برای side effect <b>درون همان ماژول</b> (مثل informToTrade) قابل‌قبول است.
+  </div>
+
+  <h3>طرح پیشنهادی — الگوی Outbox که همین امروز برای MRP کار می‌کند</h3>
+  <div class="card">{svg_chain_design()}</div>
+
+  <h3>طراحی API — قرارداد پیشنهادی هر شاخه</h3>
+  <table>
+    <thead><tr><th>اثر جانبی</th><th>Endpoint مقصد</th><th>کد دسترسی</th><th>روش تحویل</th><th>Idempotency</th></tr></thead>
+    <tbody>
+      <tr><td class="b">informToSell</td>
+        <td class="mono">POST /api/cash-flow/obligations (پیش‌نویس تعهد)</td>
+        <td class="mono">cash_flow.obligation.manage <span class="tag r">جدید</span></td>
+        <td>Outbox — پس از Commit</td><td class="mono sm">OrderId + SELL</td></tr>
+      <tr><td class="b">informToTrade</td>
+        <td class="mono">DomainEvent داخلی → چک‌لیست FX/محمل روی پرونده</td>
+        <td class="mono">trading.fx.manage</td>
+        <td>همگام داخل ماژول — اشکالی ندارد</td><td class="mono sm">OrderId + TRADE</td></tr>
+      <tr><td class="b">notifyUsers</td>
+        <td class="mono">Handler اعلان Collaboration + SignalR push</td>
+        <td class="mono">سیستمی (SYSTEM:TRADING_EVENTS)</td>
+        <td>Outbox — پس از Commit</td><td class="mono sm">OrderId + NOTIFY</td></tr>
+      <tr><td class="b">wakeMrp <span class="sm">(اختیاری)</span></td>
+        <td class="mono">planning.mrp_refresh_outbox — همان مکانیزم فعلی</td>
+        <td class="mono">planning.mrp_run.execute</td>
+        <td>Outbox موجود</td><td class="mono sm">خود outbox MRP</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note g"><b>چک‌لیست ۹قلمی یادت نرود:</b>
+    هر کد دسترسی جدید (مثل <code>cash_flow.obligation.manage</code>) باید طبق قرارداد
+    <code>docs/PERMISSIONS.md</code> هر ۹ قلم را داشته باشد: PermissionDefinition یکتا، متادیتای Authorization روی Endpoint،
+    Route آگاه از دسترسی در فرانت، کاتالوگ SystemAdministrator، ماتریس ادمین، سه تست Authorization، تست معماری، پوشش Audit و به‌روزرسانی مستندات.
+    در بازنویسی NestJS: رویداد دامنه → ردیف Outbox در همان تراکنش TypeORM/EF → Worker با advisory lock → Handlerهای ماژولی که سرویس Application خود ماژول مقصد را صدا می‌زنند — نه HTTP به خودِ سرویس.
+  </div>
 </section>
 
 </main>
