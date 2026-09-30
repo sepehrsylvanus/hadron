@@ -639,6 +639,37 @@ def svg_flow():
     return _bidi_autofix("\n".join(F), centered=True)
 
 
+
+# ---------------------------------------------------------- mrp worker timeline
+def svg_mrp_timeline():
+    F = []
+    F.append('<svg viewBox="0 0 1300 348" class="dia" role="img" aria-label="تایم‌لاین refresh خودکار MRP">')
+    F.append('  <defs><marker id="arm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arw"/></marker></defs>')
+    F.append('  <text x="650" y="30" class="lbl b t1">یک refresh خودکار — از Commit تا پلن جدید</text>')
+    F.append('  <line x1="60" y1="150" x2="1250" y2="150" class="flow" marker-end="url(#arm)"/>')
+    stations = [
+        (105, "T+0s", "Commit تغییر", ["رسید انبار در تراکنش ثبت شد", "ردیف outbox همان‌جا INSERT شد", "AvailableAtUtc = T+4s"]),
+        (305, "T+4s", "پیام قابل برداشت", ["debounce ۴ ثانیه تمام شد", "۵۰ تغییر = یک پیام"]),
+        (505, "T+5s", "Worker بیدار شد", ["poll هر ۳ ثانیه", "اول: RecoverExpiredLeases"]),
+        (705, "T+5s", "قفل و برداشت", ["advisory lock = یک worker", "batch تا ۵۰۰۰ پیام", "→ PROCESSING"]),
+        (920, "T+6s", "Coalesce", ["snapshot CURRENT تازه‌تر؟", "→ COMPLETED بدون اجرا"]),
+        (1145, "T+8s", "پلن جدید", ["snapshot → load → calc", "→ persist · CURRENT عوض شد"]),
+    ]
+    for cx, t, title, notes in stations:
+        F.append(f'  <circle cx="{cx}" cy="150" r="11" class="num"/>')
+        F.append(f'  <text x="{cx}" y="66" class="code mid">{t}</text>')
+        F.append(f'  <text x="{cx}" y="96" class="lbl b mid">{title}</text>')
+        F.append(f'  <line x1="{cx}" y1="112" x2="{cx}" y2="136" class="life"/>')
+        for k, n in enumerate(notes):
+            F.append(f'  <text x="{cx}" y="{176 + k * 19}" class="lbl s mid">{n}</text>')
+    F.append('  <line x1="650" y1="248" x2="650" y2="278" class="life"/>')
+    F.append('  <rect x="170" y="282" width="960" height="52" rx="10" class="blk d"/>')
+    F.append('  <text x="650" y="304" class="lbl b s">پایان روز تهران — EnsurePreviousDayCertified → ExecuteCertified → گواهی CERTIFIED روز کاری</text>')
+    F.append('  <text x="650" y="326" class="lbl s mid">شکست CURRENT دور ریخته می‌شود · شکست PUBLISHED رکورد می‌ماند · EnsureCalendarRefresh با تغییر روز تهران</text>')
+    F.append('</svg>')
+    return _bidi_autofix("\n".join(F), centered=True)
+
+
 # ============================================================== HTML parts
 def perm_rows():
     out = []
@@ -1212,6 +1243,110 @@ explode(parent, qty, date):
     childGross = qty × usageQty / baseOutputQty × (1 + scrap/100)
     gross[child, materialDate] += childGross
     trace(parent, child, scrap, source = BOM_OVERRIDE | ITEM_DEFAULT)</pre></div>
+
+  <h3>مثال عددی — یک Run از صفر تا صد</h3>
+  <p class="lead">
+    همه‌ی قواعد این مثال عیناً از <code>MrpCalculator.cs</code> است. سه قلم داریم: میز (محصول)، پایه (قطعه‌ی MAKE) و پیچ (قطعه‌ی BUY).
+    امروز = D0 و تقاضا فردا = D+1 است.
+  </p>
+  <div class="grid">
+    <div class="mini"><h4>قلم‌ها</h4><ul>
+      <li><b>میز</b> — PRODUCT · موجودی ۱۰ · ایمنی ۵ · مسیر BOM</li>
+      <li><b>پایه</b> — PART · موجودی ۲۰ · ایمنی ۱۰ · MAKE (BOM دارد)</li>
+      <li><b>پیچ</b> — COMPONENT · موجودی ۰ · ایمنی ۰ · BUY</li>
+      <li>BOM میز: ۴× پایه (BaseOutput=1) · Scrap <code>10%</code> روی خط BOM</li>
+      <li>BOM پایه: ۲× پیچ · Scrap پیش‌فرض قلم = <code>0%</code></li>
+    </ul></div>
+    <div class="mini"><h4>تأمین قطعی (Firm Supply)</h4><ul>
+      <li>PO-A: پایه ×۱۰ با <code>ETA = D0</code> → در موجودی شروع لحاظ می‌شود</li>
+      <li>PO-B: پایه ×۶ با وضعیت <code>OVERDUE</code> → از محاسبه حذف + استثنا</li>
+      <li>قاعده: فقط <code>Eta == AsOf</code> در مانده‌ی شروع؛ <code>AsOf &lt; Eta ≤ Horizon</code> در روز خودش</li>
+    </ul></div>
+    <div class="mini"><h4>تقاضا (Forecast)</h4><ul>
+      <li>میز ×۳۰ در <code>D+1</code></li>
+      <li>تقاضای ریشه فقط برای PRODUCT می‌آید</li>
+      <li>هوریزون: <code>AsOfDate … HorizonEndDate</code></li>
+    </ul></div>
+  </div>
+
+  <table>
+    <thead><tr><th>گام</th><th>قلم</th><th>چه می‌شود</th><th>محاسبه</th></tr></thead>
+    <tbody>
+      <tr><td class="num">۱</td><td class="b">مانده‌ی شروع</td>
+        <td>میز ۱۰ · پایه ۳۰ (=۲۰+۱۰ PO-A) · پیچ ۰ — PO-B حذف → <code>OVERDUE_FIRM_SUPPLY</code></td>
+        <td class="mono ltr">starting + usableAsOfFirm (Eta == AsOf, EtaStatus != OVERDUE)</td></tr>
+      <tr><td class="num">۲</td><td class="b">ترتیب پردازش</td>
+        <td>توپولوژیک از ریشه‌ها: میز → پایه → پیچ (والد قبل از فرزند)</td>
+        <td class="mono ltr">TopologicalOrder (Kahn) — cycle → BOM_CYCLE_DETECTED</td></tr>
+      <tr><td class="num">۳</td><td class="b">میز @ D+1</td>
+        <td><b>ریشه:</b> فقط با gross ثبت می‌شود و با «کل تقاضا» منفجر می‌شود — نه با net</td>
+        <td class="mono ltr">baseRequirement = 30 × 4 / 1 = 120 · childGross = 120 × (1 + 10/100) = 132 (BOM_OVERRIDE)</td></tr>
+      <tr><td class="num">۴</td><td class="b">پایه @ D+1</td>
+        <td>gross=132 · مسیر MAKE → انفجار با <b>net</b> به پیچ</td>
+        <td class="mono ltr">beforeFirm = 30 + 0 − 132 = −102 · net = max(10 − (−102), 0) = 112 · planningBalance = 10 · childGross = 112 × 2 × (1 + 0/100) = 224 (ITEM_DEFAULT)</td></tr>
+      <tr><td class="num">۵</td><td class="b">پیچ @ D+1</td>
+        <td>gross=224 · مسیر BUY → External → پیشنهاد خرید ۲۲۴ · انفجار ندارد</td>
+        <td class="mono ltr">net = max(0 − (−224), 0) = 224 · planningBalance = 0</td></tr>
+      <tr><td class="num">۶</td><td class="b">خروجی‌ها</td>
+        <td>پیشنهاد ساخت ۳۰ میز (ریشه) · ساخت ۱۱۲ پایه · خرید ۲۲۴ پیچ · دو ردیف trace</td>
+        <td class="mono ltr">mrp_run_daily_calculations + mrp_run_demand_traces</td></tr>
+    </tbody>
+  </table>
+
+  <h3>خروجی همان Run — ردیف‌های daily که API برمی‌گرداند</h3>
+  <table>
+    <thead><tr><th>قلم</th><th>Gross</th><th>Incoming</th><th>FirmProjected</th><th>PlanningBeforeNeed</th><th>Net</th><th>PlanningBalance</th><th>ریشه؟</th></tr></thead>
+    <tbody>
+      <tr><td class="b">میز @ D+1</td><td class="num">30</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td><span class="tag g">بله</span></td></tr>
+      <tr><td class="b">پایه @ D+1</td><td class="num">132</td><td class="num">0</td><td class="num">−102</td><td class="num">−102</td><td class="num">112</td><td class="num">10</td><td>—</td></tr>
+      <tr><td class="b">پیچ @ D+1</td><td class="num">224</td><td class="num">0</td><td class="num">−224</td><td class="num">−224</td><td class="num">224</td><td class="num">0</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <div class="note sm">ردیف ریشه طبق سورس فقط Gross دارد (بقیه صفر) — مانده برای ریشه حساب نمی‌شود چون سرنوشتش انفجار است نه پیشنهاد.</div>
+
+  <table>
+    <thead><tr><th>والد</th><th>فرزند</th><th>ParentNet</th><th>BaseRequirement</th><th>Scrap</th><th>Source</th><th>ChildGross</th></tr></thead>
+    <tbody>
+      <tr><td class="b">میز</td><td class="b">پایه</td><td class="num">30</td><td class="num">120</td><td class="num">10٪</td><td><span class="tag o">BOM_OVERRIDE</span></td><td class="num">132</td></tr>
+      <tr><td class="b">پایه</td><td class="b">پیچ</td><td class="num">112</td><td class="num">224</td><td class="num">0٪</td><td><span class="tag">ITEM_DEFAULT</span></td><td class="num">224</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note g"><b>چرا دو مانده‌ی موازی؟</b>
+    پایه: <code>firmProjected = −102</code> یعنی «بدون برنامه، انبار واقعاً ۱۰۲ تا کم می‌آورد» ولی
+    <code>planningBalance = 10</code> یعنی «با پیشنهاد ۱۱۲تایی، دقیقاً به سطح ایمنی ۱۰ می‌رسیم».
+    <code>firmBalance</code> هرگز net را قورت نمی‌دهد؛ برای همین UI می‌تواند هم «کی تمام می‌شود» و هم «چقدر سفارش بدهیم» را نشان دهد.
+    اگر Scrap روی خط BOM نمی‌بود: پایه ۱۲۰ و پیچ ۲۴۰ می‌شد.
+  </div>
+
+  <h3>تایم‌لاین عملیاتی — از تغییر تا پلن جدید</h3>
+  <div class="card" style="text-align:center"><span class="chip2">PollSeconds <b>3s</b></span><span class="chip2">DebounceSeconds <b>4s</b></span><span class="chip2">LeaseMinutes <b>10</b></span><span class="chip2">MaxAttempts <b>3</b></span><span class="chip2">Backoff <b>2^n × 5s</b></span><span class="chip2">Batch <b>5000</b></span><span class="chip2">Lock <b>hadron:planning:automatic-mrp-refresh:v1</b></span></div>
+  <div class="card">{svg_mrp_timeline()}</div>
+
+  <h3>حالت‌های خرابی — و رفتار واقعی سیستم</h3>
+  <table>
+    <thead><tr><th>سناریو</th><th>چه می‌شود</th><th>نتیجه</th></tr></thead>
+    <tbody>
+      <tr><td class="b">Worker وسط Run می‌میرد</td>
+        <td>اجاره‌ی ۱۰ دقیقه‌ای منقضی می‌شود → <code>RecoverExpiredLeases</code> پیام‌های PROCESSING را به PENDING برمی‌گرداند → Worker بعدی دوباره اجرا می‌کند</td>
+        <td>خودترمیم — Idempotency با snapshot پیام</td></tr>
+      <tr><td class="b">خطای عینی مثل <code>BOM_CYCLE_DETECTED</code></td>
+        <td>تلاش ۱ → Retry با <code>AvailableAt = now + 2^1×5 = 10s</code> → تلاش ۲ → <code>+20s</code> → تلاش ۳ → <code>MarkFailed</code> با کد و پیام</td>
+        <td>FAILED در planner inbox دیده می‌شود</td></tr>
+      <tr><td class="b">Run دستی (PUBLISHED) شکست می‌خورد</td>
+        <td><code>MarkFailed</code> ولی رکورد <b>حذف نمی‌شود</b> تا قابل بررسی بماند</td>
+        <td>ردیability کامل برای کاربر</td></tr>
+      <tr><td class="b">Run خودکار (CURRENT) شکست می‌خورد</td>
+        <td><code>DiscardTransientRun</code> — دور ریخته می‌شود؛ تغییرات همچنان PENDING می‌مانند</td>
+        <td>دور بعد دوباره تلاش می‌شود</td></tr>
+      <tr><td class="b">چند instance سرور</td>
+        <td>فقط یکی advisory lock سطح session می‌گیرد (اتصال اختصاصی) — بقیه این دور را رد می‌کنند</td>
+        <td>فقط یک Worker در کل کلاستر</td></tr>
+      <tr><td class="b">گواهی روز قبل انجام نشده</td>
+        <td><code>EnsurePreviousDayCertified</code> اول اجرا می‌شود → <code>ExecuteCertified</code> برای روز کاری تهران</td>
+        <td>پلن CERTIFIED تغییرناپذیر قبل از هر refresh روز</td></tr>
+    </tbody>
+  </table>
 
   <h3>تصمیم مسیر تأمین (Route)</h3>
   <table>
