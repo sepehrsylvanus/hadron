@@ -12,7 +12,7 @@ import { localizedName } from './i18n/localizedName'
 
 export type ItemType = 'PART' | 'COMPONENT'
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
-type MaterialItem = { id: string; itemType: ItemType; code: string; nameFa: string; nameEn?: string | null; category: Ref; baseUnit: Ref; supplyMethod: string; netWeightKg?: number | null; defaultPlanningScrapPercent: number; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
+type MaterialItem = { id: string; itemType: ItemType; code: string; nameFa: string; nameEn?: string | null; brand?: string | null; category: Ref; baseUnit: Ref; supplyMethod: string; netWeightKg?: number | null; defaultPlanningScrapPercent: number; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
 type ItemSupplierLink = { id: string; supplier: { name: string }; isPreferred: boolean }
 type ItemSupplierLookup = ItemSupplierLink[] | null | 'error'
 type Editor = { nameFa: string; nameEn: string; categoryId: string; baseUnitId: string; supplyMethod: string; netWeightKg: string; defaultPlanningScrapPercent: number; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; version?: number }
@@ -57,13 +57,14 @@ export default function MaterialItemMaster({ itemType }: { itemType: ItemType })
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
     <section className="ui-table-surface">
       <TableToolbar title={t(c.title)} count={t('common.count', { count: total })} />
-      <DataTable headers={[t('common.code'), t('common.name'), ...(showSupplierColumn ? [t('sourcing.supplier')] : []), t('common.category'), t('materials.supplyMethod'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
+      <DataTable headers={[t('common.code'), t('common.name'), ...(showSupplierColumn ? [t('sourcing.supplier')] : []), ...(itemType === 'COMPONENT' ? [t('materials.brand')] : []), t('common.category'), t('materials.supplyMethod'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
         {items.map(item => {
           const supplierLinks = supplierLinksByItem[item.id]
           return <tr key={item.id}>
             <td className="ui-technical">{item.code}</td>
             <td>{item.nameFa}</td>
             {showSupplierColumn && <td><div className="material-item-supplier-list">{supplierLinks == null ? t('common.loading') : supplierLinks === 'error' ? t('common.noData') : supplierLinks.length ? supplierLinks.map(link => <span key={link.id}>{link.supplier.name}{link.isPreferred && <small>{t('sourcing.preferred')}</small>}</span>) : t('common.none')}</div></td>}
+            {itemType === 'COMPONENT' && <td>{item.brand?.trim() || t('common.noData')}</td>}
             <td>{english ? item.category.nameEn : item.category.nameFa}</td>
             <td>{t(`materials.${item.supplyMethod}`)}</td>
             <td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td>

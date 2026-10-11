@@ -358,7 +358,7 @@ const en = {
     criticalDays: 'Days remaining to critical conditions', safeStartDays: 'Safe range start', excessStartDays: 'Excess range start', lifecycle: 'Lifecycle',
   },
   materials: {
-    parts: 'Parts', components: 'Components', part: 'Part', component: 'Component', newPart: 'New part', newComponent: 'New component',
+    parts: 'Parts', components: 'Components', part: 'Part', component: 'Component', brand: 'Brand', newPart: 'New part', newComponent: 'New component',
     searchPlaceholder: 'Official code or name', supplyMethod: 'Supply method', planning: 'Planning Policy', netWeight: 'Net weight (kg)',
     scrap: 'Default scrap (%)', BUY: 'Buy', MAKE: 'Make', OUTSOURCE: 'Outsource', HYBRID: 'Hybrid',
     applicability: 'Allowed usage scope', applicabilityHint: 'Relevant parents used to narrow BOM choices; actual where-used remains derived from approved BOMs.',

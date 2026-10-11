@@ -358,7 +358,7 @@ const fa = {
     criticalDays: 'روز مانده به شرایط بحرانی', safeStartDays: 'شروع محدوده امن', excessStartDays: 'شروع محدوده مازاد', lifecycle: 'چرخه عمر',
   },
   materials: {
-    parts: 'قطعات', components: 'اجزا', part: 'قطعه', component: 'جزء', newPart: 'قطعه جدید', newComponent: 'جزء جدید',
+    parts: 'قطعات', components: 'اجزا', part: 'قطعه', component: 'جزء', brand: 'برند', newPart: 'قطعه جدید', newComponent: 'جزء جدید',
     searchPlaceholder: 'کد رسمی یا نام', supplyMethod: 'روش تأمین', planning: 'سیاست برنامه‌ریزی', netWeight: 'وزن خالص (kg)',
     scrap: 'ضایعات پیش‌فرض (%)', BUY: 'خرید', MAKE: 'ساخت', OUTSOURCE: 'برون‌سپاری', HYBRID: 'ترکیبی',
     applicability: 'دامنه مصرف مجاز', applicabilityHint: 'اقلام مادر مرتبط برای محدودکردن انتخاب‌های BOM؛ محل مصرف واقعی همچنان از BOM تأییدشده استخراج می‌شود.',
