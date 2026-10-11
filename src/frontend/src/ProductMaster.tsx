@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ConfirmationDialog, DataTable, Definition, DefinitionGrid, DisplayEditActions, FilterBar, FormField, LoadingState, MessageStrip, PageHeader, Pagination, Section, StatusBadge, TableToolbar } from './ui'
@@ -6,11 +6,12 @@ import { currentListContext, useListQuery, useListReturn } from './ui/routeConte
 import { UnsavedChangesGuard } from './ui/UnsavedChangesGuard'
 import ProductStructure from './ProductStructure'
 import { formatOperationalNumber } from './i18n/numberFormatting'
+import { supplyMethods, type SupplyMethod } from './materialItemSupport'
 
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
-export type Product = { id: string; code: string; nameFa: string; nameEn?: string | null; productCategory: Ref; baseUnit: Ref; businessUnit?: Ref | null; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
-type Editor = { nameFa: string; nameEn: string; productCategoryId: string; baseUnitId: string; businessUnitId: string; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; version?: number }
-const empty: Editor = { nameFa: '', nameEn: '', productCategoryId: '', baseUnitId: '', businessUnitId: '', safetyStockQty: 0, criticalDays: 0, safeStartDays: 0, excessStartDays: 0, notes: '' }
+export type Product = { id: string; code: string; nameFa: string; nameEn?: string | null; productCategory: Ref; baseUnit: Ref; businessUnit?: Ref | null; supplyMethod?: SupplyMethod | null; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
+type Editor = { nameFa: string; nameEn: string; productCategoryId: string; baseUnitId: string; businessUnitId: string; supplyMethod: SupplyMethod | ''; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; version?: number }
+const empty: Editor = { nameFa: '', nameEn: '', productCategoryId: '', baseUnitId: '', businessUnitId: '', supplyMethod: '', safetyStockQty: 0, criticalDays: 0, safeStartDays: 0, excessStartDays: 0, notes: '' }
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const listPath = '/mrp/master-data/products'
 
@@ -38,7 +39,7 @@ export default function ProductMaster() {
       <label className="checkbox-label"><input type="checkbox" checked={includeInactive} onChange={e => query.update({ includeInactive: e.target.checked }, true)} />{t('common.includeInactive')}</label>
     </FilterBar>
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <section className="ui-table-surface"><TableToolbar title={t('products.list')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.code'), t('common.nameFa'), t('common.category'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
+    <section className="ui-table-surface"><TableToolbar title={t('products.list')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.code'), t('common.name'), t('common.category'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
       {items.map(item => <tr key={item.id}><td className="ui-technical">{item.code}</td><td>{item.nameFa}</td><td>{english ? item.productCategory.nameEn : item.productCategory.nameFa}</td><td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`/mrp/products/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}
     </DataTable><Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
   </main>
@@ -47,22 +48,23 @@ export default function ProductMaster() {
 export function ProductObjectPage() {
   const { t, i18n } = useTranslation(); const english = i18n.resolvedLanguage === 'en'; const { id } = useParams(); const location = useLocation(); const navigate = useNavigate(); const back = useListReturn(listPath, ['/mrp/engineering/bom'])
   const createMode = !id; const routeEdit = createMode || location.pathname.endsWith('/edit')
-  const [product, setProduct] = useState<Product | null>(null); const [editor, setEditor] = useState<Editor>({ ...empty }); const [initial, setInitial] = useState('')
+  const [product, setProduct] = useState<Product | null>(null); const [editor, setEditor] = useState<Editor>({ ...empty }); const [initial, setInitial] = useState(''); const frontendSupplyMethods = useRef(new Map<string, SupplyMethod>())
   const [categories, setCategories] = useState<Ref[]>([]); const [units, setUnits] = useState<Ref[]>([]); const [businessUnits, setBusinessUnits] = useState<Ref[]>([])
   const [loading, setLoading] = useState(Boolean(id)); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [confirmState, setConfirmState] = useState(false); const [discard, setDiscard] = useState(false)
   const dirty = routeEdit && JSON.stringify(editor) !== initial
   const load = useCallback(async () => {
     if (!id) { setInitial(JSON.stringify(empty)); return }
     setLoading(true)
-    try { const response = await fetch(`${api}/products/${id}`); if (!response.ok) throw new Error(await problem(response)); const value = await response.json() as Product; setProduct(value); const next = toEditor(value); setEditor(next); setInitial(JSON.stringify(next)) }
+    try { const response = await fetch(`${api}/products/${id}`); if (!response.ok) throw new Error(await problem(response)); const responseValue = await response.json() as Product; const value = { ...responseValue, supplyMethod: responseValue.supplyMethod ?? frontendSupplyMethods.current.get(responseValue.id) }; setProduct(value); const next = toEditor(value); setEditor(next); setInitial(JSON.stringify(next)) }
     catch (caught) { setError(caught instanceof Error ? caught.message : t('common.error')) } finally { setLoading(false) }
   }, [id, t])
   useEffect(() => { void Promise.all([fetch(`${api}/reference-data/types/PRODUCT_CATEGORY/values?includeInactive=true`).then(r => r.json()), fetch(`${api}/reference-data/units?includeInactive=true`).then(r => r.json()), fetch(`${api}/reference-data/types/BUSINESS_UNIT/values?includeInactive=true`).then(r => r.json())]).then(([c, u, b]) => { setCategories(c); setUnits(u); setBusinessUnits(b) }).catch(() => setError(t('common.error'))) }, [t])
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer) }, [load])
   async function save(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError('')
-    const payload = { ...editor, nameEn: editor.nameEn || null, businessUnitId: editor.businessUnitId || null, notes: editor.notes || null, expectedVersion: editor.version }
-    try { const response = await fetch(`${api}/products${id ? `/${id}` : ''}`, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error(await problem(response)); const result = await response.json(); const saved = (result.product ?? result.item ?? result) as Product; const savedId = saved.id ?? id; const next = toEditor(saved); setProduct(saved); setEditor(next); setInitial(JSON.stringify(next)); setMessage(t('common.saved')); navigate(`/mrp/products/${savedId}?from=${encodeURIComponent(back)}`, { replace: true }) }
+    const { supplyMethod: selectedSupplyMethod, ...apiEditor } = editor
+    const payload = { ...apiEditor, nameEn: editor.nameEn || null, businessUnitId: editor.businessUnitId || null, notes: editor.notes || null, expectedVersion: editor.version }
+    try { const response = await fetch(`${api}/products${id ? `/${id}` : ''}`, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error(await problem(response)); const result = await response.json(); const responseProduct = (result.product ?? result.item ?? result) as Product; const savedId = responseProduct.id ?? id; const frontendSupplyMethod = selectedSupplyMethod || undefined; if (savedId && frontendSupplyMethod) frontendSupplyMethods.current.set(savedId, frontendSupplyMethod); const saved = { ...responseProduct, supplyMethod: responseProduct.supplyMethod ?? frontendSupplyMethod }; const next = toEditor(saved); setProduct(saved); setEditor(next); setInitial(JSON.stringify(next)); setMessage(t('common.saved')); navigate(`/mrp/products/${savedId}?from=${encodeURIComponent(back)}`, { replace: true }) }
     catch (caught) { setError(caught instanceof Error ? caught.message : t('common.error')) } finally { setSaving(false) }
   }
   async function changeState() {
@@ -80,24 +82,25 @@ export function ProductObjectPage() {
     <form id="product-form" className="ui-object-form" onSubmit={event => void save(event)}>
       <Section title={t('common.overview')}>{editing ? <div className="ui-form-grid ui-form-grid--3">
         {product && <FormField label={t('common.code')} hint={t('common.immutable')}><input className="ui-technical" dir="ltr" value={product.code} disabled /></FormField>}
-        <FormField label={t('common.nameFa')} required><input required maxLength={200} value={editor.nameFa} onChange={e => setEditor({ ...editor, nameFa: e.target.value })} /></FormField>
-        <FormField label={t('common.nameEn')}><input dir="ltr" maxLength={200} value={editor.nameEn} onChange={e => setEditor({ ...editor, nameEn: e.target.value })} /></FormField>
+        <FormField label={t('common.name')} required><input required maxLength={200} value={editor.nameFa} onChange={e => setEditor({ ...editor, nameFa: e.target.value })} /></FormField>
         <FormField label={t('common.category')} required><select required value={editor.productCategoryId} onChange={e => setEditor({ ...editor, productCategoryId: e.target.value })}><option value="">{t('common.notSet')}</option>{categories.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
         <FormField label={t('common.unit')} required><select required value={editor.baseUnitId} onChange={e => setEditor({ ...editor, baseUnitId: e.target.value })}><option value="">{t('common.notSet')}</option>{units.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
         <FormField label={t('products.businessUnit')}><select value={editor.businessUnitId} onChange={e => setEditor({ ...editor, businessUnitId: e.target.value })}><option value="">{t('common.notSet')}</option>{businessUnits.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
+        <FormField label={t('products.supplyMethod')} hint={t('products.supplyMethodUiOnly')} required><select required value={editor.supplyMethod} onChange={e => setEditor({ ...editor, supplyMethod: e.target.value as SupplyMethod | '' })}><option value="">{t('common.notSet')}</option>{supplyMethods.map(method => <option key={method} value={method}>{t(`materials.${method}`)}</option>)}</select></FormField>
         <FormField className="span-2" label={t('common.notes')}><textarea maxLength={2000} value={editor.notes} onChange={e => setEditor({ ...editor, notes: e.target.value })} /></FormField>
       </div> : product && <DefinitionGrid>
         <Definition label={t('common.code')} technical>{product.code}</Definition>
-        <Definition label={t('common.nameFa')}>{product.nameFa}</Definition>
-        <Definition label={t('common.nameEn')}>{product.nameEn || t('common.notSet')}</Definition>
+        <Definition label={t('common.name')}>{product.nameFa}</Definition>
         <Definition label={t('common.category')}>{english ? product.productCategory.nameEn : product.productCategory.nameFa}</Definition>
         <Definition label={t('common.unit')}>{english ? product.baseUnit.nameEn : product.baseUnit.nameFa}</Definition>
         <Definition label={t('products.businessUnit')}>{product.businessUnit ? (english ? product.businessUnit.nameEn : product.businessUnit.nameFa) : t('common.notSet')}</Definition>
+        <Definition label={t('products.supplyMethod')}>{product.supplyMethod ? t(`materials.${product.supplyMethod}`) : t('common.notSet')}</Definition>
         <Definition label={t('common.notes')}>{product.notes || t('common.notSet')}</Definition>
       </DefinitionGrid>}</Section>
       <Section title={t('products.planning')}>{editing ? <div className="ui-form-grid ui-form-grid--3"><NumberField label={t('products.safetyStock')} value={editor.safetyStockQty} disabled={false} decimal onChange={value => setEditor({ ...editor, safetyStockQty: value })} /><NumberField label={t('products.criticalDays')} value={editor.criticalDays} disabled={false} onChange={value => setEditor({ ...editor, criticalDays: value })} /><NumberField label={t('products.safeStartDays')} value={editor.safeStartDays} disabled={false} onChange={value => setEditor({ ...editor, safeStartDays: value })} /><NumberField label={t('products.excessStartDays')} value={editor.excessStartDays} disabled={false} onChange={value => setEditor({ ...editor, excessStartDays: value })} /></div> : product && <DefinitionGrid><Definition label={t('products.safetyStock')} technical>{formatOperationalNumber(product.safetyStockQty, i18n.resolvedLanguage)}</Definition><Definition label={t('products.criticalDays')} technical>{formatOperationalNumber(product.criticalDays, i18n.resolvedLanguage)}</Definition><Definition label={t('products.safeStartDays')} technical>{formatOperationalNumber(product.safeStartDays, i18n.resolvedLanguage)}</Definition><Definition label={t('products.excessStartDays')} technical>{formatOperationalNumber(product.excessStartDays, i18n.resolvedLanguage)}</Definition></DefinitionGrid>}</Section>
       {product && !editing && <Section title={t('products.lifecycle')}><DefinitionGrid><Definition label={t('common.status')}>{product.isActive ? t('common.active') : t('common.inactive')}</Definition><Definition label={t('common.version')} technical>{product.version}</Definition></DefinitionGrid></Section>}
     </form>
+    {product && !editing && <MessageStrip tone="information">{t('products.supplyMethodUiOnly')}</MessageStrip>}
     {product && !editing && <ProductStructure key={product.id} itemId={product.id} itemType="PRODUCT" />}
     <ConfirmationDialog open={confirmState} title={t('common.stateConfirmTitle')} confirmLabel={t('common.confirm')} cancelLabel={t('common.cancel')} onConfirm={() => void changeState()} onCancel={() => setConfirmState(false)} />
     <ConfirmationDialog open={discard} title={t('common.discardTitle')} description={t('common.discardDescription')} confirmLabel={t('common.discard')} cancelLabel={t('common.cancel')} onConfirm={() => navigate(id ? `/mrp/products/${id}?from=${encodeURIComponent(back)}` : back)} onCancel={() => setDiscard(false)} />
@@ -106,5 +109,5 @@ export function ProductObjectPage() {
 }
 
 function NumberField({ label, value, disabled, decimal, onChange }: { label: string; value: number; disabled: boolean; decimal?: boolean; onChange: (value: number) => void }) { return <FormField label={label}><input className="ui-technical" type="number" min="0" step={decimal ? '0.000001' : '1'} disabled={disabled} value={value} onChange={event => onChange(Number(event.target.value))} /></FormField> }
-function toEditor(product: Product): Editor { return { nameFa: product.nameFa, nameEn: product.nameEn ?? '', productCategoryId: product.productCategory.id, baseUnitId: product.baseUnit.id, businessUnitId: product.businessUnit?.id ?? '', safetyStockQty: product.safetyStockQty, criticalDays: product.criticalDays, safeStartDays: product.safeStartDays, excessStartDays: product.excessStartDays, notes: product.notes ?? '', version: product.version } }
+function toEditor(product: Product): Editor { return { nameFa: product.nameFa, nameEn: product.nameEn ?? '', productCategoryId: product.productCategory.id, baseUnitId: product.baseUnit.id, businessUnitId: product.businessUnit?.id ?? '', safetyStockQty: product.safetyStockQty, criticalDays: product.criticalDays, safeStartDays: product.safeStartDays, excessStartDays: product.excessStartDays, notes: product.notes ?? '', supplyMethod: product.supplyMethod ?? '', version: product.version } }
 async function problem(response: Response) { const body = await response.json().catch(() => null) as { detail?: string; code?: string; errors?: Record<string, string[]> } | null; return [body?.code, body?.detail, ...Object.values(body?.errors ?? {}).flat()].filter(Boolean).join(' — ') || `HTTP ${response.status}` }
