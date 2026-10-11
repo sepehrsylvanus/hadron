@@ -192,7 +192,7 @@ const en = {
     error: 'The operation could not be completed', saved: 'Changes were saved successfully.', confirm: 'Confirm', yes: 'Yes', no: 'No', reason: 'Reason',
     count: '{{count}} records', page: 'Page {{page}} of {{pages}} — {{count}} records', code: 'Code', number: 'Number', name: 'Name', view: 'View',
     nameFa: 'Persian name', nameEn: 'English name', notes: 'Notes', unit: 'Base unit', category: 'Category',
-    optional: 'Optional', required: 'Required', notSet: 'Not set', version: 'Version', backToList: 'Back to list',
+    optional: 'Optional', required: 'Required', notSet: 'Not set', version: 'Version', versionEditHint: 'You may increase the version; if unchanged, it advances by one when saved.', backToList: 'Back to list',
     displayMode: 'Display mode', editMode: 'Edit mode', discardTitle: 'Discard unsaved changes?',
     discardDescription: 'Changes in this form have not been saved.', discard: 'Discard', immutable: 'Cannot be changed after creation',
     stateConfirmTitle: 'Confirm status change?', noData: '—', filterBar: 'List filters', filters: 'Filters', list: 'List', overview: 'Overview', from: 'From date', to: 'To date', refresh: 'Refresh', saving: 'Saving…', paginationSummary: 'Page {{page}} — {{count}} records',

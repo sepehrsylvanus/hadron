@@ -192,7 +192,7 @@ const fa = {
     error: 'عملیات انجام نشد', saved: 'تغییرات با موفقیت ذخیره شد.', confirm: 'تأیید', yes: 'بله', no: 'خیر', reason: 'دلیل',
     count: '{{count}} مورد', page: 'صفحه {{page}} از {{pages}} — {{count}} مورد', code: 'کد', number: 'شماره', name: 'نام', view: 'مشاهده',
     nameFa: 'نام فارسی', nameEn: 'نام انگلیسی', notes: 'یادداشت', unit: 'واحد پایه', category: 'گروه',
-    optional: 'اختیاری', required: 'الزامی', notSet: 'تعیین نشده', version: 'نسخه', backToList: 'بازگشت به فهرست',
+    optional: 'اختیاری', required: 'الزامی', notSet: 'تعیین نشده', version: 'نسخه', versionEditHint: 'می‌توانید نسخه را افزایش دهید؛ اگر تغییرش ندهید، پس از ذخیره خودکار یک واحد افزایش می‌یابد.', backToList: 'بازگشت به فهرست',
     displayMode: 'حالت نمایش', editMode: 'حالت ویرایش', discardTitle: 'تغییرات ذخیره‌نشده کنار گذاشته شود؟',
     discardDescription: 'تغییرات این فرم ذخیره نشده‌اند.', discard: 'کنار گذاشتن', immutable: 'پس از ایجاد قابل تغییر نیست',
     stateConfirmTitle: 'تغییر وضعیت تأیید شود؟', noData: '—', filterBar: 'فیلترهای فهرست', filters: 'فیلترها', list: 'فهرست', overview: 'اطلاعات کلی', from: 'از تاریخ', to: 'تا تاریخ', refresh: 'به‌روزرسانی', saving: 'در حال ذخیره…', paginationSummary: 'صفحه {{page}} — {{count}} مورد',

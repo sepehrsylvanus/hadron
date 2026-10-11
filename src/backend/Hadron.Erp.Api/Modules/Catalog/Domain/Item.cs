@@ -38,13 +38,14 @@ public sealed class Item
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
 
-    public void Edit(string nameFa, string? nameEn, Guid baseUnitId, string? notes)
+    public void Edit(string nameFa, string? nameEn, Guid baseUnitId, string? notes,
+        long? requestedVersion = null)
     {
         NameFa = nameFa;
         NameEn = nameEn;
         BaseUnitId = baseUnitId;
         Notes = notes;
-        Advance();
+        Advance(requestedVersion);
     }
 
     public void ChangeState(bool active)
@@ -53,9 +54,12 @@ public sealed class Item
         Advance();
     }
 
-    private void Advance()
+    private void Advance(long? requestedVersion = null)
     {
-        Version++;
+        var nextVersion = Version + 1;
+        Version = requestedVersion.HasValue && requestedVersion.Value > Version
+            ? Math.Max(nextVersion, requestedVersion.Value)
+            : nextVersion;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }

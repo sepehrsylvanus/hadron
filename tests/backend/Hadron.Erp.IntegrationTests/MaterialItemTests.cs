@@ -208,8 +208,9 @@ public sealed class MaterialItemTests : IClassFixture<FoundationApiFactory>, IAs
     public async Task Lifecycle_and_stale_mutations_preserve_state_version_and_audit()
     {
         var created = await ReadCreated(await Create("components", Request("components", "LIFE")));
-        var update = await _client.PutAsJsonAsync($"/api/components/{created.Id}", Request("components", "LIFE-EDIT") with { ExpectedVersion = created.Version });
+        var update = await _client.PutAsJsonAsync($"/api/components/{created.Id}", Request("components", "LIFE-EDIT") with { ExpectedVersion = created.Version, RequestedVersion = created.Version });
         var edited = await ReadMutation(update);
+        Assert.Equal(created.Version + 1, edited.Version);
         var editAuditCount = _factory.AuditSink.Snapshot().Count(x => x.EntityType == "Component" && x.Action == "EDIT");
         var stale = await _client.PutAsJsonAsync($"/api/components/{created.Id}", Request("components", "STALE") with { ExpectedVersion = created.Version });
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -225,6 +226,35 @@ public sealed class MaterialItemTests : IClassFixture<FoundationApiFactory>, IAs
         Assert.Equal(HttpStatusCode.Conflict, staleLifecycle.StatusCode);
         var reactivated = await _client.PostAsJsonAsync($"/api/components/{created.Id}/reactivate", new { expectedVersion = inactive!.Version });
         Assert.Equal(HttpStatusCode.OK, reactivated.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("parts")]
+    [InlineData("components")]
+    public async Task Requested_version_can_only_move_forward_without_weakening_stale_write_protection(string resource)
+    {
+        var created = await ReadCreated(await Create(resource, Request(resource, $"VERSION-{resource}")));
+        var requested = await _client.PutAsJsonAsync($"/api/{resource}/{created.Id}",
+            Request(resource, $"VERSION-RAISED-{resource}") with
+            { ExpectedVersion = created.Version, RequestedVersion = 9 });
+        Assert.Equal(HttpStatusCode.OK, requested.StatusCode);
+        var raised = await ReadMutation(requested);
+        Assert.Equal(9, raised.Version);
+        var editAuditCount = _factory.AuditSink.Snapshot().Count(x => x.EntityId == created.Id && x.Action == "EDIT");
+
+        var lower = await _client.PutAsJsonAsync($"/api/{resource}/{created.Id}",
+            Request(resource, $"VERSION-LOWER-{resource}") with
+            { ExpectedVersion = raised.Version, RequestedVersion = raised.Version - 1 });
+        Assert.Equal(HttpStatusCode.BadRequest, lower.StatusCode);
+
+        var stale = await _client.PutAsJsonAsync($"/api/{resource}/{created.Id}",
+            Request(resource, $"VERSION-STALE-{resource}") with
+            { ExpectedVersion = created.Version, RequestedVersion = 12 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("STALE_VERSION", await ProblemCode(stale));
+        var current = await _client.GetFromJsonAsync<ItemDto>($"/api/{resource}/{created.Id}");
+        Assert.Equal(raised.Version, current!.Version);
+        Assert.Equal(editAuditCount, _factory.AuditSink.Snapshot().Count(x => x.EntityId == created.Id && x.Action == "EDIT"));
     }
 
     [Fact]
@@ -503,7 +533,7 @@ public sealed class MaterialItemTests : IClassFixture<FoundationApiFactory>, IAs
     private sealed record MaterialRequest(string? Code, string NameFa, string? NameEn, Guid CategoryId,
         Guid BaseUnitId, string SupplyMethod, decimal? NetWeightKg, decimal DefaultPlanningScrapPercent,
         decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes,
-        long? ExpectedVersion);
+        long? ExpectedVersion, long? RequestedVersion = null);
     private sealed record ItemDto(Guid Id, string ItemType, string Code, string NameFa,
         RefDto Category, RefDto BaseUnit, decimal? NetWeightKg, decimal DefaultPlanningScrapPercent,
         decimal SafetyStockQty, bool IsActive, long Version);

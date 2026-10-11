@@ -502,3 +502,12 @@ Current-period Remaining Forecast فقط روی تاریخ‌های `Demand Date
 
 **Status:** LOCKED
 **Source:** Owner approval — Internal MAKE preparation and department scheduling, 2026-09-05
+
+---
+
+## DEC-064 — Editable Forward Adjustment of the Unified Item Version
+
+**Decision:** `Item.Version` همچنان تنها concurrency token مشترک Product، Part و Component است و `ExpectedVersion` ارسالی برای stale-write protection تغییر نمی‌کند. در فرم ویرایش می‌توان `RequestedVersion` را برابر مقدار فعلی یا عددی بزرگ‌تر فرستاد: مقدار مساوی/حذف‌شده رفتار فعلی را حفظ می‌کند و نسخه پس از ذخیره یک واحد جلو می‌رود؛ مقدار بزرگ‌تر به‌عنوان نسخهٔ جدید ثبت می‌شود. مقدار کمتر از نسخهٔ فعلی رد می‌شود تا token هرگز عقب نرود یا دوباره استفاده نشود. Create نسخهٔ اولیهٔ ۱ را خودکار می‌سازد و lifecycle mutationها نیز همچنان نسخه را خودکار جلو می‌برند. نسخهٔ دوم یا ستون جداگانه ایجاد نمی‌شود.
+
+**Status:** LOCKED
+**Source:** Owner approval — Editable item version request, 2026-10-11

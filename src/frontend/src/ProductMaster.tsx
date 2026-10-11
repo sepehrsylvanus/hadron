@@ -10,7 +10,7 @@ import { supplyMethods, type SupplyMethod } from './materialItemSupport'
 
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
 export type Product = { id: string; code: string; nameFa: string; nameEn?: string | null; productCategory: Ref; baseUnit: Ref; businessUnit?: Ref | null; supplyMethod?: SupplyMethod | null; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
-type Editor = { nameFa: string; nameEn: string; productCategoryId: string; baseUnitId: string; businessUnitId: string; supplyMethod: SupplyMethod | ''; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; version?: number }
+type Editor = { nameFa: string; nameEn: string; productCategoryId: string; baseUnitId: string; businessUnitId: string; supplyMethod: SupplyMethod | ''; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; expectedVersion?: number; requestedVersion?: number }
 const empty: Editor = { nameFa: '', nameEn: '', productCategoryId: '', baseUnitId: '', businessUnitId: '', supplyMethod: '', safetyStockQty: 0, criticalDays: 0, safeStartDays: 0, excessStartDays: 0, notes: '' }
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const listPath = '/mrp/master-data/products'
@@ -62,8 +62,8 @@ export function ProductObjectPage() {
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer) }, [load])
   async function save(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError('')
-    const { supplyMethod: selectedSupplyMethod, ...apiEditor } = editor
-    const payload = { ...apiEditor, nameEn: editor.nameEn || null, businessUnitId: editor.businessUnitId || null, notes: editor.notes || null, expectedVersion: editor.version }
+    const { supplyMethod: selectedSupplyMethod, expectedVersion, requestedVersion, ...apiEditor } = editor
+    const payload = { ...apiEditor, nameEn: editor.nameEn || null, businessUnitId: editor.businessUnitId || null, notes: editor.notes || null, expectedVersion, ...(id ? { requestedVersion } : {}) }
     try { const response = await fetch(`${api}/products${id ? `/${id}` : ''}`, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) throw new Error(await problem(response)); const result = await response.json(); const responseProduct = (result.product ?? result.item ?? result) as Product; const savedId = responseProduct.id ?? id; const frontendSupplyMethod = selectedSupplyMethod || undefined; if (savedId && frontendSupplyMethod) frontendSupplyMethods.current.set(savedId, frontendSupplyMethod); const saved = { ...responseProduct, supplyMethod: responseProduct.supplyMethod ?? frontendSupplyMethod }; const next = toEditor(saved); setProduct(saved); setEditor(next); setInitial(JSON.stringify(next)); setMessage(t('common.saved')); navigate(`/mrp/products/${savedId}?from=${encodeURIComponent(back)}`, { replace: true }) }
     catch (caught) { setError(caught instanceof Error ? caught.message : t('common.error')) } finally { setSaving(false) }
   }
@@ -82,6 +82,7 @@ export function ProductObjectPage() {
     <form id="product-form" className="ui-object-form" onSubmit={event => void save(event)}>
       <Section title={t('common.overview')}>{editing ? <div className="ui-form-grid ui-form-grid--3">
         {product && <FormField label={t('common.code')} hint={t('common.immutable')}><input className="ui-technical" dir="ltr" value={product.code} disabled /></FormField>}
+        {product && <FormField label={t('common.version')} hint={t('common.versionEditHint')} required><input className="ui-technical" type="number" min={product.version} step="1" required value={editor.requestedVersion ?? product.version} onChange={event => setEditor({ ...editor, requestedVersion: Number(event.target.value) })} /></FormField>}
         <FormField label={t('common.name')} required><input required maxLength={200} value={editor.nameFa} onChange={e => setEditor({ ...editor, nameFa: e.target.value })} /></FormField>
         <FormField label={t('common.category')} required><select required value={editor.productCategoryId} onChange={e => setEditor({ ...editor, productCategoryId: e.target.value })}><option value="">{t('common.notSet')}</option>{categories.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
         <FormField label={t('common.unit')} required><select required value={editor.baseUnitId} onChange={e => setEditor({ ...editor, baseUnitId: e.target.value })}><option value="">{t('common.notSet')}</option>{units.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
@@ -104,5 +105,5 @@ export function ProductObjectPage() {
 }
 
 function NumberField({ label, value, disabled, decimal, onChange }: { label: string; value: number; disabled: boolean; decimal?: boolean; onChange: (value: number) => void }) { return <FormField label={label}><input className="ui-technical" type="number" min="0" step={decimal ? '0.000001' : '1'} disabled={disabled} value={value} onChange={event => onChange(Number(event.target.value))} /></FormField> }
-function toEditor(product: Product): Editor { return { nameFa: product.nameFa, nameEn: product.nameEn ?? '', productCategoryId: product.productCategory.id, baseUnitId: product.baseUnit.id, businessUnitId: product.businessUnit?.id ?? '', safetyStockQty: product.safetyStockQty, criticalDays: product.criticalDays, safeStartDays: product.safeStartDays, excessStartDays: product.excessStartDays, notes: product.notes ?? '', supplyMethod: product.supplyMethod ?? '', version: product.version } }
+function toEditor(product: Product): Editor { return { nameFa: product.nameFa, nameEn: product.nameEn ?? '', productCategoryId: product.productCategory.id, baseUnitId: product.baseUnit.id, businessUnitId: product.businessUnit?.id ?? '', safetyStockQty: product.safetyStockQty, criticalDays: product.criticalDays, safeStartDays: product.safeStartDays, excessStartDays: product.excessStartDays, notes: product.notes ?? '', supplyMethod: product.supplyMethod ?? '', expectedVersion: product.version, requestedVersion: product.version } }
 async function problem(response: Response) { const body = await response.json().catch(() => null) as { detail?: string; code?: string; errors?: Record<string, string[]> } | null; return [body?.code, body?.detail, ...Object.values(body?.errors ?? {}).flat()].filter(Boolean).join(' — ') || `HTTP ${response.status}` }

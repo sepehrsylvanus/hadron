@@ -94,13 +94,14 @@ public sealed class MaterialItemService(
             .SingleOrDefaultAsync(x => x.ItemId == id && x.Item.ItemType == itemType, token)
             ?? throw new KeyNotFoundException();
         EnsureVersion(profile.Item.Version, request.ExpectedVersion);
+        ValidateRequestedVersion(request.RequestedVersion, profile.Item.Version);
         if (baseUnitChangeGuard is not null)
             await baseUnitChangeGuard.EnsureCanChange(profile.Item.Id, profile.Item.BaseUnitId,
                 request.BaseUnitId, token);
         await ValidateReferences(db, itemType, profile, request.CategoryId, request.BaseUnitId, false, token);
         var old = Snapshot((await LoadResponse(db, itemType, id, token))!);
         profile.Item.Edit(request.NameFa.Trim(), Clean(request.NameEn),
-            request.BaseUnitId, Clean(request.Notes));
+            request.BaseUnitId, Clean(request.Notes), request.RequestedVersion);
         profile.Edit(request.CategoryId, NormalizeSupplyMethod(request.SupplyMethod), request.NetWeightKg,
             request.DefaultPlanningScrapPercent, request.SafetyStockQty, request.CriticalDays,
             request.SafeStartDays, request.ExcessStartDays);
@@ -288,6 +289,11 @@ public sealed class MaterialItemService(
     }
     private static void EnsureVersion(long actual, long expected)
     { if (actual != expected) throw new MaterialItemConflictException("STALE_VERSION", "نسخه ارسالی قدیمی است."); }
+    private static void ValidateRequestedVersion(long? requestedVersion, long currentVersion)
+    {
+        if (requestedVersion.HasValue && requestedVersion.Value < currentVersion)
+            throw Validation("requestedVersion", "نسخه درخواستی نمی‌تواند کمتر از نسخه فعلی باشد.");
+    }
     private static string NormalizeSupplyMethod(string? value) => Clean(value)?.ToUpperInvariant() ?? string.Empty;
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static MaterialItemValidationException Validation(string key, string message) =>

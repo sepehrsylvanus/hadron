@@ -13,7 +13,7 @@ public sealed record CreateProductRequest(string NameFa, string? NameEn, Guid Pr
     int ExcessStartDays, string? Notes);
 public sealed record UpdateProductRequest(string NameFa, string? NameEn, Guid ProductCategoryId,
     Guid BaseUnitId, Guid? BusinessUnitId, decimal SafetyStockQty, int CriticalDays, int SafeStartDays,
-    int ExcessStartDays, string? Notes, long ExpectedVersion);
+    int ExcessStartDays, string? Notes, long ExpectedVersion, long? RequestedVersion = null);
 public sealed record ChangeProductStateRequest(long ExpectedVersion, string? Reason);
 
 public sealed class ProductValidationException(IReadOnlyDictionary<string, string[]> errors) : Exception("Product validation failed.")

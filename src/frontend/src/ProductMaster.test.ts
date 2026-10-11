@@ -31,7 +31,7 @@ test('Product supply type is available in the editor and display page', () => {
   assert.match(productMaster, /supplyMethods\.map\(method =>/)
   assert.match(productMaster, /<Definition label={t\('products\.supplyMethod'\)}>\{product\.supplyMethod/)
   assert.match(productMaster, /supplyMethodUiOnly/)
-  assert.match(productMaster, /const \{ supplyMethod: selectedSupplyMethod, \.\.\.apiEditor \} = editor/)
+  assert.match(productMaster, /const \{ supplyMethod: selectedSupplyMethod, expectedVersion, requestedVersion, \.\.\.apiEditor \} = editor/)
   assert.match(productMaster, /const payload = \{ \.\.\.apiEditor/)
 })
 
@@ -52,4 +52,13 @@ test('Part and Component Notes are hidden from their shared create, edit, and di
   assert.doesNotMatch(materialMaster, /<Definition label={t\('common\.notes'\)}/)
   assert.match(materialMaster, /notes: item\.notes \?\? ''/)
   assert.match(materialMaster, /notes: editor\.notes \|\| null/)
+})
+
+test('Product, Part, and Component edits can only advance the optimistic-concurrency version', () => {
+  assert.match(productMaster, /<FormField label={t\('common\.version'\)} hint={t\('common\.versionEditHint'\)} required><input className="ui-technical" type="number" min={product\.version} step="1" required/)
+  assert.match(materialMaster, /<FormField label={t\('common\.version'\)} hint={t\('common\.versionEditHint'\)} required><input className="ui-technical" type="number" min={item\.version} step="1" required/)
+  assert.match(productMaster, /expectedVersion: product\.version, requestedVersion: product\.version/)
+  assert.match(materialMaster, /expectedVersion: item\.version, requestedVersion: item\.version/)
+  assert.match(productMaster, /expectedVersion, \.\.\.\(id \? \{ requestedVersion \} : \{\}\)/)
+  assert.match(materialMaster, /expectedVersion, \.\.\.\(id \? \{ requestedVersion \} : \{\}\)/)
 })

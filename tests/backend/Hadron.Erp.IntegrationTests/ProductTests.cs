@@ -54,13 +54,14 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     public async Task Edit_preserves_generated_code_advances_version_and_stale_write_conflicts()
     {
         var created = await ReadCreated(await Create("OLD"));
-        var payload = Request("NEW") with { ExpectedVersion = created.Version };
+        var payload = Request("NEW") with { ExpectedVersion = created.Version, RequestedVersion = created.Version };
         var update = await _client.PutAsJsonAsync($"/api/products/{created.Id}", payload); Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         using var json = JsonDocument.Parse(await update.Content.ReadAsStringAsync());
         var updatedProduct = json.RootElement.GetProperty("product");
         var officialCode = (await _client.GetFromJsonAsync<ProductCodeDto>($"/api/products/{created.Id}"))!.Code;
         Assert.Equal(officialCode, updatedProduct.GetProperty("code").GetString());
         var updatedVersion = updatedProduct.GetProperty("version").GetInt64();
+        Assert.Equal(created.Version + 1, updatedVersion);
         var editAuditCount = _factory.AuditSink.Snapshot().Count(x => x.EntityType == "Product" && x.Action == "EDIT");
 
         var stale = await _client.PutAsJsonAsync($"/api/products/{created.Id}", payload);
@@ -71,6 +72,30 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
         Assert.Equal(officialCode, persisted.RootElement.GetProperty("code").GetString());
         Assert.Equal(updatedVersion, persisted.RootElement.GetProperty("version").GetInt64());
         Assert.Equal(editAuditCount, _factory.AuditSink.Snapshot().Count(x => x.EntityType == "Product" && x.Action == "EDIT"));
+    }
+
+    [Fact]
+    public async Task Requested_version_can_only_move_forward_without_weakening_stale_write_protection()
+    {
+        var created = await ReadCreated(await Create("VERSION"));
+        var requested = await _client.PutAsJsonAsync($"/api/products/{created.Id}",
+            Request("VERSION-RAISED") with { ExpectedVersion = created.Version, RequestedVersion = 9 });
+        Assert.Equal(HttpStatusCode.OK, requested.StatusCode);
+        var raised = await ReadMutation(requested);
+        Assert.Equal(9, raised.Version);
+        var editAuditCount = _factory.AuditSink.Snapshot().Count(x => x.EntityId == created.Id && x.Action == "EDIT");
+
+        var lower = await _client.PutAsJsonAsync($"/api/products/{created.Id}",
+            Request("VERSION-LOWER") with { ExpectedVersion = raised.Version, RequestedVersion = raised.Version - 1 });
+        Assert.Equal(HttpStatusCode.BadRequest, lower.StatusCode);
+
+        var stale = await _client.PutAsJsonAsync($"/api/products/{created.Id}",
+            Request("VERSION-STALE") with { ExpectedVersion = created.Version, RequestedVersion = 12 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("STALE_VERSION", await ProblemCode(stale));
+        var current = await _client.GetFromJsonAsync<ProductDto>($"/api/products/{created.Id}");
+        Assert.Equal(raised.Version, current!.Version);
+        Assert.Equal(editAuditCount, _factory.AuditSink.Snapshot().Count(x => x.EntityId == created.Id && x.Action == "EDIT"));
     }
 
     [Fact]
@@ -355,7 +380,7 @@ public sealed class ProductTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     }
     private async Task DeactivateReference(string path) { var current = await _client.GetFromJsonAsync<ReferenceDto>(path); var response = await _client.PostAsJsonAsync($"{path}/deactivate", new { expectedVersion = current!.Version }); Assert.Equal(HttpStatusCode.OK, response.StatusCode); }
     private static async Task<string?> ProblemCode(HttpResponseMessage response) { using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()); return json.RootElement.GetProperty("code").GetString(); }
-    private sealed record ProductRequest(string Code, string NameFa, string? NameEn, Guid ProductCategoryId, Guid BaseUnitId, Guid? BusinessUnitId, decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes, long? ExpectedVersion);
+    private sealed record ProductRequest(string Code, string NameFa, string? NameEn, Guid ProductCategoryId, Guid BaseUnitId, Guid? BusinessUnitId, decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes, long? ExpectedVersion, long? RequestedVersion = null);
     private sealed record ProductDto(Guid Id, long Version, RefDto ProductCategory);
     private sealed record ProductDetailDto(Guid Id, string Code, bool IsActive);
     private sealed record ProductStateDto(Guid Id, bool IsActive, long Version);

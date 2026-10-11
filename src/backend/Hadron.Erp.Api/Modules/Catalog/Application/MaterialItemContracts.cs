@@ -16,7 +16,7 @@ public sealed record CreateMaterialItemRequest(string NameFa, string? NameEn, Gu
 public sealed record UpdateMaterialItemRequest(string NameFa, string? NameEn, Guid CategoryId,
     Guid BaseUnitId, string SupplyMethod, decimal? NetWeightKg, decimal DefaultPlanningScrapPercent,
     decimal SafetyStockQty, int CriticalDays, int SafeStartDays, int ExcessStartDays, string? Notes,
-    long ExpectedVersion);
+    long ExpectedVersion, long? RequestedVersion = null);
 public sealed record ChangeMaterialItemStateRequest(long ExpectedVersion, string? Reason);
 
 public sealed class MaterialItemValidationException(IReadOnlyDictionary<string, string[]> errors)
