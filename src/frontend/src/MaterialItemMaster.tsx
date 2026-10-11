@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from './AuthContext'
 import { ConfirmationDialog, DataTable, Definition, DefinitionGrid, DisplayEditActions, FilterBar, FormField, LoadingState, MessageStrip, PageHeader, Pagination, Section, StatusBadge, TableToolbar } from './ui'
 import { currentListContext, useListQuery, useListReturn } from './ui/routeContext'
 import { UnsavedChangesGuard } from './ui/UnsavedChangesGuard'
@@ -12,6 +13,8 @@ import { localizedName } from './i18n/localizedName'
 export type ItemType = 'PART' | 'COMPONENT'
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
 type MaterialItem = { id: string; itemType: ItemType; code: string; nameFa: string; nameEn?: string | null; category: Ref; baseUnit: Ref; supplyMethod: string; netWeightKg?: number | null; defaultPlanningScrapPercent: number; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
+type ItemSupplierLink = { id: string; supplier: { name: string }; isPreferred: boolean }
+type ItemSupplierLookup = ItemSupplierLink[] | null | 'error'
 type Editor = { nameFa: string; nameEn: string; categoryId: string; baseUnitId: string; supplyMethod: string; netWeightKg: string; defaultPlanningScrapPercent: number; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; notes: string; version?: number }
 const empty: Editor = { nameFa: '', nameEn: '', categoryId: '', baseUnitId: '', supplyMethod: 'BUY', netWeightKg: '', defaultPlanningScrapPercent: 0, safetyStockQty: 0, criticalDays: 0, safeStartDays: 0, excessStartDays: 0, notes: '' }
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
@@ -20,9 +23,10 @@ const methods = supplyMethods
 function config(itemType: ItemType) { return itemType === 'PART' ? { resource: 'parts', category: 'PART_CATEGORY', list: '/mrp/master-data/parts', object: '/mrp/parts', title: 'materials.parts', singular: 'materials.part', create: 'materials.newPart' } : { resource: 'components', category: 'COMPONENT_CATEGORY', list: '/mrp/master-data/components', object: '/mrp/components', title: 'materials.components', singular: 'materials.component', create: 'materials.newComponent' } }
 
 export default function MaterialItemMaster({ itemType }: { itemType: ItemType }) {
-  const { t, i18n } = useTranslation(); const english = i18n.resolvedLanguage === 'en'; const c = config(itemType); const location = useLocation(); const query = useListQuery()
+  const { t, i18n } = useTranslation(); const { has } = useAuth(); const english = i18n.resolvedLanguage === 'en'; const c = config(itemType); const location = useLocation(); const query = useListQuery()
+  const showSupplierColumn = itemType === 'PART' && has('procurement.sourcing.view')
   const search = query.value('search'); const category = query.value('category'); const supply = query.value('supply'); const includeInactive = query.flag('includeInactive')
-  const [items, setItems] = useState<MaterialItem[]>([]); const [categories, setCategories] = useState<Ref[]>([]); const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState('')
+  const [items, setItems] = useState<MaterialItem[]>([]); const [categories, setCategories] = useState<Ref[]>([]); const [supplierLinksByItem, setSupplierLinksByItem] = useState<Record<string, ItemSupplierLookup>>({}); const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState('')
   const load = useCallback(async () => {
     setLoading(true); const q = new URLSearchParams({ search, includeInactive: String(includeInactive), page: String(query.page), pageSize: String(query.pageSize) }); if (category) q.set('categoryId', category); if (supply) q.set('supplyMethod', supply)
     try { const response = await fetch(`${api}/${c.resource}?${q}`); if (!response.ok) throw new Error(await problem(response)); const body = await response.json(); setItems(body.items); setTotal(body.totalCount) }
@@ -30,12 +34,46 @@ export default function MaterialItemMaster({ itemType }: { itemType: ItemType })
   }, [c.resource, category, includeInactive, query.page, query.pageSize, search, supply, t])
   useEffect(() => { void fetch(`${api}/reference-data/types/${c.category}/values`).then(r => r.json()).then(setCategories).catch(() => setError(t('common.error'))) }, [c.category, t])
   useEffect(() => { const timer = window.setTimeout(() => void load(), 120); return () => window.clearTimeout(timer) }, [load])
+  useEffect(() => {
+    if (!showSupplierColumn || !items.length) return
+    const controller = new AbortController(); let active = true
+    void Promise.all(items.map(async item => {
+      const q = new URLSearchParams({ itemId: item.id, includeInactive: 'false', page: '1', pageSize: '100' })
+      try {
+        const response = await fetch(`${api}/sourcing-options/item-suppliers?${q}`, { signal: controller.signal })
+        if (!response.ok) throw new Error(await problem(response))
+        const body = await response.json() as { items: ItemSupplierLink[] }
+        return [item.id, [...body.items].sort((a, b) => Number(b.isPreferred) - Number(a.isPreferred))] as const
+      } catch {
+        return [item.id, controller.signal.aborted ? null : 'error'] as const
+      }
+    })).then(entries => { if (active) setSupplierLinksByItem(Object.fromEntries(entries)) })
+    return () => { active = false; controller.abort() }
+  }, [items, showSupplierColumn])
   const from = currentListContext(location.pathname, location.search); const filtered = Boolean(search || category || supply || includeInactive)
   return <main className="app-shell">
     <PageHeader title={t(c.title)} subtitle={t('materials.planning')} actions={<Link className="button button--primary" to={`${c.object}/new?from=${from}`}>{t(c.create)}</Link>} />
     <FilterBar label={t('common.filterBar')}><FormField label={t('common.search')}><input value={search} onChange={e => query.update({ search: e.target.value }, true)} placeholder={t('materials.searchPlaceholder')} /></FormField><FormField label={t('common.category')}><select value={category} onChange={e => query.update({ category: e.target.value }, true)}><option value="">{t('common.all')}</option>{categories.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}</option>)}</select></FormField><FormField label={t('materials.supplyMethod')}><select value={supply} onChange={e => query.update({ supply: e.target.value }, true)}><option value="">{t('common.all')}</option>{methods.map(x => <option key={x} value={x}>{t(`materials.${x}`)}</option>)}</select></FormField><label className="checkbox-label"><input type="checkbox" checked={includeInactive} onChange={e => query.update({ includeInactive: e.target.checked }, true)} />{t('common.includeInactive')}</label></FilterBar>
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <section className="ui-table-surface"><TableToolbar title={t(c.title)} count={t('common.count', { count: total })} /><DataTable headers={[t('common.code'), t('common.name'), t('common.category'), t('materials.supplyMethod'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>{items.map(item => <tr key={item.id}><td className="ui-technical">{item.code}</td><td>{item.nameFa}</td><td>{english ? item.category.nameEn : item.category.nameFa}</td><td>{t(`materials.${item.supplyMethod}`)}</td><td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`${c.object}/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}</DataTable><Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
+    <section className="ui-table-surface">
+      <TableToolbar title={t(c.title)} count={t('common.count', { count: total })} />
+      <DataTable headers={[t('common.code'), t('common.name'), ...(showSupplierColumn ? [t('sourcing.supplier')] : []), t('common.category'), t('materials.supplyMethod'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
+        {items.map(item => {
+          const supplierLinks = supplierLinksByItem[item.id]
+          return <tr key={item.id}>
+            <td className="ui-technical">{item.code}</td>
+            <td>{item.nameFa}</td>
+            {showSupplierColumn && <td><div className="material-item-supplier-list">{supplierLinks == null ? t('common.loading') : supplierLinks === 'error' ? t('common.noData') : supplierLinks.length ? supplierLinks.map(link => <span key={link.id}>{link.supplier.name}{link.isPreferred && <small>{t('sourcing.preferred')}</small>}</span>) : t('common.none')}</div></td>}
+            <td>{english ? item.category.nameEn : item.category.nameFa}</td>
+            <td>{t(`materials.${item.supplyMethod}`)}</td>
+            <td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td>
+            <td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td>
+            <td className="actions"><Link className="button button--quiet" to={`${c.object}/${item.id}?from=${from}`}>{t('common.details')}</Link></td>
+          </tr>
+        })}
+      </DataTable>
+      <Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} />
+    </section>
   </main>
 }
 
