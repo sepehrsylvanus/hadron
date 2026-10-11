@@ -433,6 +433,10 @@ html[dir='ltr'] .shell-identity strong, html[dir='ltr'] .eyebrow, html[dir='ltr'
 .segmented-control { display: inline-flex; padding: 3px; border: 1px solid var(--border-default); border-radius: 7px; background: #f7f7f8; }
 .segmented-control button { min-height: 36px; padding: 6px 12px; border: 0; border-radius: 5px; background: transparent; color: var(--text-secondary); font: inherit; font-weight: 600; cursor: pointer; }
 .segmented-control button.active { background: #fff; color: var(--brand-red); box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+.bom-parent-filter { display: grid; flex: 1 1 360px; gap: 6px; min-width: min(100%, 360px); }
+.bom-parent-filter__label { color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.bom-parent-tabs { display: flex; width: 100%; flex-wrap: wrap; }
+.bom-parent-tabs button { flex: 1 1 0; min-height: 44px; white-space: nowrap; }
 .production-working-week { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 12px; border: 1px solid var(--border-default); border-radius: 6px; }
 .production-working-week legend { padding-inline: 6px; font-size: 13px; font-weight: 700; }
 .production-working-week label { display: inline-flex; align-items: center; gap: 6px; }

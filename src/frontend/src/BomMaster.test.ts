@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test, { after } from 'node:test'
 import * as React from 'react'
 import { createInstance } from 'i18next'
@@ -12,6 +13,20 @@ import fa from './i18n/locales/fa.ts'
 let server: ViteDevServer | undefined
 let BomModule: typeof import('./BomMaster.tsx') | undefined
 let AuthModule: typeof import('./AuthContext.tsx') | undefined
+const bomMasterSource = readFileSync(new URL('./BomMaster.tsx', import.meta.url), 'utf8')
+
+test('BOM parent type filter uses accessible tabs instead of a dropdown', () => {
+  const start = bomMasterSource.indexOf('<div className="bom-parent-filter">')
+  const end = bomMasterSource.indexOf('<section className="ui-table-surface bom-catalog-panel">', start)
+  const parentFilter = bomMasterSource.slice(start, end)
+  assert.ok(start >= 0 && end > start)
+  assert.match(parentFilter, /role="group" aria-label={t\('bom\.parent'\)}/)
+  assert.match(parentFilter, /aria-pressed=\{!itemType\}/)
+  assert.match(parentFilter, /aria-pressed=\{itemType === 'PRODUCT'\}/)
+  assert.match(parentFilter, /aria-pressed=\{itemType === 'PART'\}/)
+  assert.match(parentFilter, /aria-pressed=\{itemType === 'COMPONENT'\}/)
+  assert.doesNotMatch(parentFilter, /<select value=\{itemType\}/)
+})
 
 Object.assign(globalThis, {
   IS_REACT_ACT_ENVIRONMENT: true,
