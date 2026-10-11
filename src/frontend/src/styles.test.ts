@@ -23,6 +23,8 @@ test('compatibility aliases reuse approved canonical design tokens', () => {
 
 test('Product planning policy aligns all four thresholds and remains responsive', () => {
   assert.match(stylesheet, /\.ui-form-grid\.product-planning-grid \{ grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); \}/)
+  assert.match(stylesheet, /\[dir='rtl'\] \.ui-form-grid\.product-planning-grid input\[type="number"\] \{ text-align: right; \}/)
+  assert.match(stylesheet, /\[dir='rtl'\] \.ui-definition-grid\.ui-definition-grid--product-planning dd\[dir="ltr"\] \{ text-align: right; \}/)
   assert.match(stylesheet, /@media \(max-width: 1100px\)[\s\S]*\.ui-form-grid\.product-planning-grid, \.ui-definition-grid\.ui-definition-grid--product-planning \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/)
   assert.match(stylesheet, /@media \(max-width: 760px\)[\s\S]*\.ui-form-grid\.product-planning-grid, \.ui-definition-grid\.ui-definition-grid--product-planning \{ grid-template-columns: 1fr; \}/)
 })
