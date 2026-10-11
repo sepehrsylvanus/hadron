@@ -113,6 +113,7 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
     public async Task<SourcingOptionResponse> Create(CreateSourcingOptionRequest request, DateOnly evaluationDate,
         CancellationToken ct)
     {
+        ValidateImageUrl(request.ImageUrl);
         var routeScope = ValidateRouteScope(request.RouteScope);
         ValidateCommercial(request.MinimumOrderQuantity, request.SupplierLeadTimeDays,
             request.ForwarderToShipmentDays, request.ShippingPeriodDays, request.DestinationCustomsDays, null);
@@ -134,7 +135,8 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
         var option = new SourcingOption(await NextNumber(db, ct), item.Id, request.SupplierId, item.BaseUnitId,
             routeScope,
             request.MinimumOrderQuantity, request.ShippingModeId, request.IncotermId, request.SupplierLeadTimeDays,
-            request.ForwarderToShipmentDays, request.ShippingPeriodDays, request.DestinationCustomsDays);
+            request.ForwarderToShipmentDays, request.ShippingPeriodDays, request.DestinationCustomsDays,
+            Clean(request.ImageUrl));
         db.SourcingOptions.Add(option);
         await Save(db, ct);
         var response = (await Get(option.Id, evaluationDate, ct))!;
@@ -145,6 +147,7 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
     public async Task<SourcingOptionResponse> Update(Guid id, UpdateSourcingOptionRequest request,
         DateOnly evaluationDate, CancellationToken ct)
     {
+        ValidateImageUrl(request.ImageUrl);
         ValidateCommercial(request.MinimumOrderQuantity, request.SupplierLeadTimeDays,
             request.ForwarderToShipmentDays, request.ShippingPeriodDays, request.DestinationCustomsDays,
             request.ExpectedVersion);
@@ -161,7 +164,7 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
             routeScope == SourcingRouteScopes.Import && option.IncotermId != request.IncotermId, ct);
         option.Edit(routeScope, request.MinimumOrderQuantity, request.ShippingModeId, request.IncotermId,
             request.SupplierLeadTimeDays, request.ForwarderToShipmentDays, request.ShippingPeriodDays,
-            request.DestinationCustomsDays);
+            request.DestinationCustomsDays, request.ImageUrl is null ? option.ImageUrl : Clean(request.ImageUrl));
         await Save(db, ct);
         var response = (await Get(id, evaluationDate, ct))!;
         await Emit(id, "EDIT", response, null, ct);
@@ -356,7 +359,8 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
                 Ref(option.ShippingMode), Ref(option.Incoterm),
                 option.SupplierLeadTimeDays, option.ForwarderToShipmentDays, option.ShippingPeriodDays,
                 option.DestinationCustomsDays, readiness.TotalLeadTimeDays, option.IsPreferred, option.IsActive, option.Version,
-                evaluationDate, new(readiness.State, readiness.ReasonCodes), option.CreatedAtUtc, option.UpdatedAtUtc);
+                evaluationDate, new(readiness.State, readiness.ReasonCodes), option.CreatedAtUtc, option.UpdatedAtUtc,
+                option.ImageUrl);
         }).ToList();
     }
     private static SourcingReference? Ref(ReferenceValue? x) => x is null ? null : new(x.Id, x.Code, x.NameFa, x.NameEn, x.IsActive);
@@ -398,6 +402,16 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
         if (new[] { supplier, forwarder, shipping, customs }.Any(x => x < 0)) errors["leadTime"] = ["مدت مراحل نمی‌تواند منفی باشد."];
         if (version.HasValue && version < 1) errors["expectedVersion"] = ["نسخه معتبر الزامی است."];
         if (errors.Count > 0) throw new SourcingValidationException(errors);
+    }
+
+    private static void ValidateImageUrl(string? value)
+    {
+        var imageUrl = Clean(value);
+        if (imageUrl is not null && (imageUrl.Length > 2048 ||
+            !Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw Validation("imageUrl", "نشانی تصویر باید URL معتبر HTTPS و حداکثر ۲۰۴۸ نویسه باشد.");
+        }
     }
 
     private static string ValidateRouteScope(string? value)

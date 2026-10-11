@@ -387,7 +387,7 @@ const en = {
   },
   sourcing: {
     title: 'Sourcing', subtitle: 'Item-supplier relationships, minimum order, route, and lead time', new: 'New sourcing option', option: 'Sourcing option',
-    relationship: 'Relationship', commercial: 'Order and shipping terms', route: 'Route & lead time', readiness: 'Readiness',
+    relationship: 'Relationship', imageUrl: 'Item image URL', imageUrlHint: 'Optional HTTPS image URL. If left empty, a Picsum placeholder appears on the supplier page.', commercial: 'Order and shipping terms', route: 'Route & lead time', readiness: 'Readiness',
     item: 'Item', supplier: 'Supplier', type: 'Item type', preferred: 'Preferred', setPreferred: 'Set as preferred',
     routeScope: 'Purchase channel', scope: { DOMESTIC: 'Domestic purchase', IMPORT: 'Import purchase' },
     evaluationDate: 'Evaluation date', moq: 'Minimum order quantity', incoterm: 'Incoterm', shippingMode: 'Shipping mode', forwarder: 'Forwarder',

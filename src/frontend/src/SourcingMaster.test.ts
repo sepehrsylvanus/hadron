@@ -4,7 +4,7 @@ import { changeSourcingRouteScope, isExternalSourcingEligible, sourcingLeadTimeF
 
 const empty: SourcingEditor = {
   itemId: '', supplierId: '', routeScope: 'DOMESTIC', minimumOrderQuantity: '', shippingModeId: '', incotermId: '',
-  supplierLeadTimeDays: '', forwarderToShipmentDays: '', shippingPeriodDays: '', destinationCustomsDays: '',
+  supplierLeadTimeDays: '', forwarderToShipmentDays: '', shippingPeriodDays: '', destinationCustomsDays: '', imageUrl: '',
 }
 
 test('rapid sourcing form updates preserve item, supplier, and commercial fields', () => {
@@ -19,6 +19,16 @@ test('rapid sourcing form updates preserve item, supplier, and commercial fields
   assert.equal(editor.minimumOrderQuantity, '1000')
   assert.equal(editor.shippingModeId, 'shipping-mode-id')
   assert.equal(editor.incotermId, 'incoterm-id')
+})
+
+test('source image URL stays attached to the sourcing option draft', () => {
+  const imageUrl = 'https://images.example.test/part.png'
+  const editor = updateSourcingEditor(empty, { itemId: 'item-1', supplierId: 'supplier-1', imageUrl })
+  const updated = updateSourcingEditor(editor, { minimumOrderQuantity: '12' })
+
+  assert.equal(updated.imageUrl, imageUrl)
+  assert.equal(updated.itemId, 'item-1')
+  assert.equal(updated.supplierId, 'supplier-1')
 })
 
 test('domestic scope clears import-only fields without losing common sourcing data', () => {

@@ -9,6 +9,7 @@ export type SourcingEditor = {
   forwarderToShipmentDays: string
   shippingPeriodDays: string
   destinationCustomsDays: string
+  imageUrl: string
   version?: number
 }
 

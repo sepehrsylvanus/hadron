@@ -336,6 +336,28 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
     }
 
     [Fact]
+    public async Task Supplier_item_image_url_is_optional_https_validated_editable_and_clearable()
+    {
+        const string firstImage = "https://images.example.test/part-one.png";
+        const string secondImage = "https://images.example.test/part-two.png";
+        var created = await Created(await Create(imageUrl: firstImage));
+        Assert.Equal(firstImage, created.ImageUrl);
+
+        var legacyEdit = await Read(await Update(created, moq: 3m));
+        Assert.Equal(firstImage, legacyEdit.ImageUrl);
+        var edited = await Read(await Update(legacyEdit, moq: 3m, imageUrl: secondImage));
+        Assert.Equal(secondImage, edited.ImageUrl);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await Create(imageUrl: "http://images.example.test/insecure.png")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await Create(imageUrl: "javascript:alert(1)")).StatusCode);
+
+        var cleared = await Read(await Update(edited, moq: 3m, imageUrl: string.Empty));
+        Assert.Null(cleared.ImageUrl);
+    }
+
+    [Fact]
     public async Task Moq_and_all_four_lead_stages_distinguish_null_zero_positive_and_negative()
     {
         var option = await Created(await Create());
@@ -698,7 +720,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
     }
 
     private async Task<HttpResponseMessage> Create(decimal? moq = null, bool complete = false, Guid? itemId = null,
-        Guid? supplierId = null) =>
+        Guid? supplierId = null, string? imageUrl = null) =>
         await _client.PostAsJsonAsync($"/api/sourcing-options?evaluationDate={Date}", new
         {
             itemId = itemId ?? _item,
@@ -710,6 +732,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             forwarderToShipmentDays = complete ? 2 : (int?)null,
             shippingPeriodDays = complete ? 3 : (int?)null,
             destinationCustomsDays = complete ? 4 : (int?)null,
+            imageUrl,
             isPreferred = true,
             isReady = true,
             readiness = "READY",
@@ -729,7 +752,8 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
         int? supplierLeadTimeDays = null,
         int? forwarderToShipmentDays = null,
         int? shippingPeriodDays = null,
-        int? destinationCustomsDays = null) =>
+        int? destinationCustomsDays = null,
+        string? imageUrl = null) =>
         await _client.PutAsJsonAsync(Url(option.Id), new
         {
             minimumOrderQuantity = moq,
@@ -739,6 +763,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             forwarderToShipmentDays,
             shippingPeriodDays,
             destinationCustomsDays,
+            imageUrl,
             expectedVersion = option.Version
         });
 
@@ -774,7 +799,8 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
             root.GetProperty("version").GetInt64(), root.GetProperty("evaluationDate").GetString()!,
             root.GetProperty("readiness").GetProperty("state").GetString()!,
             root.GetProperty("readiness").GetProperty("reasonCodes").EnumerateArray().Select(x => x.GetString()!).ToArray(),
-            root.GetProperty("totalConfiguredLeadTimeDays").ValueKind == JsonValueKind.Null ? null : root.GetProperty("totalConfiguredLeadTimeDays").GetInt32());
+            root.GetProperty("totalConfiguredLeadTimeDays").ValueKind == JsonValueKind.Null ? null : root.GetProperty("totalConfiguredLeadTimeDays").GetInt32(),
+            root.GetProperty("imageUrl").ValueKind == JsonValueKind.Null ? null : root.GetProperty("imageUrl").GetString());
     }
 
     private static async Task<string?> ProblemCode(HttpResponseMessage response)
@@ -857,7 +883,7 @@ public sealed class SourcingTests : IClassFixture<FoundationApiFactory>, IAsyncL
 
     private sealed record OptionDto(Guid Id, string Number, Guid ItemId, string ItemCode, Guid SupplierId, Guid BaseUnitId,
         decimal? Moq, Guid? ShippingModeId, bool Preferred, bool Active, long Version, string EvaluationDate,
-        string Readiness, IReadOnlyList<string> Reasons, int? TotalLeadTime);
+        string Readiness, IReadOnlyList<string> Reasons, int? TotalLeadTime, string? ImageUrl);
     private sealed class ColumnInfo
     {
         public string ColumnName { get; init; } = string.Empty;

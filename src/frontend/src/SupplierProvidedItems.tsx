@@ -10,8 +10,10 @@ import { EmptyState, LoadingState, MessageStrip, Section, StatusBadge } from './
 
 type UnitRef = { id: string; code: string; nameFa: string; nameEn: string; symbol?: string | null; isActive: boolean }
 type SuppliedItem = { id: string; code: string; nameFa: string; nameEn?: string | null; itemType: string; supplyMethod: string; isActive: boolean; baseUnit: UnitRef }
-type SupplierItemGroup = { item: SuppliedItem }
+type SupplierSourcingImage = { imageUrl?: string | null; isPreferred: boolean }
+type SupplierItemGroup = { item: SuppliedItem; options?: SupplierSourcingImage[] }
 type SupplierItemsPage = { items: SupplierItemGroup[]; totalItemCount: number }
+type SupplierProvidedItem = SuppliedItem & { imageUrl: string }
 type WhereUsedItem = { id: string; code: string; nameFa: string; nameEn?: string | null; itemType: string; isActive: boolean; currentBaseUnit: UnitRef }
 type UsageRelationship = { usageQty: number; childBaseUnitSnapshot: UnitRef }
 type WhereUsedParent = { parentItem: WhereUsedItem; revision: { revisionCode: string }; relationship: UsageRelationship }
@@ -21,10 +23,11 @@ type UsageStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const pageSize = 100
+const picsumImageUrl = (itemId: string) => `https://picsum.photos/seed/${encodeURIComponent(itemId)}/640/360`
 
 export default function SupplierProvidedItems({ supplierId, canViewBom }: { supplierId: string; canViewBom: boolean }) {
   const { t } = useTranslation()
-  const [items, setItems] = useState<SuppliedItem[]>([])
+  const [items, setItems] = useState<SupplierProvidedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -34,7 +37,7 @@ export default function SupplierProvidedItems({ supplierId, canViewBom }: { supp
       setLoading(true)
       setError('')
       try {
-        const suppliedItems: SuppliedItem[] = []
+        const suppliedItems: SupplierProvidedItem[] = []
         const evaluationDate = tehranTodayIso()
         let page = 1
         let pageCount = 1
@@ -46,7 +49,12 @@ export default function SupplierProvidedItems({ supplierId, canViewBom }: { supp
           const response = await fetch(`${api}/sourcing-options/tree?${query}`)
           if (!response.ok) throw new Error(await problem(response))
           const body = await response.json() as SupplierItemsPage
-          suppliedItems.push(...body.items.map(group => group.item))
+          suppliedItems.push(...body.items.map(group => {
+            const options = group.options ?? []
+            const preferredImage = options.find(option => option.isPreferred && option.imageUrl?.trim())?.imageUrl?.trim()
+            const anyImage = options.find(option => option.imageUrl?.trim())?.imageUrl?.trim()
+            return { ...group.item, imageUrl: preferredImage || anyImage || picsumImageUrl(group.item.id) }
+          }))
           pageCount = Math.max(1, Math.ceil(body.totalItemCount / pageSize))
           page++
         } while (page <= pageCount)
@@ -70,7 +78,7 @@ export default function SupplierProvidedItems({ supplierId, canViewBom }: { supp
   </Section>
 }
 
-function SupplierProvidedItem({ item, canViewBom }: { item: SuppliedItem; canViewBom: boolean }) {
+function SupplierProvidedItem({ item, canViewBom }: { item: SupplierProvidedItem; canViewBom: boolean }) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const [tree, setTree] = useState<UsageTreeNode | null>(null)
@@ -123,9 +131,13 @@ function SupplierProvidedItem({ item, canViewBom }: { item: SuppliedItem; canVie
   }}>
     <button type="button" className={`supplier-provided-item__trigger${canViewBom ? ' supplier-provided-item__trigger--interactive' : ''}`}
       aria-expanded={canViewBom ? open : undefined} aria-controls={canViewBom && open ? popoverId : undefined} onClick={showUsage}>
-      <span className="supplier-provided-item__title"><strong>{localizedName(item, language)}</strong><bdi className="ui-technical">{item.code}</bdi></span>
-      <span className="supplier-provided-item__metadata">{t(structureTypeKey(item.itemType))} · {item.baseUnit.symbol ?? item.baseUnit.code}</span>
-      {!item.isActive && <StatusBadge text={t('common.inactive')} tone="warning" />}
+      <img className="supplier-provided-item__image" src={item.imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
+        onError={event => { const fallback = picsumImageUrl(item.id); if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback }} />
+      <span className="supplier-provided-item__content">
+        <span className="supplier-provided-item__title"><strong>{localizedName(item, language)}</strong><bdi className="ui-technical">{item.code}</bdi></span>
+        <span className="supplier-provided-item__metadata">{t(structureTypeKey(item.itemType))} · {item.baseUnit.symbol ?? item.baseUnit.code}</span>
+        {!item.isActive && <StatusBadge text={t('common.inactive')} tone="warning" />}
+      </span>
     </button>
     {canViewBom && open && <div id={popoverId} className="supplier-item-usage-popover" role="region" aria-label={t('productStructure.whereUsed')}>
       <h3>{t('productStructure.whereUsed')}</h3>

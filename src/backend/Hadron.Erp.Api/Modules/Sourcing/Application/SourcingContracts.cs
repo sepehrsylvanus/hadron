@@ -20,7 +20,7 @@ public sealed record SourcingOptionResponse(Guid Id, string SourcingNumber, Sour
     SourcingReference? ShippingMode, SourcingReference? Incoterm, int? SupplierLeadTimeDays,
     int? ForwarderToShipmentDays, int? ShippingPeriodDays, int? DestinationCustomsDays,
     int? TotalConfiguredLeadTimeDays, bool IsPreferred, bool IsActive, long Version, DateOnly EvaluationDate,
-    SourcingReadinessResponse Readiness, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+    SourcingReadinessResponse Readiness, DateTime CreatedAtUtc, DateTime UpdatedAtUtc, string? ImageUrl);
 public sealed record SourcingOptionListResponse(IReadOnlyList<SourcingOptionResponse> Items, int Page, int PageSize,
     int TotalCount, DateOnly EvaluationDate);
 public sealed record SourcingItemGroupResponse(SourcingItemReference Item, int OptionCount, int ReadyOptionCount,
@@ -38,10 +38,10 @@ public sealed record SourcingSupplierCandidateListResponse(IReadOnlyList<Sourcin
 public sealed record CreateSourcingOptionRequest(Guid ItemId, Guid SupplierId, string? RouteScope,
     decimal? MinimumOrderQuantity,
     Guid? ShippingModeId, Guid? IncotermId, int? SupplierLeadTimeDays, int? ForwarderToShipmentDays,
-    int? ShippingPeriodDays, int? DestinationCustomsDays);
+    int? ShippingPeriodDays, int? DestinationCustomsDays, string? ImageUrl = null);
 public sealed record UpdateSourcingOptionRequest(string? RouteScope, decimal? MinimumOrderQuantity, Guid? ShippingModeId,
     Guid? IncotermId, int? SupplierLeadTimeDays, int? ForwarderToShipmentDays, int? ShippingPeriodDays,
-    int? DestinationCustomsDays, long ExpectedVersion);
+    int? DestinationCustomsDays, long ExpectedVersion, string? ImageUrl = null);
 public sealed record ChangeSourcingOptionStateRequest(long ExpectedVersion, string? Reason);
 public sealed record SetPreferredSourcingOptionRequest(long ExpectedVersion, Guid? ExpectedCurrentPreferredId,
     long? ExpectedCurrentPreferredVersion, string? Reason);

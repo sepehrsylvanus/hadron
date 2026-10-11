@@ -20,6 +20,7 @@ internal sealed class SourcingOptionConfiguration : IEntityTypeConfiguration<Sou
         builder.HasKey(x => x.Id);
         builder.Property(x => x.SourcingNumber).HasMaxLength(32).IsRequired();
         builder.Property(x => x.RouteScope).HasMaxLength(16).IsRequired();
+        builder.Property(x => x.ImageUrl).HasMaxLength(2048);
         builder.Property(x => x.MinimumOrderQuantity).HasPrecision(18, 6);
         builder.Property(x => x.Version).IsConcurrencyToken();
         builder.Property(x => x.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");

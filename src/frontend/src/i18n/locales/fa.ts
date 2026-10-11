@@ -387,7 +387,7 @@ const fa = {
   },
   sourcing: {
     title: 'منابع تأمین', subtitle: 'ارتباط قلم با تأمین‌کننده، حداقل سفارش، مسیر و زمان تأمین', new: 'منبع تأمین جدید', option: 'منبع تأمین',
-    relationship: 'رابطه', commercial: 'شرایط سفارش و حمل', route: 'مسیر و زمان تأمین', readiness: 'آمادگی برنامه‌ریزی',
+    relationship: 'رابطه', imageUrl: 'نشانی تصویر قلم', imageUrlHint: 'اختیاری؛ نشانی امن HTTPS. اگر خالی بماند، در صفحه تأمین‌کننده تصویر نمونهٔ Picsum نمایش داده می‌شود.', commercial: 'شرایط سفارش و حمل', route: 'مسیر و زمان تأمین', readiness: 'آمادگی برنامه‌ریزی',
     item: 'قلم', supplier: 'تأمین‌کننده', type: 'نوع قلم', preferred: 'ترجیحی', setPreferred: 'انتخاب به‌عنوان ترجیحی',
     routeScope: 'کانال خرید', scope: { DOMESTIC: 'خرید داخلی', IMPORT: 'خرید وارداتی' },
     evaluationDate: 'تاریخ ارزیابی', moq: 'حداقل مقدار سفارش', incoterm: 'Incoterm', shippingMode: 'روش حمل', forwarder: 'Forwarder',

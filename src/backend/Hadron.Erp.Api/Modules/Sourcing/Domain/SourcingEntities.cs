@@ -30,7 +30,7 @@ public sealed class SourcingOption
     public SourcingOption(string number, Guid itemId, Guid supplierId, Guid itemBaseUnitId, string routeScope,
         decimal? minimumOrderQuantity,
         Guid? shippingModeId, Guid? incotermId, int? supplierLeadTimeDays, int? forwarderToShipmentDays,
-        int? shippingPeriodDays, int? destinationCustomsDays)
+        int? shippingPeriodDays, int? destinationCustomsDays, string? imageUrl = null)
     {
         Id = Guid.NewGuid();
         SourcingNumber = number;
@@ -45,6 +45,7 @@ public sealed class SourcingOption
         ForwarderToShipmentDays = forwarderToShipmentDays;
         ShippingPeriodDays = shippingPeriodDays;
         DestinationCustomsDays = destinationCustomsDays;
+        ImageUrl = imageUrl;
     }
 
     public Guid Id { get; private set; }
@@ -65,6 +66,7 @@ public sealed class SourcingOption
     public int? ForwarderToShipmentDays { get; private set; }
     public int? ShippingPeriodDays { get; private set; }
     public int? DestinationCustomsDays { get; private set; }
+    public string? ImageUrl { get; private set; }
     public bool IsPreferred { get; private set; }
     public bool IsActive { get; private set; } = true;
     public long Version { get; private set; } = 1;
@@ -73,7 +75,13 @@ public sealed class SourcingOption
     public ICollection<SourcingPrice> Prices { get; private set; } = [];
 
     public void Edit(string routeScope, decimal? minimumOrderQuantity, Guid? shippingModeId, Guid? incotermId,
-        int? supplierLeadTimeDays, int? forwarderToShipmentDays, int? shippingPeriodDays, int? destinationCustomsDays)
+        int? supplierLeadTimeDays, int? forwarderToShipmentDays, int? shippingPeriodDays, int? destinationCustomsDays) =>
+        Edit(routeScope, minimumOrderQuantity, shippingModeId, incotermId, supplierLeadTimeDays,
+            forwarderToShipmentDays, shippingPeriodDays, destinationCustomsDays, ImageUrl);
+
+    public void Edit(string routeScope, decimal? minimumOrderQuantity, Guid? shippingModeId, Guid? incotermId,
+        int? supplierLeadTimeDays, int? forwarderToShipmentDays, int? shippingPeriodDays,
+        int? destinationCustomsDays, string? imageUrl)
     {
         RouteScope = routeScope;
         MinimumOrderQuantity = minimumOrderQuantity;
@@ -83,6 +91,7 @@ public sealed class SourcingOption
         ForwarderToShipmentDays = forwarderToShipmentDays;
         ShippingPeriodDays = shippingPeriodDays;
         DestinationCustomsDays = destinationCustomsDays;
+        ImageUrl = imageUrl;
         Advance();
     }
 

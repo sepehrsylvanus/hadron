@@ -103,7 +103,10 @@ test('Supplier provided parts show a recursive BOM usage tree on hover and no tr
   const calls: string[] = []
   const restore = installFetch(input => {
     calls.push(input)
-    if (input.includes('/sourcing-options/tree?')) return json({ items: [{ item: wire }, { item: unused }], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
+    if (input.includes('/sourcing-options/tree?')) return json({ items: [
+      { item: wire, options: [{ isPreferred: true, imageUrl: 'https://images.example.test/copper-wire.png' }] },
+      { item: unused, options: [] },
+    ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
     if (input.includes('/bom-revisions/where-used')) {
       const itemId = new URL(input, 'http://localhost').searchParams.get('itemId')
       if (itemId === wire.id) return json({ item: wire, directParents: [{ parentItem: motor, revision: { revisionCode: 'BOM-2' }, relationship: { usageQty: 4, childBaseUnitSnapshot: unit } }], finalProducts: [fan] })
@@ -117,6 +120,10 @@ test('Supplier provided parts show a recursive BOM usage tree on hover and no tr
     const rows = renderer.root.findAll(node => node.props.className === 'supplier-provided-item')
     assert.equal(rows.length, 2)
     const usedRow = rows.find(row => instanceText(row).includes('Copper wire'))!
+    const unusedRow = rows.find(row => instanceText(row).includes('Retail label'))!
+    assert.equal(usedRow.findByType('img').props.src, 'https://images.example.test/copper-wire.png')
+    assert.equal(unusedRow.findByType('img').props.src, `https://picsum.photos/seed/${unused.id}/640/360`)
+
     await act(async () => usedRow.props.onMouseEnter())
     await flush()
     const text = renderedText(renderer.toJSON())
@@ -125,7 +132,6 @@ test('Supplier provided parts show a recursive BOM usage tree on hover and no tr
     assert.ok(calls.some(input => input.includes('itemId=component-motor')), 'Where-used lookup should continue through intermediate BOM parents')
 
     await act(async () => usedRow.props.onMouseLeave({ currentTarget: { contains: () => false } }))
-    const unusedRow = rows.find(row => instanceText(row).includes('Retail label'))!
     await act(async () => unusedRow.props.onMouseEnter())
     await flush()
     assert.equal(renderer.root.findAll(node => node.props.className === 'supplier-item-usage-popover').length, 0,
