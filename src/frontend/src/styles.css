@@ -389,11 +389,13 @@ html[dir='ltr'] .shell-identity strong, html[dir='ltr'] .eyebrow, html[dir='ltr'
 .ui-object-form { display: grid; gap: 16px; }
 .ui-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .ui-form-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ui-form-grid.product-planning-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ui-form-grid .span-2 { grid-column: 1 / -1; }
 .planning-inline-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-default); align-items: end; }
 .inline-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
 .ui-data-table small { display: block; margin-top: 4px; }
 .ui-definition-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.ui-definition-grid.ui-definition-grid--product-planning { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ui-definition-grid > div { min-width: 0; padding: 10px 0; border-bottom: 1px solid #ededee; }
 .ui-definition-grid dt { color: var(--text-muted); font-size: 12px; }
 .ui-definition-grid dd { margin: 4px 0 0; font-weight: 600; overflow-wrap: anywhere; }
@@ -816,6 +818,7 @@ button.bom-usage-coefficient { cursor: pointer; }
 .material-trace-drawer .trace-grid { grid-template-columns: 1fr; }
 @media (max-width: 1100px) {
   .ui-definition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ui-form-grid.product-planning-grid, .ui-definition-grid.ui-definition-grid--product-planning { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ui-fcl { grid-template-columns: minmax(260px, .8fr) minmax(420px, 1.2fr); }
   .ui-fcl__column:nth-child(3) { grid-column: 1 / -1; }
   .bom-revision-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
@@ -827,6 +830,7 @@ button.bom-usage-coefficient { cursor: pointer; }
   .ui-filter-bar { align-items: stretch; }
   .ui-filter-bar > .ui-form-field { min-width: 100%; }
   .ui-form-grid, .ui-form-grid--3, .ui-definition-grid { grid-template-columns: 1fr; }
+  .ui-form-grid.product-planning-grid, .ui-definition-grid.ui-definition-grid--product-planning { grid-template-columns: 1fr; }
   .ui-fcl { grid-template-columns: 1fr; }
   .ui-fcl__column:nth-child(3) { grid-column: auto; }
   .ui-pagination { justify-content: space-between; }

@@ -21,6 +21,12 @@ test('compatibility aliases reuse approved canonical design tokens', () => {
   assert.match(stylesheet, /--semantic-negative:\s*var\(--brand-red\)/)
 })
 
+test('Product planning policy aligns all four thresholds and remains responsive', () => {
+  assert.match(stylesheet, /\.ui-form-grid\.product-planning-grid \{ grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); \}/)
+  assert.match(stylesheet, /@media \(max-width: 1100px\)[\s\S]*\.ui-form-grid\.product-planning-grid, \.ui-definition-grid\.ui-definition-grid--product-planning \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/)
+  assert.match(stylesheet, /@media \(max-width: 760px\)[\s\S]*\.ui-form-grid\.product-planning-grid, \.ui-definition-grid\.ui-definition-grid--product-planning \{ grid-template-columns: 1fr; \}/)
+})
+
 test('the idle collaboration launcher has explicit disclosure and dialog accessibility semantics', () => {
   assert.match(collaborationCenter, /className="collaboration-dock__launcher"/)
   assert.match(collaborationCenter, /aria-expanded=\{dockOpen\}/)

@@ -62,3 +62,9 @@ test('Product, Part, and Component edits can only advance the optimistic-concurr
   assert.match(productMaster, /expectedVersion, \.\.\.\(id \? \{ requestedVersion \} : \{\}\)/)
   assert.match(materialMaster, /expectedVersion, \.\.\.\(id \? \{ requestedVersion \} : \{\}\)/)
 })
+
+test('Product planning policy values stay together in a balanced responsive grid', () => {
+  const planning = productMaster.slice(productMaster.indexOf('<Section title={t(\'products.planning\')}>'))
+  assert.match(planning, /ui-form-grid ui-form-grid--3 product-planning-grid/)
+  assert.match(planning, /ui-definition-grid ui-definition-grid--product-planning/)
+})
