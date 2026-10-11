@@ -87,8 +87,7 @@ export function ProductObjectPage() {
         <FormField label={t('common.unit')} required><select required value={editor.baseUnitId} onChange={e => setEditor({ ...editor, baseUnitId: e.target.value })}><option value="">{t('common.notSet')}</option>{units.map(x => <option key={x.id} value={x.id}>{english ? x.nameEn : x.nameFa}{!x.isActive ? ` — ${t('common.inactive')}` : ''}</option>)}</select></FormField>
         <FormField label={t('products.supplyMethod')} hint={t('products.supplyMethodUiOnly')} required><select required value={editor.supplyMethod} onChange={e => setEditor({ ...editor, supplyMethod: e.target.value as SupplyMethod | '' })}><option value="">{t('common.notSet')}</option>{supplyMethods.map(method => <option key={method} value={method}>{t(`materials.${method}`)}</option>)}</select></FormField>
       </div> : product && <DefinitionGrid>
-        <Definition label={t('common.code')} technical>{product.code}</Definition>
-        <Definition label={t('common.name')}>{product.nameFa}</Definition>
+        <Definition label={t('common.name')}>{product.nameFa}<small className="product-object-code">{t('common.code')}: <bdi className="ui-technical">{product.code}</bdi></small></Definition>
         <Definition label={t('common.category')}>{english ? product.productCategory.nameEn : product.productCategory.nameFa}</Definition>
         <Definition label={t('common.unit')}>{english ? product.baseUnit.nameEn : product.baseUnit.nameFa}</Definition>
         <Definition label={t('products.supplyMethod')}>{product.supplyMethod ? t(`materials.${product.supplyMethod}`) : t('common.notSet')}</Definition>

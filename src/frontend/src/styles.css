@@ -397,6 +397,8 @@ html[dir='ltr'] .shell-identity strong, html[dir='ltr'] .eyebrow, html[dir='ltr'
 .ui-definition-grid > div { min-width: 0; padding: 10px 0; border-bottom: 1px solid #ededee; }
 .ui-definition-grid dt { color: var(--text-muted); font-size: 12px; }
 .ui-definition-grid dd { margin: 4px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.product-object-code { display: block; margin-top: 4px; color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.product-object-code bdi { font-weight: 600; }
 .ui-action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ui-technical { direction: ltr; text-align: start; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
 .ui-muted { color: var(--text-muted); }

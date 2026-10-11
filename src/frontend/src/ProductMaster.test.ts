@@ -12,6 +12,12 @@ test('critical-days label describes days remaining to critical conditions', () =
   assert.equal(en.products.criticalDays, 'Days remaining to critical conditions')
 })
 
+test('Product code is displayed below its name in the overview', () => {
+  const objectPage = productMaster.slice(productMaster.indexOf('export function ProductObjectPage'))
+  assert.match(objectPage, /<Definition label={t\('common\.name'\)}>\{product\.nameFa\}<small className="product-object-code">\{t\('common\.code'\)\}: <bdi className="ui-technical">\{product\.code\}<\/bdi><\/small><\/Definition>/)
+  assert.doesNotMatch(objectPage, /<Definition label={t\('common\.code'\)} technical>/)
+})
+
 test('Product, Part, and Component masters expose one field labelled Name', () => {
   for (const source of [productMaster, materialMaster]) {
     assert.match(source, /<FormField label={t\('common\.name'\)} required>/)
