@@ -86,7 +86,7 @@ const fa = {
       sourcing: 'منابع تأمین',
       purchaseOrders: 'سفارش‌های خرید',
       orderPlanning: 'برنامه سفارش',
-      bom: 'BOM',
+      bom: 'ساختار محصول (BOM)',
       productionForecast: 'پیش‌بینی تولید',
       dailyProduction: 'آمار تولید روزانه',
       productionOrders: 'سفارش‌های تولید',

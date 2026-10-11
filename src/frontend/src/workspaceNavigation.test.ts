@@ -4,6 +4,13 @@ import {
   analyticsRoutes, canManageRoute, canNavigate, canViewWorkspaceOverview, cashFlowNavigationGroups, findWorkspace, findWorkspaceRoute, mrpNavigationGroups,
   productionNavigationGroups, resolveIdentityAdminTab, routePermission, workspaces,
 } from './workspaceNavigation.ts'
+import en from './i18n/locales/en.ts'
+import fa from './i18n/locales/fa.ts'
+
+test('BOM sidebar label identifies the product BOM in both languages', () => {
+  assert.equal(en.navigation.items.bom, 'BOM of Product')
+  assert.equal(fa.navigation.items.bom, 'ساختار محصول (BOM)')
+})
 
 test('ERP launchpad exposes the approved business and administration workspaces', () => {
   assert.deepEqual(workspaces.map(workspace => [workspace.id, workspace.rootPath]), [

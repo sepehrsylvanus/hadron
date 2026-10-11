@@ -86,7 +86,7 @@ const en = {
       sourcing: 'Sourcing',
       purchaseOrders: 'Purchase Orders',
       orderPlanning: 'Order Planning',
-      bom: 'BOM',
+      bom: 'BOM of Product',
       productionForecast: 'Production Forecast',
       dailyProduction: 'Daily Production Statistics',
       productionOrders: 'Production Orders',
