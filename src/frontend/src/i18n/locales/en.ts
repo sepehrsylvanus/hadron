@@ -372,7 +372,7 @@ const en = {
   },
   suppliers: {
     title: 'Suppliers', subtitle: 'Master data, contacts, and default payment profile', new: 'New supplier', supplier: 'Supplier',
-    searchPlaceholder: 'Number or name', country: 'Country', owner: 'Internal owner', contacts: 'Contacts', payment: 'Default Payment Profile',
+    searchPlaceholder: 'Number or name', country: 'Country', owner: 'Internal owner', financialBalance: 'Financial balance', contacts: 'Contacts', payment: 'Default Payment Profile',
     evaluation: 'Evaluation', paymentTerm: 'Payment term', advance: 'Advance (%)', beforeShipment: 'Before shipment (%)', credit: 'Credit (%)',
     creditDays: 'Credit days', creditAnchor: 'Credit anchor', leadScore: 'Lead-time score', qualityScore: 'Quality score', fullName: 'Full name',
     jobTitle: 'Job title', email: 'Email', phone: 'Phone', mobile: 'Mobile', primary: 'Primary', makePrimary: 'Make primary', addContact: 'Add contact',

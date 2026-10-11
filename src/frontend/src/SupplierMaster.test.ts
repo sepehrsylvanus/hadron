@@ -57,6 +57,40 @@ test('Supplier list exposes Internal Owner management as a visible secondary act
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
+test('Supplier financial balance appears in the list and as a read-only value on the supplier page', async () => {
+  const supplier = {
+    id: 'supplier-balance', supplierNumber: 'SUP-0042', name: 'Balance Test Supplier',
+    country: { id: 'country', code: 'US', nameFa: 'آمریکا', nameEn: 'United States', isActive: true },
+    owner: null,
+    paymentProfile: { paymentTermId: null, paymentTerm: null, advancePercent: 0, beforeShipmentPercent: 0, creditPercent: 0, creditDays: null, creditAnchor: null },
+    financialBalanceAmount: '1234567.89', financialBalanceCurrencyId: 'currency-usd',
+    expertLeadTimeScore: null, expertQualityScore: null, notes: null, isActive: true, version: 1, contacts: [],
+  }
+  const restore = installFetch((input) => {
+    if (input.includes('/suppliers?')) return json({ items: [supplier], totalCount: 1 })
+    if (input.endsWith('/suppliers/supplier-balance')) return json(supplier)
+    if (input.includes('/reference-data/currencies')) return json([{ id: 'currency-usd', code: 'USD', decimalPrecision: 2, isActive: false }])
+    if (input.includes('/reference-data/types/COUNTRY') || input.includes('/reference-data/types/PAYMENT_TERM') || input.includes('/internal-people')) return json([])
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  try {
+    const list = await render('list', 'en', '/mrp/supply/suppliers')
+    try {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 140)))
+      const text = renderedText(list.toJSON())
+      assert.ok(text.includes('Financial balance'))
+      assert.ok(text.includes('1,234,567.89 USD'))
+    } finally { await act(async () => list.unmount()) }
+
+    const detail = await render('object', 'en', '/mrp/suppliers/supplier-balance')
+    try {
+      const balanceField = detail.root.findAllByType('input').find(node => node.props.readOnly)
+      assert.equal(balanceField?.props.value, '1,234,567.89 USD')
+      assert.ok(renderedText(detail.toJSON()).includes('Financial balance'))
+    } finally { await act(async () => detail.unmount()) }
+  } finally { restore() }
+})
+
 test('Internal Owner page loads active and inactive people and exposes lifecycle actions', async () => {
   const restore = installFetch(() => json([
     { id: 'p1', displayNameFa: 'علی رضایی', displayNameEn: 'Ali Rezaei', isActive: true, version: 1 },
@@ -126,6 +160,9 @@ test('failed Supplier activation closes confirmation and exposes the business er
   const renderer = await render('object', 'fa-IR', '/mrp/suppliers/supplier-1')
   try {
     assert.match(renderedText(renderer.toJSON()), /ذخیره شده اما هنوز غیرفعال است/)
+    const balanceField = renderer.root.findAllByType('input').find(node => node.props.readOnly)
+    assert.equal(balanceField?.props.value, '—', 'Suppliers without API balance values must show an explicit empty marker')
+    assert.ok(renderedText(renderer.toJSON()).includes('تراز مالی'))
     const activate = renderer.root.findAllByType('button').find(node => instanceText(node) === 'تکمیل و فعال‌سازی')!
     await act(async () => activate.props.onClick())
     const dialog = renderer.root.findAll(node => node.props.role === 'alertdialog')[0]
