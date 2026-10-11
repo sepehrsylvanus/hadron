@@ -6,6 +6,7 @@ import { currentListContext, useListQuery, useListReturn } from './ui/routeConte
 import { UnsavedChangesGuard } from './ui/UnsavedChangesGuard'
 import ProductStructure from './ProductStructure'
 import { formatOperationalNumber } from './i18n/numberFormatting'
+import { mergedName } from './i18n/localizedName'
 
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
 export type Product = { id: string; code: string; nameFa: string; nameEn?: string | null; productCategory: Ref; baseUnit: Ref; businessUnit?: Ref | null; safetyStockQty: number; criticalDays: number; safeStartDays: number; excessStartDays: number; isActive: boolean; notes?: string | null; version: number }
@@ -38,8 +39,8 @@ export default function ProductMaster() {
       <label className="checkbox-label"><input type="checkbox" checked={includeInactive} onChange={e => query.update({ includeInactive: e.target.checked }, true)} />{t('common.includeInactive')}</label>
     </FilterBar>
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <section className="ui-table-surface"><TableToolbar title={t('products.list')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.code'), t('common.nameFa'), t('common.category'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
-      {items.map(item => <tr key={item.id}><td className="ui-technical">{item.code}</td><td>{item.nameFa}</td><td>{english ? item.productCategory.nameEn : item.productCategory.nameFa}</td><td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`/mrp/products/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}
+    <section className="ui-table-surface"><TableToolbar title={t('products.list')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.code'), t('common.name'), t('common.category'), t('common.unit'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>
+      {items.map(item => <tr key={item.id}><td className="ui-technical">{item.code}</td><td>{mergedName(item)}</td><td>{english ? item.productCategory.nameEn : item.productCategory.nameFa}</td><td>{english ? item.baseUnit.nameEn : item.baseUnit.nameFa}</td><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`/mrp/products/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}
     </DataTable><Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
   </main>
 }
@@ -73,7 +74,7 @@ export function ProductObjectPage() {
   function cancel() { if (dirty) setDiscard(true); else navigate(id ? `/mrp/products/${id}?from=${encodeURIComponent(back)}` : back) }
   if (loading) return <main className="app-shell"><LoadingState label={t('common.loading')} /></main>
   const editing = routeEdit
-  const title = product?.nameFa || (createMode ? t('products.new') : t('products.object'))
+  const title = (product ? mergedName(product) : '') || (createMode ? t('products.new') : t('products.object'))
   return <main className="app-shell">
     <PageHeader sticky title={title} subtitle={product?.code ?? t('products.subtitle')} backTo={back} backLabel={t('common.backToList')} status={product && <StatusBadge text={product.isActive ? t('common.active') : t('common.inactive')} tone={product.isActive ? 'positive' : 'neutral'} />} actions={<><DisplayEditActions editing={editing} dirty={dirty} editLabel={t('common.edit')} saveLabel={t('common.save')} cancelLabel={t('common.cancel')} formId="product-form" saving={saving} onEdit={() => navigate(`/mrp/products/${id}/edit?from=${encodeURIComponent(back)}`)} onCancel={cancel} />{product && !editing && <Link className="button" to={`/mrp/engineering/bom?parentItemId=${product.id}&parentType=PRODUCT&rootItemId=${product.id}&rootItemType=PRODUCT`}>{t('bom.manageStructure')}</Link>}{product && !editing && <button className="button button--quiet" onClick={() => setConfirmState(true)}>{product.isActive ? t('common.deactivate') : t('common.activate')}</button>}</>} />
     {message && <MessageStrip tone="positive">{message}</MessageStrip>}{error && <MessageStrip tone="critical">{error}</MessageStrip>}
@@ -88,8 +89,7 @@ export function ProductObjectPage() {
         <FormField className="span-2" label={t('common.notes')}><textarea maxLength={2000} value={editor.notes} onChange={e => setEditor({ ...editor, notes: e.target.value })} /></FormField>
       </div> : product && <DefinitionGrid>
         <Definition label={t('common.code')} technical>{product.code}</Definition>
-        <Definition label={t('common.nameFa')}>{product.nameFa}</Definition>
-        <Definition label={t('common.nameEn')}>{product.nameEn || t('common.notSet')}</Definition>
+        <Definition label={t('common.name')}>{mergedName(product)}</Definition>
         <Definition label={t('common.category')}>{english ? product.productCategory.nameEn : product.productCategory.nameFa}</Definition>
         <Definition label={t('common.unit')}>{english ? product.baseUnit.nameEn : product.baseUnit.nameFa}</Definition>
         <Definition label={t('products.businessUnit')}>{product.businessUnit ? (english ? product.businessUnit.nameEn : product.businessUnit.nameFa) : t('common.notSet')}</Definition>

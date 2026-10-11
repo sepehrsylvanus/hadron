@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { localizedName } from './localizedName.ts'
+import { localizedName, mergedName } from './localizedName.ts'
 
 const bilingual = { nameFa: 'نام فارسی', nameEn: 'English name' }
 
@@ -28,4 +28,11 @@ test('MRP-07 Forecast and Actual Product, Unit, Category, and Business Unit refe
   assert.equal(localizedName(bilingual, 'en'), 'English name')
   assert.equal(localizedName({ nameFa: 'فقط فارسی', nameEn: null }, 'en'), 'فقط فارسی')
   assert.equal(localizedName(bilingual, 'fa-IR'), 'نام فارسی')
+})
+
+test('Product / Part / Component masters display a single merged name preferring NameEn', () => {
+  assert.equal(mergedName(bilingual), 'English name')
+  assert.equal(mergedName({ nameFa: 'نام فارسی', nameEn: null }), 'نام فارسی')
+  assert.equal(mergedName({ nameFa: 'نام فارسی', nameEn: '' }), 'نام فارسی')
+  assert.equal(mergedName({ nameFa: 'نام فارسی', nameEn: '   ' }), 'نام فارسی')
 })
