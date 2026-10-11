@@ -372,7 +372,7 @@ const en = {
   },
   suppliers: {
     title: 'Suppliers', subtitle: 'Master data, contacts, and default payment profile', new: 'New supplier', supplier: 'Supplier',
-    searchPlaceholder: 'Number or name', country: 'Country', owner: 'Internal owner', financialBalance: 'Financial balance', providedItems: 'Provided items', providedItemsHint: 'Active items linked to this supplier through sourcing relationships.', providedItemsHoverHint: 'Hover over an item to see its BOM usage path.', noProvidedItems: 'No active sourcing items are registered for this supplier.', contacts: 'Contacts', payment: 'Default Payment Profile',
+    searchPlaceholder: 'Number or name', country: 'Country', geographicScope: 'Geographic scope', domestic: 'Domestic', foreign: 'Foreign', owner: 'Internal owner', financialBalance: 'Financial balance', providedItems: 'Provided items', providedItemsHint: 'Active items linked to this supplier through sourcing relationships.', providedItemsHoverHint: 'Hover over an item to see its BOM usage path.', noProvidedItems: 'No active sourcing items are registered for this supplier.', contacts: 'Contacts', payment: 'Default Payment Profile',
     evaluation: 'Evaluation', paymentTerm: 'Payment term', advance: 'Advance (%)', beforeShipment: 'Before shipment (%)', credit: 'Credit (%)',
     creditDays: 'Credit days', creditAnchor: 'Credit anchor', leadScore: 'Lead-time score', qualityScore: 'Quality score', fullName: 'Full name',
     jobTitle: 'Job title', email: 'Email', phone: 'Phone', mobile: 'Mobile', primary: 'Primary', makePrimary: 'Make primary', addContact: 'Add contact',

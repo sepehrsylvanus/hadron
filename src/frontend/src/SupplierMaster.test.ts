@@ -60,6 +60,33 @@ test('Supplier list exposes Internal Owner management as a visible secondary act
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
+test('Supplier list derives domestic or foreign classification from the country code', async () => {
+  const makeSupplier = (id: string, countryCode: string, nameFa: string, nameEn: string) => ({
+    id, supplierNumber: `SUP-${id}`, name: nameFa,
+    country: { id: `country-${countryCode}`, code: countryCode, nameFa, nameEn, isActive: true },
+    owner: null,
+    paymentProfile: { paymentTermId: null, paymentTerm: null, advancePercent: 0, beforeShipmentPercent: 0, creditPercent: 0, creditDays: null, creditAnchor: null },
+    isActive: true, version: 1, contacts: [],
+  })
+  const restore = installFetch(input => {
+    if (input.includes('/suppliers?')) return json({ items: [
+      makeSupplier('iran', 'IR', 'ایران', 'Iran'),
+      makeSupplier('foreign', 'US', 'آمریکا', 'United States'),
+    ], totalCount: 2 })
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await render('list', 'fa-IR', '/mrp/supply/suppliers')
+  try {
+    await act(async () => new Promise(resolve => setTimeout(resolve, 140)))
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('محدوده جغرافیایی'))
+    const rows = renderer.root.findAllByType('tr').filter(row => row.findAllByType('td').length > 0)
+    assert.equal(rows.length, 2)
+    assert.equal(instanceText(rows[0].findAllByType('td')[3]), 'داخلی')
+    assert.equal(instanceText(rows[1].findAllByType('td')[3]), 'خارجی')
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
 test('Supplier financial balance appears in the list and as a read-only value on the supplier page', async () => {
   const supplier = {
     id: 'supplier-balance', supplierNumber: 'SUP-0042', name: 'Balance Test Supplier',
