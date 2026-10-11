@@ -11,10 +11,12 @@ import fa from './i18n/locales/fa.ts'
 
 let server: ViteDevServer | undefined
 let Module: typeof import('./SupplierMaster.tsx') | undefined
+let ProvidedItemsModule: typeof import('./SupplierProvidedItems.tsx') | undefined
 
 Object.assign(globalThis, {
   IS_REACT_ACT_ENVIRONMENT: true,
   window: {
+    fetch: globalThis.fetch,
     setTimeout: globalThis.setTimeout,
     clearTimeout: globalThis.clearTimeout,
     addEventListener: () => undefined,
@@ -23,6 +25,7 @@ Object.assign(globalThis, {
   },
   document: {
     activeElement: null,
+    documentElement: { lang: '', dir: '' },
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   },
@@ -89,6 +92,46 @@ test('Supplier financial balance appears in the list and as a read-only value on
       assert.ok(renderedText(detail.toJSON()).includes('Financial balance'))
     } finally { await act(async () => detail.unmount()) }
   } finally { restore() }
+})
+
+test('Supplier provided parts show a recursive BOM usage tree on hover and no tree for unused parts', async () => {
+  const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
+  const wire = { id: 'part-wire', code: 'PART-10', nameFa: 'سیم مسی', nameEn: 'Copper wire', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
+  const unused = { id: 'part-direct', code: 'PART-20', nameFa: 'برچسب فروش', nameEn: 'Retail label', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
+  const motor = { id: 'component-motor', code: 'COMP-10', nameFa: 'مجموعه موتور', nameEn: 'Motor assembly', itemType: 'COMPONENT', isActive: true, currentBaseUnit: unit }
+  const fan = { id: 'product-fan', code: 'PROD-10', nameFa: 'پنکه', nameEn: 'Ventilation fan', itemType: 'PRODUCT', isActive: true, currentBaseUnit: unit }
+  const calls: string[] = []
+  const restore = installFetch(input => {
+    calls.push(input)
+    if (input.includes('/sourcing-options/tree?')) return json({ items: [{ item: wire }, { item: unused }], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
+    if (input.includes('/bom-revisions/where-used')) {
+      const itemId = new URL(input, 'http://localhost').searchParams.get('itemId')
+      if (itemId === wire.id) return json({ item: wire, directParents: [{ parentItem: motor, revision: { revisionCode: 'BOM-2' }, relationship: { usageQty: 4, childBaseUnitSnapshot: unit } }], finalProducts: [fan] })
+      if (itemId === motor.id) return json({ item: motor, directParents: [{ parentItem: fan, revision: { revisionCode: 'BOM-5' }, relationship: { usageQty: 1, childBaseUnitSnapshot: unit } }], finalProducts: [fan] })
+      if (itemId === unused.id) return json({ item: unused, directParents: [], finalProducts: [] })
+    }
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await renderProvidedItems('en')
+  try {
+    const rows = renderer.root.findAll(node => node.props.className === 'supplier-provided-item')
+    assert.equal(rows.length, 2)
+    const usedRow = rows.find(row => instanceText(row).includes('Copper wire'))!
+    await act(async () => usedRow.props.onMouseEnter())
+    await flush()
+    const text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('Motor assembly'))
+    assert.ok(text.includes('Ventilation fan'))
+    assert.ok(calls.some(input => input.includes('itemId=component-motor')), 'Where-used lookup should continue through intermediate BOM parents')
+
+    await act(async () => usedRow.props.onMouseLeave({ currentTarget: { contains: () => false } }))
+    const unusedRow = rows.find(row => instanceText(row).includes('Retail label'))!
+    await act(async () => unusedRow.props.onMouseEnter())
+    await flush()
+    assert.equal(renderer.root.findAll(node => node.props.className === 'supplier-item-usage-popover').length, 0,
+      'A sourced item with no current approved-BOM usage must not show a tree')
+    assert.ok(calls.some(input => input.includes('itemId=part-direct')))
+  } finally { await act(async () => renderer.unmount()); restore() }
 })
 
 test('Internal Owner page loads active and inactive people and exposes lifecycle actions', async () => {
@@ -193,6 +236,20 @@ async function render(view: 'list' | 'people' | 'object', language: 'fa-IR' | 'e
           React.createElement(Route, { path: '/mrp/supply/internal-people', element: React.createElement(Component) }),
           React.createElement(Route, { path: '/mrp/suppliers/new', element: React.createElement(Component) }),
           React.createElement(Route, { path: '/mrp/suppliers/:id', element: React.createElement(Component) })))))
+  })
+  await flush()
+  return renderer
+}
+
+async function renderProvidedItems(language: 'fa-IR' | 'en') {
+  const translation = await translations(language)
+  await component()
+  ProvidedItemsModule ??= await server!.ssrLoadModule('/src/SupplierProvidedItems.tsx') as typeof import('./SupplierProvidedItems.tsx')
+  let renderer!: ReactTestRenderer
+  await act(async () => {
+    renderer = create(React.createElement(I18nextProvider, { i18n: translation },
+      React.createElement(MemoryRouter, null,
+        React.createElement(ProvidedItemsModule!.default, { supplierId: 'supplier-1', canViewBom: true }))))
   })
   await flush()
   return renderer

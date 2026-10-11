@@ -372,7 +372,7 @@ const fa = {
   },
   suppliers: {
     title: 'تأمین‌کنندگان', subtitle: 'اطلاعات پایه، مخاطبان و پروفایل پرداخت پیش‌فرض', new: 'تأمین‌کننده جدید', supplier: 'تأمین‌کننده',
-    searchPlaceholder: 'شماره یا نام', country: 'کشور', owner: 'مالک داخلی', financialBalance: 'تراز مالی', contacts: 'مخاطبان', payment: 'پروفایل پرداخت پیش‌فرض',
+    searchPlaceholder: 'شماره یا نام', country: 'کشور', owner: 'مالک داخلی', financialBalance: 'تراز مالی', providedItems: 'اقلامی که تأمین می‌کند', providedItemsHint: 'اقلام فعال مرتبط با این تأمین‌کننده از طریق منابع تأمین.', providedItemsHoverHint: 'برای دیدن مسیر مصرف در BOM، روی نام قلم مکث کنید.', noProvidedItems: 'هیچ قلم تأمین فعالی برای این تأمین‌کننده ثبت نشده است.', contacts: 'مخاطبان', payment: 'پروفایل پرداخت پیش‌فرض',
     evaluation: 'ارزیابی', paymentTerm: 'شرط پرداخت', advance: 'پیش‌پرداخت (%)', beforeShipment: 'قبل از حمل (%)', credit: 'اعتبار (%)',
     creditDays: 'روز اعتبار', creditAnchor: 'مبنای اعتبار', leadScore: 'امتیاز زمان', qualityScore: 'امتیاز کیفیت', fullName: 'نام کامل',
     jobTitle: 'سمت', email: 'ایمیل', phone: 'تلفن', mobile: 'موبایل', primary: 'اصلی', makePrimary: 'انتخاب اصلی', addContact: 'افزودن مخاطب',
