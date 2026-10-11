@@ -355,7 +355,7 @@ const fa = {
   products: {
     title: 'محصولات', subtitle: 'تعریف محصول و سیاست برنامه‌ریزی آن', new: 'محصول جدید', list: 'فهرست محصولات', object: 'محصول',
     searchPlaceholder: 'کد رسمی یا نام', businessUnit: 'واحد سازمانی', supplyMethod: 'نوع تأمین', supplyMethodUiOnly: 'این انتخاب فقط در رابط کاربری است و API فعلی آن را ذخیره نمی‌کند.', planning: 'سیاست برنامه‌ریزی', safetyStock: 'موجودی اطمینان',
-    criticalDays: 'روز بحرانی', safeStartDays: 'شروع محدوده امن', excessStartDays: 'شروع محدوده مازاد', lifecycle: 'چرخه عمر',
+    criticalDays: 'روز مانده به شرایط بحرانی', safeStartDays: 'شروع محدوده امن', excessStartDays: 'شروع محدوده مازاد', lifecycle: 'چرخه عمر',
   },
   materials: {
     parts: 'قطعات', components: 'اجزا', part: 'قطعه', component: 'جزء', newPart: 'قطعه جدید', newComponent: 'جزء جدید',

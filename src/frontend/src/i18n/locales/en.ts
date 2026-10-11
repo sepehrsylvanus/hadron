@@ -355,7 +355,7 @@ const en = {
   products: {
     title: 'Products', subtitle: 'Define products and their planning policy', new: 'New product', list: 'Product list', object: 'Product',
     searchPlaceholder: 'Official code or name', businessUnit: 'Business unit', supplyMethod: 'Supply type', supplyMethodUiOnly: 'This selection is front-end only; the current API does not store it.', planning: 'Planning Policy', safetyStock: 'Safety stock',
-    criticalDays: 'Critical days', safeStartDays: 'Safe range start', excessStartDays: 'Excess range start', lifecycle: 'Lifecycle',
+    criticalDays: 'Days remaining to critical conditions', safeStartDays: 'Safe range start', excessStartDays: 'Excess range start', lifecycle: 'Lifecycle',
   },
   materials: {
     parts: 'Parts', components: 'Components', part: 'Part', component: 'Component', newPart: 'New part', newComponent: 'New component',

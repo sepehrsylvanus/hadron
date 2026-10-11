@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import en from './i18n/locales/en.ts'
+import fa from './i18n/locales/fa.ts'
 
 const productMaster = readFileSync(new URL('./ProductMaster.tsx', import.meta.url), 'utf8')
 const materialMaster = readFileSync(new URL('./MaterialItemMaster.tsx', import.meta.url), 'utf8')
+
+test('critical-days label describes days remaining to critical conditions', () => {
+  assert.equal(fa.products.criticalDays, 'روز مانده به شرایط بحرانی')
+  assert.equal(en.products.criticalDays, 'Days remaining to critical conditions')
+})
 
 test('Product, Part, and Component masters expose one field labelled Name', () => {
   for (const source of [productMaster, materialMaster]) {
