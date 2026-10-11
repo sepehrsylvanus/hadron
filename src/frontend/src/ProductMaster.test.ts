@@ -21,3 +21,22 @@ test('Product supply type is available in the editor and display page', () => {
   assert.match(productMaster, /const \{ supplyMethod: selectedSupplyMethod, \.\.\.apiEditor \} = editor/)
   assert.match(productMaster, /const payload = \{ \.\.\.apiEditor/)
 })
+
+test('Product Business Unit and Notes are hidden on the object page without clearing stored values', () => {
+  const objectPage = productMaster.slice(productMaster.indexOf('export function ProductObjectPage'))
+  assert.doesNotMatch(objectPage, /<FormField label={t\('products\.businessUnit'\)}/)
+  assert.doesNotMatch(objectPage, /<Definition label={t\('products\.businessUnit'\)}/)
+  assert.doesNotMatch(objectPage, /<FormField[^>]*label={t\('common\.notes'\)}/)
+  assert.doesNotMatch(objectPage, /<Definition label={t\('common\.notes'\)}/)
+  assert.match(objectPage, /businessUnitId: product\.businessUnit\?\.id \?\? ''/)
+  assert.match(objectPage, /notes: product\.notes \?\? ''/)
+  assert.match(objectPage, /businessUnitId: editor\.businessUnitId \|\| null/)
+  assert.match(objectPage, /notes: editor\.notes \|\| null/)
+})
+
+test('Part and Component Notes are hidden from their shared create, edit, and display form while preserved on save', () => {
+  assert.doesNotMatch(materialMaster, /<FormField[^>]*label={t\('common\.notes'\)}/)
+  assert.doesNotMatch(materialMaster, /<Definition label={t\('common\.notes'\)}/)
+  assert.match(materialMaster, /notes: item\.notes \?\? ''/)
+  assert.match(materialMaster, /notes: editor\.notes \|\| null/)
+})
