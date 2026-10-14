@@ -39,16 +39,17 @@ test('Forecast stays in MRP while production execution belongs only to Productio
   assert.ok(![...mrpItems, ...productionItems].some(item => item.path === '/mrp/planning/forecast-actual'))
 })
 
-test('Supplier financial balances sits directly below Suppliers in the sidebar with the supplier view permission', () => {
+test('Supplier financial balances sits directly below Order Planning in the sidebar with the supplier view permission', () => {
   const group = mrpNavigationGroups.find(candidate => candidate.labelKey === 'navigation.groups.suppliersAndSourcing')!
   assert.deepEqual(group.items.map(item => item.path), [
     '/mrp/supply/suppliers',
-    '/mrp/supply/supplier-balances',
     '/mrp/supply/sourcing',
     '/mrp/supply/purchase-orders',
     '/mrp/supply/order-planning',
+    '/mrp/supply/supplier-balances',
   ])
-  assert.equal(group.items[1].labelKey, 'navigation.items.supplierBalances')
+  assert.deepEqual(group.items.map(item => item.labelKey), ['navigation.items.suppliers', 'navigation.items.sourcing', 'navigation.items.purchaseOrders', 'navigation.items.orderPlanning', 'navigation.items.supplierBalances'],
+    'supplier balances must sit exactly below order planning in the sidebar')
   assert.equal(fa.navigation.items.supplierBalances, 'تراز مالی تأمین‌کنندگان')
   assert.equal(en.navigation.items.supplierBalances, 'Supplier Balances')
   assert.equal(findWorkspaceRoute('/mrp/supply/supplier-balances')?.item.labelKey, 'navigation.items.supplierBalances')

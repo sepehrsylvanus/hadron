@@ -58,15 +58,22 @@ test('fake ledger entries always reconcile exactly to the displayed total', () =
   for (const supplier of [foreignSupplier, domesticSupplier]) {
     const balance = resolveSupplierBalance(supplier)
     const entries = buildSupplierLedger(supplier, balance, new Date('2026-10-14T12:00:00Z'))
-    assert.ok(entries.length >= 9, `expected a useful statement, got ${entries.length} entries`)
-    assert.equal(entries[entries.length - 1].runningBalance, balance.amount)
+    assert.ok(entries.length >= 6, `expected a useful statement, got ${entries.length} entries`)
+    assert.equal(entries[entries.length - 1].balance, balance.amount)
     const signedTotal = entries.reduce((total, entry) => total + Number(entry.signedAmount), 0)
-    assert.ok(Math.abs(signedTotal - Number(balance.amount)) < 0.000001)
+    assert.ok(Math.abs(Number(entries[0].previousBalance) + signedTotal - Number(balance.amount)) < 0.000001, 'carried-in balance plus every payable minus payment must equal the total')
     const dates = entries.map(entry => entry.date)
     assert.deepEqual(dates, [...dates].sort(), 'ledger dates must be ascending')
-    for (const entry of entries) {
-      assert.ok(Number(entry.debit) === 0 || Number(entry.credit) === 0, 'an entry is either debit or credit')
-      assert.match(entry.reference, /^(BAL|INV|ADV|PAY|FRG|RET|ADJ)-\d+$/)
+    for (const [index, entry] of entries.entries()) {
+      // Every row belongs to a project/deal and follows the displayed formula:
+      // balance = previous-day balance + payable for this project - paid today.
+      assert.match(entry.project.code, /^PRJ-\d{4}$/)
+      assert.ok(entry.project.titleFa.length > 0 && entry.project.titleEn.length > 0)
+      assert.ok(Number(entry.payableAmount) >= 0 && Number(entry.paidAmount) >= 0)
+      if (entry.kind === 'PAYABLE') assert.equal(Number(entry.paidAmount), 0)
+      if (entry.kind === 'PAYMENT') assert.equal(Number(entry.payableAmount), 0)
+      assert.ok(Math.abs(Number(entry.previousBalance) + Number(entry.payableAmount) - Number(entry.paidAmount) - Number(entry.balance)) < 0.000001)
+      if (index > 0) assert.equal(entry.previousBalance, entries[index - 1].balance, 'previous-day balance must carry from the prior row')
     }
   }
 })
@@ -92,7 +99,7 @@ test('Jalali date input accepts Persian, Arabic, and Latin digits', () => {
   assert.equal(parseJalaliDateInput(''), null)
 })
 
-test('combined ledger merges every supplier while keeping per-supplier running balances', () => {
+test('combined ledger merges every supplier while keeping per-supplier project balances', () => {
   const items = [foreignSupplier, domesticSupplier].map(supplier => ({ supplier, balance: resolveSupplierBalance(supplier) }))
   const rows = buildCombinedSupplierLedger(items)
   assert.ok(rows.length >= 18)
@@ -101,7 +108,7 @@ test('combined ledger merges every supplier while keeping per-supplier running b
   assert.deepEqual(dates, [...dates].sort(), 'combined ledger must be chronological before display sorting')
   for (const item of items) {
     const supplierRows = rows.filter(row => row.supplierId === item.supplier.id)
-    assert.equal(supplierRows[supplierRows.length - 1].runningBalance, item.balance.amount)
+    assert.equal(supplierRows[supplierRows.length - 1].balance, item.balance.amount)
     assert.ok(supplierRows.every(row => row.currencyCode === item.balance.currencyCode))
   }
 })
@@ -126,7 +133,7 @@ test('ledger period summary respects the from/to date filter', () => {
 
   const full = summarizeSupplierLedger(entries, range.from, range.to, balance.decimalPrecision)
   assert.equal(full.count, entries.length)
-  assert.equal(full.openingBalance, '0.00')
+  assert.equal(full.openingBalance, entries[0].previousBalance, 'opening balance is the balance carried into the first row')
   assert.equal(full.closingBalance, balance.amount)
 
   const empty = summarizeSupplierLedger(entries, '2000-01-01', '2000-01-31', balance.decimalPrecision)
@@ -135,5 +142,6 @@ test('ledger period summary respects the from/to date filter', () => {
 
   const firstDay = summarizeSupplierLedger(entries, range.from, range.from, balance.decimalPrecision)
   assert.equal(firstDay.count, 1)
-  assert.equal(firstDay.closingBalance, entries[0].runningBalance)
+  assert.equal(firstDay.closingBalance, entries[0].balance)
+  assert.equal(full.closingBalance, String(Number(full.openingBalance) + Number(full.totalPayable) - Number(full.totalPaid)))
 })

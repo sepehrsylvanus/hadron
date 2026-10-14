@@ -27,7 +27,7 @@ type Preset = 'ALL' | 'DAYS_30' | 'DAYS_90' | 'DAYS_180' | 'CUSTOM'
 
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const PAGE_SIZE = 25
-const LEDGER_KINDS: SupplierLedgerKind[] = ['OPENING', 'PURCHASE', 'ADVANCE_PAYMENT', 'BANK_PAYMENT', 'FREIGHT', 'PURCHASE_RETURN', 'ADJUSTMENT']
+const LEDGER_KINDS: SupplierLedgerKind[] = ['PAYABLE', 'PAYMENT', 'PAYABLE_AND_PAYMENT']
 const PRESETS: Array<{ id: Exclude<Preset, 'CUSTOM'>; days: number | null }> = [
   { id: 'ALL', days: null },
   { id: 'DAYS_30', days: 30 },
@@ -133,7 +133,7 @@ export default function SupplierFinancialBalancesPage() {
       .filter(row => (!from || row.date >= from) && (!to || row.date <= to))
       .filter(row => currencyFilter === 'ALL' || row.currencyCode === currencyFilter)
       .filter(row => kindFilter === 'ALL' || row.kind === kindFilter)
-      .filter(row => matchesSupplier(row.supplierName, row.supplierNumber) || row.reference.toLowerCase().includes(queryText))
+      .filter(row => matchesSupplier(row.supplierName, row.supplierNumber) || row.project.code.toLowerCase().includes(queryText) || row.project.titleFa.includes(search.trim()) || row.project.titleEn.toLowerCase().includes(queryText))
       .sort((left, right) => right.date.localeCompare(left.date) || left.supplierName.localeCompare(right.supplierName)),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesSupplier/queryText are derived from search state
     [combinedRows, from, to, currencyFilter, kindFilter, queryText],
@@ -149,7 +149,7 @@ export default function SupplierFinancialBalancesPage() {
       .map(item => {
         const entries = entriesBySupplier.get(item.supplier.id) ?? []
         const summary = summarizeSupplierLedger(entries, from, to, item.balance.decimalPrecision)
-        return { ...item, entriesCount: summary.count, totalDebit: summary.totalDebit, totalCredit: summary.totalCredit, closingBalance: summary.closingBalance }
+        return { ...item, entriesCount: summary.count, totalPayable: summary.totalPayable, totalPaid: summary.totalPaid, closingBalance: summary.closingBalance }
       })
       .sort((left, right) => Math.abs(Number(right.closingBalance)) - Math.abs(Number(left.closingBalance))),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesSupplier/queryText are derived from search state
@@ -232,35 +232,33 @@ export default function SupplierFinancialBalancesPage() {
           <thead><tr>
             <th scope="col">{t('suppliers.ledger.date')}</th>
             <th scope="col">{t('suppliers.supplier')}</th>
-            <th scope="col">{t('suppliers.ledger.document')}</th>
-            <th scope="col">{t('suppliers.ledger.type')}</th>
-            <th scope="col">{t('suppliers.ledger.description')}</th>
+            <th scope="col">{t('suppliers.ledger.project')}</th>
             <th scope="col">{t('suppliers.balancesPage.currency')}</th>
-            <th scope="col">{t('suppliers.ledger.debit')}</th>
-            <th scope="col">{t('suppliers.ledger.credit')}</th>
+            <th scope="col">{t('suppliers.ledger.previousBalance')}</th>
+            <th scope="col">{t('suppliers.ledger.projectPayable')}</th>
+            <th scope="col">{t('suppliers.ledger.paidToday')}</th>
             <th scope="col">{t('suppliers.balancesPage.supplierBalanceAfter')}</th>
           </tr></thead>
           <tbody>
             {loading
-              ? <tr><td colSpan={9}><LoadingState label={t('common.loading')} compact /></td></tr>
+              ? <tr><td colSpan={8}><LoadingState label={t('common.loading')} compact /></td></tr>
               : pageRows.length === 0
-                ? <tr><td colSpan={9}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
+                ? <tr><td colSpan={8}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
                 : pageRows.map(row => <tr key={`${row.supplierId}-${row.id}`}>
                   <td><span className="supplier-ledger-date" dir="ltr">{formatBusinessDate(row.date, language)}</span></td>
                   <td className="supplier-balances-supplier"><Link to={`/mrp/suppliers/${row.supplierId}`}>{row.supplierName}</Link><small className="ui-technical">{row.supplierNumber}</small></td>
-                  <td className="ui-technical">{row.reference}</td>
-                  <td className="supplier-ledger-type"><span className={`supplier-ledger-kind supplier-ledger-kind--${row.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${row.kind}`)}</span></td>
-                  <td className="supplier-ledger-description">{t(`suppliers.ledger.descriptions.${row.kind}`)}</td>
+                  <td className="supplier-ledger-project"><strong>{persian ? row.project.titleFa : row.project.titleEn}</strong><small><span className="ui-technical">{row.project.code}</span><span className={`supplier-ledger-kind supplier-ledger-kind--${row.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${row.kind}`)}</span></small></td>
                   <td className="ui-technical">{row.currencyCode ?? '—'}</td>
-                  <td className="ui-number">{Number(row.debit) === 0 ? '—' : money(row.debit, row.decimalPrecision)}</td>
-                  <td className="ui-number">{Number(row.credit) === 0 ? '—' : money(row.credit, row.decimalPrecision)}</td>
-                  <td className={`ui-number supplier-ledger-running${row.runningBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(row.runningBalance, row.decimalPrecision)}</td>
+                  <td className="ui-number">{money(row.previousBalance, row.decimalPrecision)}</td>
+                  <td className="ui-number">{Number(row.payableAmount) === 0 ? '—' : money(row.payableAmount, row.decimalPrecision)}</td>
+                  <td className="ui-number">{Number(row.paidAmount) === 0 ? '—' : money(row.paidAmount, row.decimalPrecision)}</td>
+                  <td className={`ui-number supplier-ledger-running${row.balance.startsWith('-') ? ' is-negative' : ''}`}>{money(row.balance, row.decimalPrecision)}</td>
                 </tr>)}
           </tbody>
           {singleCurrency && <tfoot><tr>
-            <td colSpan={6}>{t('suppliers.ledger.periodTotal')} · <bdi>{singleCurrency.currencyCode ?? ''}</bdi></td>
-            <td className="ui-number">{money(sumFiltered(row => row.debit, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
-            <td className="ui-number">{money(sumFiltered(row => row.credit, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
+            <td colSpan={5}>{t('suppliers.ledger.periodTotal')} · <bdi>{singleCurrency.currencyCode ?? ''}</bdi></td>
+            <td className="ui-number">{money(sumFiltered(row => row.payableAmount, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
+            <td className="ui-number">{money(sumFiltered(row => row.paidAmount, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
             <td className="ui-number">—</td>
           </tr></tfoot>}
         </table>
@@ -278,8 +276,8 @@ export default function SupplierFinancialBalancesPage() {
           <thead><tr>
             <th scope="col">{t('suppliers.supplier')}</th>
             <th scope="col">{t('suppliers.balancesPage.currency')}</th>
-            <th scope="col">{t('suppliers.ledger.periodDebit')}</th>
-            <th scope="col">{t('suppliers.ledger.periodCredit')}</th>
+            <th scope="col">{t('suppliers.ledger.periodPayable')}</th>
+            <th scope="col">{t('suppliers.ledger.periodPaid')}</th>
             <th scope="col">{t('suppliers.ledger.closingBalance')}</th>
             <th scope="col">{t('suppliers.ledger.totalBalance')}</th>
             <th scope="col">{t('suppliers.balancesPage.entriesCount')}</th>
@@ -295,8 +293,8 @@ export default function SupplierFinancialBalancesPage() {
                   return <tr key={item.supplier.id}>
                     <td className="supplier-balances-supplier"><Link to={`/mrp/suppliers/${item.supplier.id}`}>{item.supplier.name}</Link><small className="ui-technical">{item.supplier.supplierNumber}</small></td>
                     <td className="ui-technical">{item.balance.currencyCode ?? '—'}</td>
-                    <td className="ui-number">{money(item.totalDebit, item.balance.decimalPrecision)}</td>
-                    <td className="ui-number">{money(item.totalCredit, item.balance.decimalPrecision)}</td>
+                    <td className="ui-number">{money(item.totalPayable, item.balance.decimalPrecision)}</td>
+                    <td className="ui-number">{money(item.totalPaid, item.balance.decimalPrecision)}</td>
                     <td className={`ui-number supplier-ledger-running${item.closingBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(item.closingBalance, item.balance.decimalPrecision)}</td>
                     <td className="ui-number"><button type="button" className="supplier-balance-button" onClick={() => setSelected(item)} aria-label={`${t('suppliers.ledger.viewDetails')}: ${item.supplier.name} — ${balanceLabel}`} title={t('suppliers.ledger.viewDetails')}><ReceiptText aria-hidden="true" /><span className="supplier-balance-button__amount" dir="ltr">{balanceLabel}</span>{item.balance.isFake && <span className="supplier-balance-button__badge">{t('suppliers.ledger.demoBadge')}</span>}</button></td>
                     <td className="ui-number">{item.entriesCount}</td>

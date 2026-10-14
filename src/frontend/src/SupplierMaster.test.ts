@@ -145,11 +145,11 @@ test('Supplier without an API balance gets a clickable fake balance that opens i
     const dialog = renderer.root.findAll(node => node.props.role === 'dialog')[0]
     assert.ok(dialog, 'clicking the balance must open the ledger statement')
     const dialogText = instanceText(dialog)
-    for (const expected of ['ریز تراز مالی', 'تأمین‌کننده نمایشی', 'تراز مالی مجموع', 'مانده ابتدای دوره', 'جمع بدهکار دوره', 'جمع بستانکار دوره', 'مانده پایان دوره', 'فاکتور خرید', 'پرداخت بانکی'])
+    for (const expected of ['ریز تراز مالی', 'تأمین‌کننده نمایشی', 'تراز مالی مجموع', 'مانده ابتدای دوره', 'جمع قابل پرداخت دوره', 'جمع پرداختی دوره', 'مانده پایان دوره', 'پروژه / دادوستد', 'تراز روز قبل', 'قابل پرداخت این پروژه', 'پرداختی امروز', 'فرمول تراز مالی: تراز روز قبل + قابل پرداخت این پروژه − پرداختی امروز', 'PRJ-'])
       assert.ok(dialogText.includes(expected), `Expected ledger text: ${expected}\n${dialogText}`)
     assert.doesNotMatch(dialogText, /20\d{2}-\d{2}-\d{2}/, 'Persian ledger must not show Gregorian dates')
-    const ledgerRows = dialog.findAllByType('tr').filter(row => row.findAllByType('td').length === 7)
-    assert.ok(ledgerRows.length >= 9, `expected at least 9 ledger rows, got ${ledgerRows.length}`)
+    const ledgerRows = dialog.findAllByType('tr').filter(row => row.findAllByType('td').length === 6)
+    assert.ok(ledgerRows.length >= 6, `expected at least 6 project ledger rows, got ${ledgerRows.length}`)
 
     // Persian UI must use Shamsi (Jalali) text inputs with Persian digits, never Gregorian date inputs.
     assert.equal(dialog.findAllByType('input').filter(node => node.props.type === 'date').length, 0)

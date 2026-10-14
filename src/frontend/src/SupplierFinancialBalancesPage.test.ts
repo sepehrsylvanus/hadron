@@ -58,7 +58,7 @@ test('overall balances page merges every supplier ledger and opens a single stat
   try {
     await flush()
     const text = renderedText(renderer.toJSON())
-    for (const expected of ['تراز مالی کلی تأمین‌کنندگان', 'تراز کلی به تفکیک ارز', 'IRR', 'USD', 'دفتر گردش مالی همه تأمین‌کنندگان', 'خلاصه تراز هر تأمین‌کننده', 'Hadron Plast', 'Global Resin Co', 'مانده تأمین‌کننده'])
+    for (const expected of ['تراز مالی کلی تأمین‌کنندگان', 'تراز کلی به تفکیک ارز', 'IRR', 'USD', 'دفتر گردش مالی همه تأمین‌کنندگان', 'خلاصه تراز هر تأمین‌کننده', 'Hadron Plast', 'Global Resin Co', 'تراز مالی تأمین‌کننده', 'پروژه / دادوستد', 'تراز روز قبل', 'قابل پرداخت این پروژه', 'پرداختی امروز'])
       assert.ok(text.includes(expected), `Expected page text: ${expected}\n${text}`)
     assert.doesNotMatch(text, /20\d{2}-\d{2}-\d{2}/, 'Persian page must not show Gregorian dates')
 
@@ -70,8 +70,9 @@ test('overall balances page merges every supplier ledger and opens a single stat
     // The merged table holds entries from both suppliers.
     const tables = renderer.root.findAllByType('table')
     assert.equal(tables.length, 2)
-    const combinedRows = tables[0].findAllByType('tr').filter(row => row.findAllByType('td').length === 9)
-    assert.ok(combinedRows.length >= 10, `expected a full page of merged entries, got ${combinedRows.length}`)
+    const combinedRows = tables[0].findAllByType('tr').filter(row => row.findAllByType('td').length === 8)
+    assert.ok(combinedRows.length >= 12, `expected a full page of merged entries, got ${combinedRows.length}`)
+    assert.ok(combinedRows.some(row => instanceText(row).includes('PRJ-')), 'combined rows must show their project')
     const combinedText = combinedRows.map(row => instanceText(row)).join('\n')
     assert.ok(combinedText.includes('Hadron Plast') || combinedText.includes('Global Resin Co'))
     const summaryRows = tables[1].findAllByType('tr').filter(row => row.findAllByType('td').length === 8)

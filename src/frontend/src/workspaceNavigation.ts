@@ -107,10 +107,10 @@ export const mrpNavigationGroups: NavigationGroupDefinition[] = [
   ] },
   { labelKey: 'navigation.groups.suppliersAndSourcing', items: [
     { labelKey: 'navigation.items.suppliers', path: '/mrp/supply/suppliers', aliases: ['/mrp/suppliers', '/mrp/supply/internal-people'], icon: 'suppliers' },
-    { labelKey: 'navigation.items.supplierBalances', path: '/mrp/supply/supplier-balances', icon: 'supplierBalances' },
     { labelKey: 'navigation.items.sourcing', path: '/mrp/supply/sourcing', aliases: ['/mrp/sourcing'], icon: 'sourcing' },
     { labelKey: 'navigation.items.purchaseOrders', path: '/mrp/supply/purchase-orders', aliases: ['/mrp/purchase-orders'], icon: 'purchaseOrders' },
     { labelKey: 'navigation.items.orderPlanning', path: '/mrp/supply/order-planning', aliases: ['/mrp/order-planning'], icon: 'orderPlanning' },
+    { labelKey: 'navigation.items.supplierBalances', path: '/mrp/supply/supplier-balances', icon: 'supplierBalances' },
   ] },
   { labelKey: 'navigation.groups.engineering', items: [
     { labelKey: 'navigation.items.bom', path: '/mrp/engineering/bom', icon: 'bom' },

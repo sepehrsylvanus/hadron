@@ -27,39 +27,53 @@ export type ResolvedSupplierBalance = {
   isPending: boolean
 }
 
-export type SupplierLedgerKind =
-  | 'OPENING'
-  | 'PURCHASE'
-  | 'ADVANCE_PAYMENT'
-  | 'BANK_PAYMENT'
-  | 'FREIGHT'
-  | 'PURCHASE_RETURN'
-  | 'ADJUSTMENT'
+export type SupplierLedgerKind = 'PAYABLE' | 'PAYMENT' | 'PAYABLE_AND_PAYMENT'
+
+export type SupplierLedgerProject = {
+  code: string
+  titleFa: string
+  titleEn: string
+}
 
 export type SupplierLedgerEntry = {
   id: string
   /** ISO calendar date (yyyy-mm-dd). */
   date: string
-  reference: string
   kind: SupplierLedgerKind
-  /** Positive exact-decimal string when the entry is a debit, otherwise "0…". */
-  debit: string
-  /** Positive exact-decimal string when the entry is a credit, otherwise "0…". */
-  credit: string
-  /** Signed amount: credit − debit. */
+  /** The project / deal (دادوستد) this entry belongs to. */
+  project: SupplierLedgerProject
+  /** Balance carried from the previous day, before this entry (تراز روز قبل). */
+  previousBalance: string
+  /** Amount that became payable for this project on this date (قابل پرداخت این پروژه). */
+  payableAmount: string
+  /** Amount paid on this date for this project (پرداختی امروز). */
+  paidAmount: string
+  /** payableAmount − paidAmount. */
   signedAmount: string
-  /** Cumulative signed balance after this entry (credit − debit from the start). */
-  runningBalance: string
+  /** Financial balance after this entry: previousBalance + payableAmount − paidAmount. */
+  balance: string
 }
 
 export type SupplierLedgerPeriodSummary = {
   rows: SupplierLedgerEntry[]
+  /** Balance before the period (sum of all entries before `from`). */
   openingBalance: string
-  totalDebit: string
-  totalCredit: string
+  totalPayable: string
+  totalPaid: string
   closingBalance: string
   count: number
 }
+
+const FAKE_PROJECT_TITLES: Array<{ titleFa: string; titleEn: string }> = [
+  { titleFa: 'خرید مواد اولیه تولید', titleEn: 'Production raw-material purchase' },
+  { titleFa: 'تأمین قطعات خط مونتاژ', titleEn: 'Assembly-line parts supply' },
+  { titleFa: 'خرید بسته‌بندی و ملزومات مصرفی', titleEn: 'Packaging and consumables purchase' },
+  { titleFa: 'واردات رزین و افزودنی‌ها', titleEn: 'Resin and additives import' },
+  { titleFa: 'خرید ورق و پروفیل صنعتی', titleEn: 'Industrial sheet and profile purchase' },
+  { titleFa: 'تأمین تجهیزات جانبی انبار', titleEn: 'Warehouse auxiliary equipment supply' },
+  { titleFa: 'خرید مواد شیمیایی فرایندی', titleEn: 'Process chemicals purchase' },
+  { titleFa: 'سفارش خرید قطعات یدکی', titleEn: 'Spare-parts purchase order' },
+]
 
 const FAKE_CURRENCY_BY_COUNTRY: Record<string, { code: string; decimalPrecision: number }> = {
   IR: { code: 'IRR', decimalPrecision: 0 },
@@ -126,9 +140,17 @@ export function fakeBalanceForSupplier(supplier: SupplierBalanceSource) {
 }
 
 /**
- * Builds a deterministic fake ledger whose entries sum exactly to the
- * resolved total balance, so the statement always reconciles with the
- * number clicked in the list (آخرین «مانده» = تراز مالی مجموع).
+ * Builds a deterministic fake, project-based ledger for one supplier.
+ *
+ * The supplier's activity is a handful of projects / deals (دادوستد). Each
+ * project first makes an amount payable and is then paid in installments.
+ * Every row follows the balance formula exactly:
+ *
+ *   balance = previousBalance (تراز روز قبل) + payableAmount (قابل پرداخت این پروژه) − paidAmount (پرداختی امروز)
+ *
+ * The carried-in previous balance of the first row makes the final row's
+ * balance equal the resolved total balance, so the statement always
+ * reconciles with the number clicked in the list.
  */
 export function buildSupplierLedger(
   supplier: SupplierBalanceSource,
@@ -137,58 +159,74 @@ export function buildSupplierLedger(
 ): SupplierLedgerEntry[] {
   const precision = balance.decimalPrecision
   const totalMinor = toMinor(balance.amount, precision)
-  const random = mulberry32(hashSeed(`${supplier.id}|${supplier.supplierNumber}|ledger|${balance.amount}|${balance.currencyCode ?? ''}`))
+  const random = mulberry32(hashSeed(`${supplier.id}|${supplier.supplierNumber}|project-ledger|${balance.amount}|${balance.currencyCode ?? ''}`))
   const scale = 10 ** precision
   // Fallback activity scale for (near-)zero balances so the statement is not empty.
   const activityBaseMinor = Math.max(Math.abs(totalMinor), (precision === 0 ? 950_000_000 : 28_000) * scale)
+  const overpaid = totalMinor < 0
 
-  type Draft = { date: string; kind: SupplierLedgerKind; signedMinor: number }
-  const drafts: Draft[] = []
-  let cursor = addCalendarDays(toIsoDate(today), -186)
-  let runningMinor = 0
+  type DraftEvent = { date: string; project: SupplierLedgerProject; payableMinor: number; paidMinor: number }
+  const events: DraftEvent[] = []
+  const projectCount = 3 + Math.floor(random() * 3)
+  const titleOffset = Math.floor(random() * FAKE_PROJECT_TITLES.length)
+  let projectStart = addCalendarDays(toIsoDate(today), -175)
 
-  const openingMinor = Math.round(totalMinor * (0.26 + random() * 0.22))
-  if (openingMinor !== 0) {
-    drafts.push({ date: cursor, kind: 'OPENING', signedMinor: openingMinor })
-    runningMinor += openingMinor
-  }
-
-  const intermediateCount = 8 + Math.floor(random() * 4)
-  for (let index = 0; index < intermediateCount; index++) {
-    cursor = addCalendarDays(cursor, 9 + Math.floor(random() * 11))
-    const roll = random()
-    const kind: SupplierLedgerKind = roll < 0.46 ? 'PURCHASE' : roll < 0.76 ? 'BANK_PAYMENT' : roll < 0.86 ? 'ADVANCE_PAYMENT' : roll < 0.94 ? 'FREIGHT' : 'PURCHASE_RETURN'
-    const isSmall = kind === 'FREIGHT' || kind === 'PURCHASE_RETURN'
-    const magnitude = Math.max(1, Math.round(activityBaseMinor * (isSmall ? 0.02 + random() * 0.05 : 0.07 + random() * 0.27)))
-    const signedMinor = (kind === 'PURCHASE' || kind === 'FREIGHT' ? 1 : -1) * magnitude
-    drafts.push({ date: cursor, kind, signedMinor })
-    runningMinor += signedMinor
-  }
-
-  // Final entry reconciles the statement exactly to the displayed total.
-  const differenceMinor = totalMinor - runningMinor
-  if (differenceMinor !== 0) {
-    cursor = addCalendarDays(cursor, 6 + Math.floor(random() * 9))
-    const kind: SupplierLedgerKind = Math.abs(differenceMinor) <= Math.abs(totalMinor) * 0.03
-      ? 'ADJUSTMENT'
-      : differenceMinor > 0 ? 'PURCHASE' : 'BANK_PAYMENT'
-    drafts.push({ date: cursor, kind, signedMinor: differenceMinor })
-  }
-
-  let cumulativeMinor = 0
-  return drafts.map((draft, index) => {
-    cumulativeMinor += draft.signedMinor
-    return {
-      id: `${supplier.id}-ledger-${index + 1}`,
-      date: draft.date,
-      reference: `${referencePrefix(draft.kind)}-${4100 + index * 113 + Math.floor(random() * 89)}`,
-      kind: draft.kind,
-      debit: minorToAmountString(draft.signedMinor < 0 ? -draft.signedMinor : 0, precision),
-      credit: minorToAmountString(draft.signedMinor > 0 ? draft.signedMinor : 0, precision),
-      signedAmount: minorToAmountString(draft.signedMinor, precision),
-      runningBalance: minorToAmountString(cumulativeMinor, precision),
+  for (let projectIndex = 0; projectIndex < projectCount; projectIndex++) {
+    if (projectIndex > 0) projectStart = addCalendarDays(projectStart, 4 + Math.floor(random() * 18))
+    const title = FAKE_PROJECT_TITLES[(titleOffset + projectIndex) % FAKE_PROJECT_TITLES.length]
+    const project: SupplierLedgerProject = {
+      code: `PRJ-${1040 + projectIndex * 137 + Math.floor(random() * 89)}`,
+      titleFa: title.titleFa,
+      titleEn: title.titleEn,
     }
+    const payableMinor = Math.max(1, Math.round((activityBaseMinor * 1.35 / projectCount) * (0.7 + random() * 0.6)))
+    // Suppliers in credit (negative balance) have paid more than was payable.
+    const paidRatio = overpaid ? 1.08 + random() * 0.37 : 0.35 + random() * 0.5
+    const totalPaidMinor = Math.round(payableMinor * paidRatio)
+    const paymentCount = 1 + Math.floor(random() * 3)
+    const chunks = splitMinor(totalPaidMinor, paymentCount, random)
+    let paymentDate = random() < 0.5 ? projectStart : addCalendarDays(projectStart, 3 + Math.floor(random() * 10))
+    let paidOnStartMinor = 0
+    const paymentEvents: DraftEvent[] = []
+    chunks.forEach((chunkMinor, chunkIndex) => {
+      if (chunkIndex > 0) paymentDate = addCalendarDays(paymentDate, 10 + Math.floor(random() * 19))
+      if (paymentDate === projectStart) paidOnStartMinor += chunkMinor
+      else if (chunkMinor > 0) paymentEvents.push({ date: paymentDate, project, payableMinor: 0, paidMinor: chunkMinor })
+    })
+    events.push({ date: projectStart, project, payableMinor, paidMinor: paidOnStartMinor })
+    events.push(...paymentEvents)
+  }
+
+  events.sort((left, right) => left.date.localeCompare(right.date) || left.project.code.localeCompare(right.project.code) || right.payableMinor - left.payableMinor)
+  const netMinor = events.reduce((total, event) => total + event.payableMinor - event.paidMinor, 0)
+  // تراز روز قبل carried into the first visible row (balance from before this period).
+  let previousMinor = totalMinor - netMinor
+  return events.map((event, index) => {
+    const balanceMinor = previousMinor + event.payableMinor - event.paidMinor
+    const entry: SupplierLedgerEntry = {
+      id: `${supplier.id}-ledger-${index + 1}`,
+      date: event.date,
+      kind: event.payableMinor > 0 && event.paidMinor > 0 ? 'PAYABLE_AND_PAYMENT' : event.payableMinor > 0 ? 'PAYABLE' : 'PAYMENT',
+      project: event.project,
+      previousBalance: minorToAmountString(previousMinor, precision),
+      payableAmount: minorToAmountString(event.payableMinor, precision),
+      paidAmount: minorToAmountString(event.paidMinor, precision),
+      signedAmount: minorToAmountString(event.payableMinor - event.paidMinor, precision),
+      balance: minorToAmountString(balanceMinor, precision),
+    }
+    previousMinor = balanceMinor
+    return entry
   })
+}
+
+/** Splits an amount into `parts` positive-ish chunks that sum back exactly. */
+function splitMinor(totalMinor: number, parts: number, random: () => number) {
+  if (parts <= 1) return [totalMinor]
+  const weights = Array.from({ length: parts }, () => 0.5 + random())
+  const weightSum = weights.reduce((total, weight) => total + weight, 0)
+  const chunks = weights.map(weight => Math.floor((totalMinor * weight) / weightSum))
+  chunks[parts - 1] += totalMinor - chunks.reduce((total, chunk) => total + chunk, 0)
+  return chunks
 }
 
 export type SupplierWithBalance = {
@@ -260,9 +298,8 @@ export function supplierLedgerDateRange(entries: SupplierLedgerEntry[]) {
 }
 
 /**
- * Filters the ledger to [from, to] and summarises the period. The running
- * balance stored on each row is global, so the closing balance of any period
- * is opening + (credit − debit) inside that period.
+ * Filters the ledger to [from, to] and summarises the period with the same
+ * formula: closing = opening (تراز قبل از دوره) + payable − paid.
  */
 export function summarizeSupplierLedger(
   entries: SupplierLedgerEntry[],
@@ -273,15 +310,22 @@ export function summarizeSupplierLedger(
   const rows = entries.filter(entry => (!from || entry.date >= from) && (!to || entry.date <= to))
   const sumMinor = (values: SupplierLedgerEntry[], pick: (entry: SupplierLedgerEntry) => string) =>
     values.reduce((total, entry) => total + toMinor(pick(entry), decimalPrecision), 0)
-  const openingMinor = sumMinor(entries.filter(entry => from && entry.date < from), entry => entry.signedAmount)
-  const debitMinor = sumMinor(rows, entry => entry.debit)
-  const creditMinor = sumMinor(rows, entry => entry.credit)
+  // The previous-day balance carried into the first included row is the
+  // opening balance; a range past the last row opens at the final balance.
+  const firstIncluded = entries.findIndex(entry => (!from || entry.date >= from) && (!to || entry.date <= to))
+  const openingMinor = firstIncluded === -1
+    ? (entries.length && from && from > entries[entries.length - 1].date
+      ? toMinor(entries[entries.length - 1].balance, decimalPrecision)
+      : 0)
+    : toMinor(entries[firstIncluded].previousBalance, decimalPrecision)
+  const payableMinor = sumMinor(rows, entry => entry.payableAmount)
+  const paidMinor = sumMinor(rows, entry => entry.paidAmount)
   return {
     rows,
     openingBalance: minorToAmountString(openingMinor, decimalPrecision),
-    totalDebit: minorToAmountString(debitMinor, decimalPrecision),
-    totalCredit: minorToAmountString(creditMinor, decimalPrecision),
-    closingBalance: minorToAmountString(openingMinor + creditMinor - debitMinor, decimalPrecision),
+    totalPayable: minorToAmountString(payableMinor, decimalPrecision),
+    totalPaid: minorToAmountString(paidMinor, decimalPrecision),
+    closingBalance: minorToAmountString(openingMinor + payableMinor - paidMinor, decimalPrecision),
     count: rows.length,
   }
 }
@@ -290,18 +334,6 @@ export function addCalendarDays(isoDate: string, days: number) {
   const date = new Date(`${isoDate}T12:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
-}
-
-function referencePrefix(kind: SupplierLedgerKind) {
-  switch (kind) {
-    case 'OPENING': return 'BAL'
-    case 'PURCHASE': return 'INV'
-    case 'ADVANCE_PAYMENT': return 'ADV'
-    case 'BANK_PAYMENT': return 'PAY'
-    case 'FREIGHT': return 'FRG'
-    case 'PURCHASE_RETURN': return 'RET'
-    case 'ADJUSTMENT': return 'ADJ'
-  }
 }
 
 function toIsoDate(date: Date) {

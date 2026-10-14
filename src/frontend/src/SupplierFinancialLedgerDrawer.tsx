@@ -131,39 +131,39 @@ export default function SupplierFinancialLedgerDrawer({
 
         <div className="supplier-ledger-summary">
           <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.openingBalance')}</span><strong dir="ltr" className={summary.openingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.openingBalance)}</strong></div>
-          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodDebit')}</span><strong dir="ltr">{money(summary.totalDebit)}</strong></div>
-          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodCredit')}</span><strong dir="ltr">{money(summary.totalCredit)}</strong></div>
+          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodPayable')}</span><strong dir="ltr">{money(summary.totalPayable)}</strong></div>
+          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodPaid')}</span><strong dir="ltr">{money(summary.totalPaid)}</strong></div>
           <div className="supplier-ledger-summary__card is-closing"><span>{t('suppliers.ledger.closingBalance')}</span><strong dir="ltr" className={summary.closingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.closingBalance)}{balance.currencyCode ? ` ${balance.currencyCode}` : ''}</strong></div>
         </div>
+
+        <p className="supplier-ledger-formula">{t('suppliers.ledger.formula')}</p>
 
         <div className="supplier-ledger-table-wrap">
           <table className="ui-data-table supplier-ledger-table">
             <thead><tr>
               <th scope="col">{t('suppliers.ledger.date')}</th>
-              <th scope="col">{t('suppliers.ledger.document')}</th>
-              <th scope="col">{t('suppliers.ledger.type')}</th>
-              <th scope="col">{t('suppliers.ledger.description')}</th>
-              <th scope="col">{t('suppliers.ledger.debit')}</th>
-              <th scope="col">{t('suppliers.ledger.credit')}</th>
+              <th scope="col">{t('suppliers.ledger.project')}</th>
+              <th scope="col">{t('suppliers.ledger.previousBalance')}</th>
+              <th scope="col">{t('suppliers.ledger.projectPayable')}</th>
+              <th scope="col">{t('suppliers.ledger.paidToday')}</th>
               <th scope="col">{t('suppliers.ledger.balance')}</th>
             </tr></thead>
             <tbody>
               {summary.rows.length === 0
-                ? <tr><td colSpan={7}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
+                ? <tr><td colSpan={6}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
                 : summary.rows.map(entry => <tr key={entry.id}>
                   <td><span className="supplier-ledger-date" dir="ltr">{formatBusinessDate(entry.date, language)}</span></td>
-                  <td className="ui-technical">{entry.reference}</td>
-                  <td className="supplier-ledger-type"><span className={`supplier-ledger-kind supplier-ledger-kind--${entry.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${entry.kind}`)}</span></td>
-                  <td className="supplier-ledger-description">{t(`suppliers.ledger.descriptions.${entry.kind}`)}</td>
-                  <td className="ui-number">{Number(entry.debit) === 0 ? '—' : money(entry.debit)}</td>
-                  <td className="ui-number">{Number(entry.credit) === 0 ? '—' : money(entry.credit)}</td>
-                  <td className={`ui-number supplier-ledger-running${entry.runningBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(entry.runningBalance)}</td>
+                  <td className="supplier-ledger-project"><strong>{persian ? entry.project.titleFa : entry.project.titleEn}</strong><small><span className="ui-technical">{entry.project.code}</span><span className={`supplier-ledger-kind supplier-ledger-kind--${entry.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${entry.kind}`)}</span></small></td>
+                  <td className="ui-number">{money(entry.previousBalance)}</td>
+                  <td className="ui-number">{Number(entry.payableAmount) === 0 ? '—' : money(entry.payableAmount)}</td>
+                  <td className="ui-number">{Number(entry.paidAmount) === 0 ? '—' : money(entry.paidAmount)}</td>
+                  <td className={`ui-number supplier-ledger-running${entry.balance.startsWith('-') ? ' is-negative' : ''}`}>{money(entry.balance)}</td>
                 </tr>)}
             </tbody>
             {summary.rows.length > 0 && <tfoot><tr>
-              <td colSpan={4}>{t('suppliers.ledger.periodTotal')}</td>
-              <td className="ui-number">{money(summary.totalDebit)}</td>
-              <td className="ui-number">{money(summary.totalCredit)}</td>
+              <td colSpan={3}>{t('suppliers.ledger.periodTotal')}</td>
+              <td className="ui-number">{money(summary.totalPayable)}</td>
+              <td className="ui-number">{money(summary.totalPaid)}</td>
               <td className={`ui-number supplier-ledger-running${summary.closingBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(summary.closingBalance)}</td>
             </tr></tfoot>}
           </table>
