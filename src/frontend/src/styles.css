@@ -740,6 +740,8 @@ button.bom-usage-coefficient { cursor: pointer; }
 .supplier-supply-chip svg { width: 13px; height: 13px; }
 .supplier-supply-chip.is-period { border-color: #edb9bf; background: #fff5f6; color: var(--text-primary); font-weight: 700; }
 .supplier-supply-chip.is-preferred { border-color: #ead49b; background: #fff8e6; color: #7c5700; }
+.supplier-supply-chip.is-demo { border-color: #ead49b; background: #fff8e6; color: #7c5700; font-weight: 800; }
+.supplier-supply-demo-note { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid #ead49b; border-inline-start: 3px solid #b98000; border-radius: var(--radius-sm); background: #fff9e9; color: #725000; font-size: 12.5px; line-height: 1.9; }
 @media (max-width: 640px) {
   .supplier-supply-card { align-items: flex-start; }
   .supplier-supply-card__image { width: 68px; height: 52px; }

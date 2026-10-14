@@ -38,6 +38,8 @@ type ProvidedItemRecord = {
   optionsCount: number
   preferred: boolean
   leadTimeDays: number | null
+  /** True for the clearly-labelled demo history of one showcase supplier. */
+  demo?: boolean
 }
 type SupplierItemsPage = { items: SupplierItemGroup[]; totalItemCount: number }
 type SupplierProvidedItem = SuppliedItem & { imageUrl: string }
@@ -49,10 +51,36 @@ type UsageTreeNode = { item: SuppliedItem | WhereUsedItem; revisionCode?: string
 type UsageStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
+
+/**
+ * Demo supply history exists for exactly one showcase supplier —
+ * Hadron Plast (SUP-0002) — so the history timeline can be seen even when the
+ * database has no deactivated sourcing options yet. Every demo record is
+ * badged «داده نمایشی / Demo data» and never mixes with real records.
+ */
+const DEMO_SUPPLY_HISTORY_SUPPLIER_NUMBER = 'SUP-0002'
+const demoKgUnit: UnitRef = { id: 'demo-unit-kg', code: 'KG', nameFa: 'کیلوگرم', nameEn: 'Kilogram', symbol: 'kg', isActive: true }
+const demoEachUnit: UnitRef = { id: 'demo-unit-ea', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
+
+function demoSupplyHistoryRecords(supplierNumber?: string): ProvidedItemRecord[] {
+  if (supplierNumber !== DEMO_SUPPLY_HISTORY_SUPPLIER_NUMBER) return []
+  const make = (id: string, code: string, nameFa: string, nameEn: string, baseUnit: UnitRef, since: string, until: string, sourcingNumber: string, preferred: boolean): ProvidedItemRecord => ({
+    item: { id, code, nameFa, nameEn, itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit },
+    imageUrl: picsumImageUrl(id),
+    state: 'past', since, until,
+    sourcingNumbers: [sourcingNumber], optionsCount: 1, preferred, leadTimeDays: null, demo: true,
+  })
+  return [
+    make('demo-history-ldpe', 'RM-2041', 'گرانول پلی‌اتیلن سبک', 'LDPE granules', demoKgUnit, '2020-04-01', '2021-09-18', 'SRC-1042', false),
+    make('demo-history-masterbatch', 'RM-1187', 'مستربچ رنگی مشکی', 'Black masterbatch', demoKgUnit, '2021-06-15', '2023-02-27', 'SRC-1187', true),
+    make('demo-history-pvc', 'RM-1263', 'رزین PVC گرید S65', 'PVC resin grade S65', demoKgUnit, '2022-10-03', '2024-05-30', 'SRC-1263', false),
+    make('demo-history-stretch-film', 'PK-3310', 'فیلم استرچ بسته‌بندی', 'Stretch packaging film', demoEachUnit, '2023-03-12', '2025-01-08', 'SRC-1420', false),
+  ]
+}
 const pageSize = 100
 const picsumImageUrl = (itemId: string) => `https://picsum.photos/seed/${encodeURIComponent(itemId)}/640/360`
 
-export default function SupplierProvidedItems({ supplierId, canViewBom }: { supplierId: string; canViewBom: boolean }) {
+export default function SupplierProvidedItems({ supplierId, supplierNumber, canViewBom }: { supplierId: string; supplierNumber?: string; canViewBom: boolean }) {
   const { t } = useTranslation()
   const [records, setRecords] = useState<ProvidedItemRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,7 +111,7 @@ export default function SupplierProvidedItems({ supplierId, canViewBom }: { supp
           pageCount = Math.max(1, Math.ceil(body.totalItemCount / pageSize))
           page++
         } while (page <= pageCount)
-        if (active) setRecords(loaded)
+        if (active) setRecords([...loaded, ...demoSupplyHistoryRecords(supplierNumber)])
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : t('common.error'))
       } finally {
@@ -92,7 +120,7 @@ export default function SupplierProvidedItems({ supplierId, canViewBom }: { supp
     }
     void load()
     return () => { active = false }
-  }, [supplierId, t])
+  }, [supplierId, supplierNumber, t])
 
   const currentItems = records.filter(record => record.state === 'current')
   const description = [t('suppliers.providedItemsHint'), ...(canViewBom ? [t('suppliers.providedItemsHoverHint')] : [])].join(' ')
@@ -178,6 +206,7 @@ function SupplierSupplyHistory({ records }: { records: ProvidedItemRecord[] }) {
   }
 
   return <div className="supplier-supply-history">
+    {records.some(record => record.demo) && <p className="supplier-supply-demo-note" role="note">{t('suppliers.providedHistory.demoNotice')}</p>}
     <div className="supplier-supply-history__stats">
       <div className="supplier-supply-stat"><span className="supplier-supply-stat__dot is-live" aria-hidden="true" /><span>{t('suppliers.providedHistory.currentCount', { count: currentCount })}</span></div>
       <div className="supplier-supply-stat"><History aria-hidden="true" /><span>{t('suppliers.providedHistory.pastCount', { count: pastCount })}</span></div>
@@ -203,6 +232,7 @@ function SupplierSupplyHistory({ records }: { records: ProvidedItemRecord[] }) {
                 {durationLabel(record) && <span className="supplier-supply-chip"><History aria-hidden="true" />{durationLabel(record)}</span>}
                 {record.state === 'current' && record.leadTimeDays != null && <span className="supplier-supply-chip"><Truck aria-hidden="true" />{t('suppliers.providedHistory.leadTime', { count: record.leadTimeDays })}</span>}
                 {record.preferred && <span className="supplier-supply-chip is-preferred"><Star aria-hidden="true" />{t('suppliers.providedHistory.preferredOption')}</span>}
+                {record.demo && <span className="supplier-supply-chip is-demo">{t('suppliers.providedHistory.demoBadge')}</span>}
                 {record.sourcingNumbers.slice(0, 2).map(number => <span key={number} className="supplier-supply-chip ui-technical">{number}</span>)}
                 {record.sourcingNumbers.length > 2 && <span className="supplier-supply-chip ui-technical">+{record.sourcingNumbers.length - 2}</span>}
               </div>

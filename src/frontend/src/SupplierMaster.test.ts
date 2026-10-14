@@ -248,6 +248,36 @@ test('Supplier provided items history shows what is supplied now and what was su
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
+test('Hadron Plast (SUP-0002) shows clearly-badged demo items in its supply history', async () => {
+  const restore = installFetch(input => {
+    if (input.includes('/sourcing-options/tree?')) return json({ items: [], page: 1, pageSize: 100, totalItemCount: 0, totalOptionCount: 0 })
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await renderProvidedItems('fa-IR', 'SUP-0002')
+  try {
+    const historyTab = renderer.root.findAllByType('button').find(node => instanceText(node).includes('تاریخچه تأمین'))!
+    assert.ok(historyTab, 'demo records must make the history view reachable')
+    await act(async () => historyTab.props.onClick())
+    const text = renderedText(renderer.toJSON())
+    for (const expected of ['گرانول پلی‌اتیلن سبک', 'مستربچ رنگی مشکی', 'رزین PVC گرید S65', 'فیلم استرچ بسته‌بندی', 'داده نمایشی', 'پایان‌یافته'])
+      assert.ok(text.includes(expected), `Expected demo history text: ${expected}\n${text}`)
+    const entries = renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry'))
+    assert.equal(entries.length, 4)
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
+test('Other suppliers get no demo supply history', async () => {
+  const restore = installFetch(input => {
+    if (input.includes('/sourcing-options/tree?')) return json({ items: [], page: 1, pageSize: 100, totalItemCount: 0, totalOptionCount: 0 })
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await renderProvidedItems('fa-IR', 'SUP-0007')
+  try {
+    assert.equal(renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry')).length, 0)
+    assert.ok(!renderedText(renderer.toJSON()).includes('گرانول پلی‌اتیلن سبک'))
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
 test('Internal Owner page loads active and inactive people and exposes lifecycle actions', async () => {
   const restore = installFetch(() => json([
     { id: 'p1', displayNameFa: 'علی رضایی', displayNameEn: 'Ali Rezaei', isActive: true, version: 1 },
@@ -355,7 +385,7 @@ async function render(view: 'list' | 'people' | 'object', language: 'fa-IR' | 'e
   return renderer
 }
 
-async function renderProvidedItems(language: 'fa-IR' | 'en') {
+async function renderProvidedItems(language: 'fa-IR' | 'en', supplierNumber?: string) {
   const translation = await translations(language)
   await component()
   ProvidedItemsModule ??= await server!.ssrLoadModule('/src/SupplierProvidedItems.tsx') as typeof import('./SupplierProvidedItems.tsx')
@@ -363,7 +393,7 @@ async function renderProvidedItems(language: 'fa-IR' | 'en') {
   await act(async () => {
     renderer = create(React.createElement(I18nextProvider, { i18n: translation },
       React.createElement(MemoryRouter, null,
-        React.createElement(ProvidedItemsModule!.default, { supplierId: 'supplier-1', canViewBom: true }))))
+        React.createElement(ProvidedItemsModule!.default, { supplierId: 'supplier-1', supplierNumber, canViewBom: true }))))
   })
   await flush()
   return renderer

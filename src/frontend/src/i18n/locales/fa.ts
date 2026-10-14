@@ -382,6 +382,7 @@ const fa = {
       emptyHistory: 'سابقه تأمین پایان‌یافته‌ای برای این تأمین‌کننده ثبت نشده است.',
       durationLessThanMonth: 'کمتر از یک ماه', durationYears: '{{count}} سال', durationMonths: '{{count}} ماه',
       preferredOption: 'گزینه منتخب', leadTime: 'زمان تأمین {{count}} روز',
+      demoBadge: 'داده نمایشی', demoNotice: 'Hadron Plast (SUP-0002) برای نمایش این قابلیت چند قلم با برچسب «داده نمایشی» در تاریخچه دارد؛ این اقلام نمونه‌اند و در داده‌های واقعی ثبت نشده‌اند. سوابق بقیه تأمین‌کنندگان کاملاً از داده‌های واقعی خوانده می‌شود.'
     }, contacts: 'مخاطبان', payment: 'پروفایل پرداخت پیش‌فرض',
     evaluation: 'ارزیابی', paymentTerm: 'شرط پرداخت', advance: 'پیش‌پرداخت (%)', beforeShipment: 'قبل از حمل (%)', credit: 'اعتبار (%)',
     creditDays: 'روز اعتبار', creditAnchor: 'مبنای اعتبار', leadScore: 'امتیاز زمان', qualityScore: 'امتیاز کیفیت', fullName: 'نام کامل',

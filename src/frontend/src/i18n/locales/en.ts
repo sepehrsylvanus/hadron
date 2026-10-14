@@ -382,6 +382,7 @@ const en = {
       emptyHistory: 'No ended supply history is recorded for this supplier.',
       durationLessThanMonth: 'Less than a month', durationYears: '{{count}} yr', durationMonths: '{{count}} mo',
       preferredOption: 'Preferred option', leadTime: 'Lead time {{count}} days',
+      demoBadge: 'Demo data', demoNotice: 'Hadron Plast (SUP-0002) carries a few items badged Demo data in its history so this feature can be seen; they are samples and are not part of the real records. Every other supplier history is read entirely from real data.',
     }, contacts: 'Contacts', payment: 'Default Payment Profile',
     evaluation: 'Evaluation', paymentTerm: 'Payment term', advance: 'Advance (%)', beforeShipment: 'Before shipment (%)', credit: 'Credit (%)',
     creditDays: 'Credit days', creditAnchor: 'Credit anchor', leadScore: 'Lead-time score', qualityScore: 'Quality score', fullName: 'Full name',
