@@ -388,6 +388,7 @@ const en = {
       title: 'Financial balance statement', viewDetails: 'View balance statement', totalBalance: 'Total financial balance',
       demoBadge: 'Demo data', demoNotice: 'This balance and the entries below are sample (fake) data created only to demonstrate the interface; they are not connected to real financial records.',
       fromDate: 'From date', toDate: 'To date', quickRanges: 'Quick ranges', transactionsCount: '{{count}} financial entries',
+      jalaliDateHint: 'Jalali (Shamsi) date; for example 1405/06/02', jalaliDateInvalid: 'Enter a valid Jalali date; for example 1405/06/02',
       presets: { ALL: 'Full period', DAYS_30: 'Last 30 days', DAYS_90: 'Last 90 days', DAYS_180: 'Last 6 months' },
       openingBalance: 'Opening balance', periodDebit: 'Period debit total', periodCredit: 'Period credit total', closingBalance: 'Closing balance',
       date: 'Date', document: 'Document no.', type: 'Entry type', description: 'Description', debit: 'Debit', credit: 'Credit', balance: 'Balance', periodTotal: 'Period total',

@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CalendarRange, ReceiptText, Wallet, X } from 'lucide-react'
 import { formatCashAmount } from './cashFlowUi'
-import { formatBusinessDate } from './i18n/businessDate'
+import { formatBusinessDate, formatJalaliInputValue, parseJalaliDateInput, toAsciiDigits, toPersianDigits } from './i18n/businessDate'
 import { FormField } from './ui'
 import {
   addCalendarDays,
@@ -26,7 +26,9 @@ const PRESETS: Array<{ id: Exclude<Preset, 'CUSTOM'>; days: number | null }> = [
 /**
  * Modern slide-over statement for one supplier. All rows are generated
  * locally (fake/demo data) and always reconcile to the clicked total.
- * Render it with `key={supplier.id}` so date filters reset per supplier.
+ * Persian UI uses Shamsi (Jalali) dates everywhere; the internal filter
+ * values stay Gregorian ISO dates. Render it with `key={supplier.id}` so
+ * date filters reset per supplier.
  */
 export default function SupplierFinancialLedgerDrawer({
   supplier,
@@ -39,6 +41,7 @@ export default function SupplierFinancialLedgerDrawer({
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
+  const persian = !language.toLowerCase().startsWith('en')
   const titleId = useId()
   const drawerRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
@@ -78,6 +81,12 @@ export default function SupplierFinancialLedgerDrawer({
     setFrom(days == null ? fullRange.from : addCalendarDays(fullRange.to, -(days - 1)))
   }
 
+  function changeRange(nextFrom: string, nextTo: string) {
+    setPreset('CUSTOM')
+    setFrom(nextFrom)
+    setTo(nextTo)
+  }
+
   function money(value: string) {
     return formatCashAmount(value, balance.decimalPrecision, language)
   }
@@ -99,74 +108,120 @@ export default function SupplierFinancialLedgerDrawer({
         <button type="button" className="button button--icon supplier-ledger-drawer__close" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}><X aria-hidden="true" /></button>
       </header>
 
-      <div className="supplier-ledger-hero">
-        <div>
-          <span className="supplier-ledger-hero__label"><Wallet aria-hidden="true" />{t('suppliers.ledger.totalBalance')}</span>
-          <strong className={`supplier-ledger-hero__amount${balance.amount.startsWith('-') ? ' is-negative' : ''}`} dir="ltr">{totalLabel}</strong>
+      <div className="supplier-ledger-drawer__body">
+        <div className="supplier-ledger-hero">
+          <div>
+            <span className="supplier-ledger-hero__label"><Wallet aria-hidden="true" />{t('suppliers.ledger.totalBalance')}</span>
+            <strong className={`supplier-ledger-hero__amount${balance.amount.startsWith('-') ? ' is-negative' : ''}`} dir="ltr">{totalLabel}</strong>
+          </div>
+          {balance.isFake && <span className="supplier-ledger-demo-badge">{t('suppliers.ledger.demoBadge')}</span>}
         </div>
-        {balance.isFake && <span className="supplier-ledger-demo-badge">{t('suppliers.ledger.demoBadge')}</span>}
-      </div>
-      {balance.isFake && <p className="supplier-ledger-demo-note" role="note">{t('suppliers.ledger.demoNotice')}</p>}
+        {balance.isFake && <p className="supplier-ledger-demo-note" role="note">{t('suppliers.ledger.demoNotice')}</p>}
 
-      <div className="supplier-ledger-filters">
-        <div className="supplier-ledger-filters__dates">
-          <FormField label={t('suppliers.ledger.fromDate')}>
-            <input type="date" dir="ltr" value={from} max={to || undefined} onChange={event => { setFrom(event.target.value); setPreset('CUSTOM') }} />
-          </FormField>
-          <FormField label={t('suppliers.ledger.toDate')}>
-            <input type="date" dir="ltr" value={to} min={from || undefined} onChange={event => { setTo(event.target.value); setPreset('CUSTOM') }} />
-          </FormField>
+        <div className="supplier-ledger-filters">
+          <div className="supplier-ledger-filters__dates">
+            <LedgerDateField label={t('suppliers.ledger.fromDate')} value={from} persian={persian} onChange={value => changeRange(value, to)} />
+            <LedgerDateField label={t('suppliers.ledger.toDate')} value={to} persian={persian} onChange={value => changeRange(from, value)} />
+          </div>
+          <div className="supplier-ledger-presets" role="group" aria-label={t('suppliers.ledger.quickRanges')}>
+            <CalendarRange aria-hidden="true" />
+            {PRESETS.map(item => <button key={item.id} type="button" className={`supplier-ledger-preset${preset === item.id ? ' is-active' : ''}`} aria-pressed={preset === item.id} onClick={() => applyPreset(item.id, item.days)}>{t(`suppliers.ledger.presets.${item.id}`)}</button>)}
+          </div>
         </div>
-        <div className="supplier-ledger-presets" role="group" aria-label={t('suppliers.ledger.quickRanges')}>
-          <CalendarRange aria-hidden="true" />
-          {PRESETS.map(item => <button key={item.id} type="button" className={`supplier-ledger-preset${preset === item.id ? ' is-active' : ''}`} aria-pressed={preset === item.id} onClick={() => applyPreset(item.id, item.days)}>{t(`suppliers.ledger.presets.${item.id}`)}</button>)}
+
+        <div className="supplier-ledger-summary">
+          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.openingBalance')}</span><strong dir="ltr" className={summary.openingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.openingBalance)}</strong></div>
+          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodDebit')}</span><strong dir="ltr">{money(summary.totalDebit)}</strong></div>
+          <div className="supplier-ledger-summary__card"><span>{t('suppliers.ledger.periodCredit')}</span><strong dir="ltr">{money(summary.totalCredit)}</strong></div>
+          <div className="supplier-ledger-summary__card is-closing"><span>{t('suppliers.ledger.closingBalance')}</span><strong dir="ltr" className={summary.closingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.closingBalance)}{balance.currencyCode ? ` ${balance.currencyCode}` : ''}</strong></div>
         </div>
+
+        <div className="supplier-ledger-table-wrap">
+          <table className="ui-data-table supplier-ledger-table">
+            <thead><tr>
+              <th scope="col">{t('suppliers.ledger.date')}</th>
+              <th scope="col">{t('suppliers.ledger.document')}</th>
+              <th scope="col">{t('suppliers.ledger.type')}</th>
+              <th scope="col">{t('suppliers.ledger.description')}</th>
+              <th scope="col">{t('suppliers.ledger.debit')}</th>
+              <th scope="col">{t('suppliers.ledger.credit')}</th>
+              <th scope="col">{t('suppliers.ledger.balance')}</th>
+            </tr></thead>
+            <tbody>
+              {summary.rows.length === 0
+                ? <tr><td colSpan={7}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
+                : summary.rows.map(entry => <tr key={entry.id}>
+                  <td><span className="supplier-ledger-date" dir="ltr">{formatBusinessDate(entry.date, language)}</span></td>
+                  <td className="ui-technical">{entry.reference}</td>
+                  <td className="supplier-ledger-type"><span className={`supplier-ledger-kind supplier-ledger-kind--${entry.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${entry.kind}`)}</span></td>
+                  <td className="supplier-ledger-description">{t(`suppliers.ledger.descriptions.${entry.kind}`)}</td>
+                  <td className="ui-number">{Number(entry.debit) === 0 ? '—' : money(entry.debit)}</td>
+                  <td className="ui-number">{Number(entry.credit) === 0 ? '—' : money(entry.credit)}</td>
+                  <td className={`ui-number supplier-ledger-running${entry.runningBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(entry.runningBalance)}</td>
+                </tr>)}
+            </tbody>
+            {summary.rows.length > 0 && <tfoot><tr>
+              <td colSpan={4}>{t('suppliers.ledger.periodTotal')}</td>
+              <td className="ui-number">{money(summary.totalDebit)}</td>
+              <td className="ui-number">{money(summary.totalCredit)}</td>
+              <td className={`ui-number supplier-ledger-running${summary.closingBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(summary.closingBalance)}</td>
+            </tr></tfoot>}
+          </table>
+        </div>
+
+        <footer className="supplier-ledger-drawer__footer">
+          <p>{t('suppliers.ledger.footerNote')}</p>
+          <button type="button" className="button" onClick={onClose}>{t('common.close')}</button>
+        </footer>
       </div>
-
-      <dl className="supplier-ledger-summary">
-        <div><dt>{t('suppliers.ledger.openingBalance')}</dt><dd dir="ltr" className={summary.openingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.openingBalance)}</dd></div>
-        <div><dt>{t('suppliers.ledger.periodDebit')}</dt><dd dir="ltr">{money(summary.totalDebit)}</dd></div>
-        <div><dt>{t('suppliers.ledger.periodCredit')}</dt><dd dir="ltr">{money(summary.totalCredit)}</dd></div>
-        <div className="is-closing"><dt>{t('suppliers.ledger.closingBalance')}</dt><dd dir="ltr" className={summary.closingBalance.startsWith('-') ? 'is-negative' : undefined}>{money(summary.closingBalance)}{balance.currencyCode ? ` ${balance.currencyCode}` : ''}</dd></div>
-      </dl>
-
-      <div className="supplier-ledger-table-wrap">
-        <table className="ui-data-table supplier-ledger-table">
-          <thead><tr>
-            <th scope="col">{t('suppliers.ledger.date')}</th>
-            <th scope="col">{t('suppliers.ledger.document')}</th>
-            <th scope="col">{t('suppliers.ledger.type')}</th>
-            <th scope="col">{t('suppliers.ledger.description')}</th>
-            <th scope="col">{t('suppliers.ledger.debit')}</th>
-            <th scope="col">{t('suppliers.ledger.credit')}</th>
-            <th scope="col">{t('suppliers.ledger.balance')}</th>
-          </tr></thead>
-          <tbody>
-            {summary.rows.length === 0
-              ? <tr><td colSpan={7}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
-              : summary.rows.map(entry => <tr key={entry.id}>
-                <td className="supplier-ledger-date"><span dir="ltr">{formatBusinessDate(entry.date, language)}</span><small dir="ltr">{entry.date}</small></td>
-                <td className="ui-technical">{entry.reference}</td>
-                <td><span className={`supplier-ledger-kind supplier-ledger-kind--${entry.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${entry.kind}`)}</span></td>
-                <td className="supplier-ledger-description">{t(`suppliers.ledger.descriptions.${entry.kind}`)}</td>
-                <td className="ui-number">{Number(entry.debit) === 0 ? '—' : money(entry.debit)}</td>
-                <td className="ui-number">{Number(entry.credit) === 0 ? '—' : money(entry.credit)}</td>
-                <td className={`ui-number supplier-ledger-running${entry.runningBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(entry.runningBalance)}</td>
-              </tr>)}
-          </tbody>
-          {summary.rows.length > 0 && <tfoot><tr>
-            <td colSpan={4}>{t('suppliers.ledger.periodTotal')}</td>
-            <td className="ui-number">{money(summary.totalDebit)}</td>
-            <td className="ui-number">{money(summary.totalCredit)}</td>
-            <td className={`ui-number supplier-ledger-running${summary.closingBalance.startsWith('-') ? ' is-negative' : ''}`}>{money(summary.closingBalance)}</td>
-          </tr></tfoot>}
-        </table>
-      </div>
-
-      <footer className="supplier-ledger-drawer__footer">
-        <p>{t('suppliers.ledger.footerNote')}</p>
-        <button type="button" className="button" onClick={onClose}>{t('common.close')}</button>
-      </footer>
     </section>
   </div>
+}
+
+/**
+ * Date filter field. In Persian UI this is a Shamsi (Jalali) text field that
+ * displays Persian digits (۱۴۰۵/۰۶/۰۲) and converts to a Gregorian ISO date
+ * on blur/Enter; in English UI it stays a native Gregorian date input.
+ */
+function LedgerDateField({ label, value, persian, onChange }: { label: string; value: string; persian: boolean; onChange: (value: string) => void }) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState(() => (persian ? formatJalaliInputValue(value) : value))
+  const [error, setError] = useState('')
+  const [syncedValue, setSyncedValue] = useState(value)
+
+  // Keep the field in sync when quick-range presets change the value
+  // (React's adjust-state-during-render pattern; no effect needed).
+  if (value !== syncedValue) {
+    setSyncedValue(value)
+    setDraft(persian ? formatJalaliInputValue(value) : value)
+    setError('')
+  }
+
+  if (!persian) {
+    return <FormField label={label}>
+      <input type="date" dir="ltr" value={value} onChange={event => onChange(event.target.value)} />
+    </FormField>
+  }
+
+  function commit() {
+    const resolved = parseJalaliDateInput(draft)
+    if (!resolved) { setError(t('suppliers.ledger.jalaliDateInvalid')); return }
+    setError('')
+    setDraft(formatJalaliInputValue(resolved))
+    onChange(resolved)
+  }
+
+  return <FormField label={label} hint={t('suppliers.ledger.jalaliDateHint')} error={error || undefined}>
+    <input type="text" inputMode="numeric" dir="ltr" className="supplier-ledger-jalali-input" placeholder={toPersianDigits('1405/06/02')} value={draft}
+      onChange={event => { setDraft(formatPartialJalaliInput(event.target.value)); setError('') }}
+      onBlur={commit}
+      onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commit() } }} />
+  </FormField>
+}
+
+/** Formats up to 8 typed digits as a Persian-digit Jalali date: ۱۴۰۵/۰۶/۰۲ */
+function formatPartialJalaliInput(value: string) {
+  const digits = toAsciiDigits(value).replace(/[^0-9]/g, '').slice(0, 8)
+  const groups = [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean)
+  return toPersianDigits(groups.join('/'))
 }

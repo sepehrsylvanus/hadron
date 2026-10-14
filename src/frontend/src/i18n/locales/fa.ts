@@ -388,6 +388,7 @@ const fa = {
       title: 'ریز تراز مالی', viewDetails: 'مشاهده ریز تراز مالی', totalBalance: 'تراز مالی مجموع',
       demoBadge: 'داده نمایشی', demoNotice: 'این تراز و گردش‌های زیر به‌صورت نمونه (Fake) و فقط برای نمایش رابط کاربری ساخته شده‌اند و به داده واقعی مالی متصل نیستند.',
       fromDate: 'از تاریخ', toDate: 'تا تاریخ', quickRanges: 'بازه‌های سریع', transactionsCount: '{{count}} گردش مالی',
+      jalaliDateHint: 'تاریخ شمسی؛ نمونه: ۱۴۰۵/۰۶/۰۲', jalaliDateInvalid: 'تاریخ شمسی معتبر نیست؛ نمونه درست: ۱۴۰۵/۰۶/۰۲',
       presets: { ALL: 'همه دوره', DAYS_30: '۳۰ روز اخیر', DAYS_90: '۹۰ روز اخیر', DAYS_180: '۶ ماه اخیر' },
       openingBalance: 'مانده ابتدای دوره', periodDebit: 'جمع بدهکار دوره', periodCredit: 'جمع بستانکار دوره', closingBalance: 'مانده پایان دوره',
       date: 'تاریخ', document: 'شماره سند', type: 'نوع گردش', description: 'شرح', debit: 'بدهکار', credit: 'بستانکار', balance: 'مانده', periodTotal: 'جمع دوره',

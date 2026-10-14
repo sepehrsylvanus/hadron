@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  formatJalaliInputValue,
+  gregorianToJalaliParts,
+  jalaliToGregorianIso,
+  parseJalaliDateInput,
+} from './i18n/businessDate.ts'
+import {
   buildSupplierLedger,
   fakeBalanceForSupplier,
   resolveSupplierBalance,
@@ -61,6 +67,27 @@ test('fake ledger entries always reconcile exactly to the displayed total', () =
       assert.match(entry.reference, /^(BAL|INV|ADV|PAY|FRG|RET|ADJ)-\d+$/)
     }
   }
+})
+
+test('Jalali (Shamsi) dates convert both ways, including leap years', () => {
+  assert.deepEqual(gregorianToJalaliParts('2026-08-24'), { year: 1405, month: 6, day: 2 })
+  assert.equal(formatJalaliInputValue('2026-08-24'), '۱۴۰۵/۰۶/۰۲')
+  assert.equal(jalaliToGregorianIso(1405, 6, 2), '2026-08-24')
+  assert.equal(jalaliToGregorianIso(1405, 1, 1), '2026-03-21')
+  // 1403 is a leap year (30 Esfand exists); 1404 is not.
+  assert.equal(jalaliToGregorianIso(1403, 12, 30), '2025-03-20')
+  assert.equal(jalaliToGregorianIso(1404, 12, 30), null)
+  assert.equal(jalaliToGregorianIso(1405, 13, 1), null)
+})
+
+test('Jalali date input accepts Persian, Arabic, and Latin digits', () => {
+  assert.equal(parseJalaliDateInput('۱۴۰۵/۰۶/۰۲'), '2026-08-24')
+  assert.equal(parseJalaliDateInput('1405/06/02'), '2026-08-24')
+  assert.equal(parseJalaliDateInput('14050602'), '2026-08-24')
+  assert.equal(parseJalaliDateInput('۱۴۰۵۰۶۰۲'), '2026-08-24')
+  assert.equal(parseJalaliDateInput('1405/06/32'), null)
+  assert.equal(parseJalaliDateInput('1405/6/2'), null)
+  assert.equal(parseJalaliDateInput(''), null)
 })
 
 test('ledger period summary respects the from/to date filter', () => {

@@ -147,13 +147,21 @@ test('Supplier without an API balance gets a clickable fake balance that opens i
     const dialogText = instanceText(dialog)
     for (const expected of ['ریز تراز مالی', 'تأمین‌کننده نمایشی', 'تراز مالی مجموع', 'مانده ابتدای دوره', 'جمع بدهکار دوره', 'جمع بستانکار دوره', 'مانده پایان دوره', 'فاکتور خرید', 'پرداخت بانکی'])
       assert.ok(dialogText.includes(expected), `Expected ledger text: ${expected}\n${dialogText}`)
+    assert.doesNotMatch(dialogText, /20\d{2}-\d{2}-\d{2}/, 'Persian ledger must not show Gregorian dates')
     const ledgerRows = dialog.findAllByType('tr').filter(row => row.findAllByType('td').length === 7)
     assert.ok(ledgerRows.length >= 9, `expected at least 9 ledger rows, got ${ledgerRows.length}`)
 
-    const dateInputs = dialog.findAllByType('input').filter(node => node.props.type === 'date')
+    // Persian UI must use Shamsi (Jalali) text inputs with Persian digits, never Gregorian date inputs.
+    assert.equal(dialog.findAllByType('input').filter(node => node.props.type === 'date').length, 0)
+    const dateInputs = dialog.findAllByType('input').filter(node => node.props.inputMode === 'numeric')
     assert.equal(dateInputs.length, 2)
-    await act(async () => dateInputs[0].props.onChange({ target: { value: '2000-01-01' } }))
-    await act(async () => dateInputs[1].props.onChange({ target: { value: '2000-01-31' } }))
+    assert.match(String(dateInputs[0].props.value), /^[۰-۹]{4}\/[۰-۹]{2}\/[۰-۹]{2}$/)
+    assert.match(instanceText(dialog), /تاریخ شمسی/)
+    // 1378/10/01 and 1378/10/30 Shamsi are far before every generated entry.
+    await act(async () => dateInputs[0].props.onChange({ target: { value: '13781001' } }))
+    await act(async () => dateInputs[0].props.onBlur())
+    await act(async () => dateInputs[1].props.onChange({ target: { value: '13781030' } }))
+    await act(async () => dateInputs[1].props.onBlur())
     assert.match(instanceText(dialog), /در این بازه گردشی وجود ندارد/)
   } finally { await act(async () => renderer.unmount()); restore() }
 })
