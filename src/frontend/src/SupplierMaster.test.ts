@@ -212,6 +212,39 @@ test('Supplier provided parts show a recursive BOM usage tree on hover and no tr
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
+test('Supplier provided items history shows what is supplied now and what was supplied before', async () => {
+  const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
+  const currentItem = { id: 'part-now', code: 'PART-30', nameFa: 'موتور فن', nameEn: 'Fan motor', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
+  const pastItem = { id: 'part-before', code: 'PART-40', nameFa: 'تسمه قدیمی', nameEn: 'Legacy belt', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
+  const restore = installFetch(input => {
+    if (input.includes('/sourcing-options/tree?')) {
+      assert.ok(input.includes('includeInactive=true'), 'supply history needs the inactive sourcing options too')
+      return json({ items: [
+        { item: currentItem, options: [{ isPreferred: true, isActive: true, sourcingNumber: 'SRC-30', imageUrl: 'https://images.example.test/motor.png', createdAtUtc: '2024-02-10T08:00:00Z', updatedAtUtc: '2024-02-10T08:00:00Z', totalConfiguredLeadTimeDays: 25 }] },
+        { item: pastItem, options: [{ isPreferred: false, isActive: false, sourcingNumber: 'SRC-40', imageUrl: null, createdAtUtc: '2022-04-01T08:00:00Z', updatedAtUtc: '2023-09-15T08:00:00Z', totalConfiguredLeadTimeDays: 10 }] },
+      ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
+    }
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await renderProvidedItems('fa-IR')
+  try {
+    // The default view only lists what the supplier provides right now.
+    const currentRows = renderer.root.findAll(node => node.props.className === 'supplier-provided-item')
+    assert.equal(currentRows.length, 1)
+    assert.ok(instanceText(currentRows[0]).includes('موتور فن'))
+
+    const historyTab = renderer.root.findAllByType('button').find(node => instanceText(node).includes('تاریخچه تأمین'))!
+    assert.ok(historyTab, 'history tab must be offered')
+    await act(async () => historyTab.props.onClick())
+    const text = renderedText(renderer.toJSON())
+    for (const expected of ['موتور فن', 'تسمه قدیمی', 'در حال تأمین', 'پایان‌یافته', 'تاکنون', 'SRC-30', 'SRC-40', 'قلم در سوابق قبلی'])
+      assert.ok(text.includes(expected), `Expected history text: ${expected}\n${text}`)
+    assert.doesNotMatch(text, /20\d{2}-\d{2}-\d{2}/, 'Persian history must not show Gregorian dates')
+    const entries = renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry'))
+    assert.equal(entries.length, 2)
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
 test('Internal Owner page loads active and inactive people and exposes lifecycle actions', async () => {
   const restore = installFetch(() => json([
     { id: 'p1', displayNameFa: 'علی رضایی', displayNameEn: 'Ali Rezaei', isActive: true, version: 1 },

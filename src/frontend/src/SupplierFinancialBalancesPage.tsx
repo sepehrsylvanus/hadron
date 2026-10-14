@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { CalendarRange, ReceiptText } from 'lucide-react'
+import { CalendarRange, ListChecks, ReceiptText, X } from 'lucide-react'
 import { formatCashAmount } from './cashFlowUi'
 import { formatBusinessDate } from './i18n/businessDate'
 import { FormField, LoadingState, MessageStrip, PageHeader, Pagination } from './ui'
@@ -27,6 +27,7 @@ type Preset = 'ALL' | 'DAYS_30' | 'DAYS_90' | 'DAYS_180' | 'CUSTOM'
 
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const PAGE_SIZE = 25
+const ledgerRowKey = (row: { supplierId: string; id: string }) => `${row.supplierId}::${row.id}`
 const LEDGER_KINDS: SupplierLedgerKind[] = ['PAYABLE', 'PAYMENT', 'PAYABLE_AND_PAYMENT']
 const PRESETS: Array<{ id: Exclude<Preset, 'CUSTOM'>; days: number | null }> = [
   { id: 'ALL', days: null },
@@ -57,6 +58,7 @@ export default function SupplierFinancialBalancesPage() {
   const [rangeReady, setRangeReady] = useState(false)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<SupplierWithBalance | null>(null)
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
 
   useEffect(() => {
     let active = true
@@ -143,6 +145,37 @@ export default function SupplierFinancialBalancesPage() {
     ? filteredRows[0]
     : null
 
+  // Multi-row selection for the combined ledger: sums of the ticked rows
+  // (per currency) are shown separately from the overall totals.
+  const rowsByKey = useMemo(() => new Map(combinedRows.map(row => [ledgerRowKey(row), row])), [combinedRows])
+  const selectedRows = useMemo(
+    () => selectedKeys.map(key => rowsByKey.get(key)).filter((row): row is (typeof combinedRows)[number] => Boolean(row)),
+    [selectedKeys, rowsByKey],
+  )
+  const selectedTotals = useMemo(() => {
+    const grouped = new Map<string, { currencyCode: string | null; decimalPrecision: number; payable: number; paid: number }>()
+    for (const row of selectedRows) {
+      const key = `${row.currencyCode ?? ''}|${row.decimalPrecision}`
+      const group = grouped.get(key) ?? { currencyCode: row.currencyCode, decimalPrecision: row.decimalPrecision, payable: 0, paid: 0 }
+      group.payable += Number(row.payableAmount)
+      group.paid += Number(row.paidAmount)
+      grouped.set(key, group)
+    }
+    return [...grouped.values()].sort((left, right) => (left.currencyCode ?? '').localeCompare(right.currencyCode ?? ''))
+  }, [selectedRows])
+  const pageSelectedCount = pageRows.filter(row => selectedKeys.includes(ledgerRowKey(row))).length
+  const pageSelection = pageRows.length > 0 && pageSelectedCount === pageRows.length ? 'all' : pageSelectedCount > 0 ? 'some' : 'none'
+
+  function toggleRow(row: (typeof combinedRows)[number], checked: boolean) {
+    const key = ledgerRowKey(row)
+    setSelectedKeys(previous => checked ? [...new Set([...previous, key])] : previous.filter(candidate => candidate !== key))
+  }
+
+  function togglePage(checked: boolean) {
+    const keys = pageRows.map(ledgerRowKey)
+    setSelectedKeys(previous => checked ? [...new Set([...previous, ...keys])] : previous.filter(candidate => !keys.includes(candidate)))
+  }
+
   const perSupplierSummaries = useMemo(
     () => suppliersWithBalance
       .filter(item => (currencyFilter === 'ALL' || item.balance.currencyCode === currencyFilter) && matchesSupplier(item.supplier.name, item.supplier.supplierNumber))
@@ -227,9 +260,25 @@ export default function SupplierFinancialBalancesPage() {
         <div><h2>{t('suppliers.balancesPage.combinedTitle')}</h2><p>{t('suppliers.balancesPage.combinedHint')}</p></div>
         <span className="ui-count">{t('suppliers.ledger.transactionsCount', { count: filteredRows.length })}</span>
       </div>
+      {selectedRows.length > 0 && <div className="supplier-balances-selection" role="region" aria-label={t('suppliers.balancesPage.selectedCount', { count: selectedRows.length })}>
+        <strong><ListChecks aria-hidden="true" />{t('suppliers.balancesPage.selectedCount', { count: selectedRows.length })}</strong>
+        <div className="supplier-balances-selection__totals">
+          {selectedTotals.map(total => <span className="supplier-balances-selection__group" key={`${total.currencyCode ?? 'none'}-${total.decimalPrecision}`}>
+            <bdi>{total.currencyCode ?? '—'}</bdi>
+            <span>{t('suppliers.balancesPage.selectedPayable')}: <span className="ui-number" dir="ltr">{money(total.payable.toFixed(total.decimalPrecision), total.decimalPrecision)}</span></span>
+            <span>{t('suppliers.balancesPage.selectedPaid')}: <span className="ui-number" dir="ltr">{money(total.paid.toFixed(total.decimalPrecision), total.decimalPrecision)}</span></span>
+            <span>{t('suppliers.balancesPage.selectedNet')}: <span className="ui-number" dir="ltr">{money((total.payable - total.paid).toFixed(total.decimalPrecision), total.decimalPrecision)}</span></span>
+          </span>)}
+        </div>
+        <div className="supplier-balances-selection__actions">
+          <button type="button" className="button" onClick={() => setSelectedKeys(filteredRows.map(ledgerRowKey))}>{t('suppliers.balancesPage.selectAllFiltered', { count: filteredRows.length })}</button>
+          <button type="button" className="button" onClick={() => setSelectedKeys([])}><X aria-hidden="true" />{t('suppliers.balancesPage.clearSelection')}</button>
+        </div>
+      </div>}
       <div className="supplier-ledger-table-wrap">
         <table className="ui-data-table supplier-ledger-table supplier-balances-table">
           <thead><tr>
+            <th scope="col" className="supplier-balances-select"><input type="checkbox" aria-label={t('suppliers.balancesPage.selectPage')} checked={pageSelection === 'all'} ref={node => { if (node) node.indeterminate = pageSelection === 'some' }} onChange={event => togglePage(event.target.checked)} /></th>
             <th scope="col">{t('suppliers.ledger.date')}</th>
             <th scope="col">{t('suppliers.supplier')}</th>
             <th scope="col">{t('suppliers.ledger.project')}</th>
@@ -241,10 +290,11 @@ export default function SupplierFinancialBalancesPage() {
           </tr></thead>
           <tbody>
             {loading
-              ? <tr><td colSpan={8}><LoadingState label={t('common.loading')} compact /></td></tr>
+              ? <tr><td colSpan={9}><LoadingState label={t('common.loading')} compact /></td></tr>
               : pageRows.length === 0
-                ? <tr><td colSpan={8}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
-                : pageRows.map(row => <tr key={`${row.supplierId}-${row.id}`}>
+                ? <tr><td colSpan={9}><div className="supplier-ledger-empty"><strong>{t('suppliers.ledger.emptyTitle')}</strong><span>{t('suppliers.ledger.emptyDescription')}</span></div></td></tr>
+                : pageRows.map(row => <tr key={`${row.supplierId}-${row.id}`} className={selectedKeys.includes(ledgerRowKey(row)) ? 'is-selected' : undefined}>
+                  <td className="supplier-balances-select"><input type="checkbox" aria-label={`${t('suppliers.balancesPage.selectRow')} — ${row.supplierName}`} checked={selectedKeys.includes(ledgerRowKey(row))} onChange={event => toggleRow(row, event.target.checked)} /></td>
                   <td><span className="supplier-ledger-date" dir="ltr">{formatBusinessDate(row.date, language)}</span></td>
                   <td className="supplier-balances-supplier"><Link to={`/mrp/suppliers/${row.supplierId}`}>{row.supplierName}</Link><small className="ui-technical">{row.supplierNumber}</small></td>
                   <td className="supplier-ledger-project"><strong>{persian ? row.project.titleFa : row.project.titleEn}</strong><small><span className="ui-technical">{row.project.code}</span><span className={`supplier-ledger-kind supplier-ledger-kind--${row.kind.toLowerCase()}`}>{t(`suppliers.ledger.types.${row.kind}`)}</span></small></td>
@@ -256,7 +306,7 @@ export default function SupplierFinancialBalancesPage() {
                 </tr>)}
           </tbody>
           {singleCurrency && <tfoot><tr>
-            <td colSpan={5}>{t('suppliers.ledger.periodTotal')} · <bdi>{singleCurrency.currencyCode ?? ''}</bdi></td>
+            <td colSpan={6}>{t('suppliers.ledger.periodTotal')} · <bdi>{singleCurrency.currencyCode ?? ''}</bdi></td>
             <td className="ui-number">{money(sumFiltered(row => row.payableAmount, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
             <td className="ui-number">{money(sumFiltered(row => row.paidAmount, singleCurrency.decimalPrecision), singleCurrency.decimalPrecision)}</td>
             <td className="ui-number">—</td>

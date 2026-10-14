@@ -70,13 +70,26 @@ test('overall balances page merges every supplier ledger and opens a single stat
     // The merged table holds entries from both suppliers.
     const tables = renderer.root.findAllByType('table')
     assert.equal(tables.length, 2)
-    const combinedRows = tables[0].findAllByType('tr').filter(row => row.findAllByType('td').length === 8)
+    const combinedRows = tables[0].findAllByType('tr').filter(row => row.findAllByType('td').length === 9)
     assert.ok(combinedRows.length >= 12, `expected a full page of merged entries, got ${combinedRows.length}`)
     assert.ok(combinedRows.some(row => instanceText(row).includes('PRJ-')), 'combined rows must show their project')
     const combinedText = combinedRows.map(row => instanceText(row)).join('\n')
     assert.ok(combinedText.includes('Hadron Plast') || combinedText.includes('Global Resin Co'))
     const summaryRows = tables[1].findAllByType('tr').filter(row => row.findAllByType('td').length === 8)
     assert.equal(summaryRows.length, 2)
+
+    // Multi-select: ticking two rows shows their separate selected totals.
+    const checkboxes = renderer.root.findAllByType('input').filter(node => node.props.type === 'checkbox')
+    assert.ok(checkboxes.length > 2, 'combined table must offer row checkboxes')
+    await act(async () => checkboxes[1].props.onChange({ target: { checked: true } }))
+    await act(async () => checkboxes[2].props.onChange({ target: { checked: true } }))
+    const selectedText = renderedText(renderer.toJSON())
+    assert.match(selectedText, /[0-9\u06F0-\u06F9]+ ردیف انتخاب شده/)
+    assert.ok(selectedText.includes('اثر خالص بر تراز'), `Expected selected totals bar\n${selectedText}`)
+    const clearButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('حذف انتخاب'))!
+    assert.ok(clearButton)
+    await act(async () => clearButton.props.onClick())
+    assert.ok(!renderedText(renderer.toJSON()).includes('ردیف انتخاب شده'), 'clearing must hide the selected totals bar')
 
     // Narrowing the Shamsi range far into the past empties the merged table.
     await act(async () => dateInputs[0].props.onChange({ target: { value: '13781001' } }))
