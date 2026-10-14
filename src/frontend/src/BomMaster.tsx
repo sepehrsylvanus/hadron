@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Box, CheckCircle2, ChevronDown, ChevronLeft, Che
 import { localizedName } from './i18n/localizedName'
 import { applicableItemsUrl } from './materialRelationshipSupport'
 import ProductStructure from './ProductStructure'
+import BomVersionActivation from './BomVersionActivation'
 import { BOM_PICKER_PAGE_SIZE, bomLifecycleStep, bomSubstructureState, childTypeFor, expandableBomParentIds, findBomBaseUnitMismatch, parseBomTrail, popBomTrail, preferredBomRevision, serializeBomTrail, validBomUsageCoefficient } from './bomBuilderSupport'
 import {
   ConfirmationDialog,
@@ -459,6 +460,7 @@ function BomMasterWorkspace() {
         <FormField label={t('common.status')}><select value={status} onChange={event => updateQuery({ status: event.target.value }, true)}><option value="">{t('common.all')}</option>{['DRAFT', 'APPROVED', 'OBSOLETE'].map(value => <option key={value} value={value}>{t(`bom.${value}`)}</option>)}</select></FormField>
       </FilterBar>
       <section className="ui-table-surface bom-catalog-panel"><TableToolbar title={t('bom.revisions')} count={t('common.count', { count: total })} />{loading ? <LoadingState label={t('common.loading')} compact /> : rows.length === 0 ? <EmptyState title={filtered ? t('common.noResultsTitle') : t('bom.noRevision')} description={t('bom.noRevisionHint')} filtered={filtered} /> : <div className="bom-revision-list bom-revision-list--catalog">{rows.map(row => <button type="button" key={row.id} onClick={() => openRevisionFromList(row)}><span><strong className="ui-technical">{row.revisionCode}</strong><StatusBadge text={t(`bom.${row.status}`)} tone={tone(row.status)} /></span><b>{localizedName(row.parentItem, i18n.resolvedLanguage)}</b><small>{row.parentItem.code} · {t('bom.lineCount', { count: row.lineCount })}</small></button>)}</div>}<Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => updateQuery({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
+      <BomVersionActivation />
     </>}
 
     {currentParent && <>

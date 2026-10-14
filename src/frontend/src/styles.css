@@ -750,6 +750,41 @@ button.bom-usage-coefficient { cursor: pointer; }
   .supplier-provided-toggle__dot.is-live, .supplier-supply-stat__dot.is-live, .supplier-supply-entry.is-current .supplier-supply-entry__node { animation: none; }
   .supplier-supply-card { transition: none; }
 }
+/* BOM previous-version activation (demo, session-only) */
+.bom-version-panel { display: grid; gap: var(--space-4); }
+.bom-version-session-note { display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid #ead49b; border-inline-start: 3px solid #b98000; border-radius: var(--radius-sm); background: #fff9e9; color: #725000; font-size: 12.5px; line-height: 1.9; }
+.bom-version-session-note svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.bom-version-families { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: var(--space-4); }
+.bom-version-family { display: grid; align-content: start; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: #fff; }
+.bom-version-family__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-default); }
+.bom-version-family__identity { display: grid; gap: 3px; min-width: 0; }
+.bom-version-family__identity strong { font-size: 16px; }
+.bom-version-family__identity span { color: var(--text-muted); font-size: 12px; }
+.bom-version-family__active { padding: 4px 12px; border: 1px solid #b9dec8; border-radius: 999px; background: #f1faf5; color: #17633a; font-size: 12px; font-weight: 800; line-height: 1.9; white-space: nowrap; }
+.bom-version-timeline { position: relative; display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.bom-version-timeline::before { content: ''; position: absolute; top: 12px; bottom: 12px; inset-inline-start: 7px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, #1f9d55, #d7d7d9); opacity: .5; }
+.bom-version-entry { position: relative; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); padding-inline-start: calc(var(--space-3) + 22px); border: 1px solid transparent; border-radius: var(--radius-sm); }
+.bom-version-entry.is-active { border-color: #b9dec8; background: #f4fbf7; }
+.bom-version-entry__node { position: absolute; top: 50%; inset-inline-start: 1px; width: 14px; height: 14px; border: 2px solid #b9b9bc; border-radius: 50%; background: #fff; transform: translateY(-50%); z-index: 1; }
+.bom-version-entry.is-active .bom-version-entry__node { border-color: #1f9d55; background: #1f9d55; animation: supplier-live-pulse 2s ease-out infinite; }
+.bom-version-entry__main { display: grid; flex: 1 1 auto; min-width: 0; gap: 3px; }
+.bom-version-entry__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.bom-version-entry__title strong { font-size: 14px; }
+.bom-version-entry__meta { color: var(--text-muted); font-size: 12px; line-height: 1.8; }
+.bom-version-activate { flex: 0 0 auto; }
+.bom-version-activate svg { width: 14px; height: 14px; }
+.bom-version-log { display: grid; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-default); font-size: 12.5px; }
+.bom-version-log > strong { color: var(--text-secondary); font-size: 12px; }
+.bom-version-log ul { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.bom-version-log li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); color: var(--text-secondary); }
+.bom-version-log__reason { color: var(--text-primary); font-weight: 600; }
+.bom-version-log time { margin-inline-start: auto; color: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.bom-version-dialog { display: grid; gap: var(--space-3); }
+.bom-version-reason { width: 100%; min-height: 84px; resize: vertical; }
+.bom-version-reason-hint { margin: 0; color: var(--brand-red); font-size: 12px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .bom-version-entry.is-active .bom-version-entry__node { animation: none; }
+}
 /* Supplier financial balance — clickable total + slide-over statement */
 .supplier-balance-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); max-width: 100%; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
 .supplier-balance-button svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand-red); opacity: 0; transition: opacity .16s ease; }
