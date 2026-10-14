@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarRange, ReceiptText, Wallet, X } from 'lucide-react'
+import { CalendarRange, FileSpreadsheet, ReceiptText, Wallet, X } from 'lucide-react'
 import { formatCashAmount } from './cashFlowUi'
 import { formatBusinessDate, formatJalaliInputValue, parseJalaliDateInput, toAsciiDigits, toPersianDigits } from './i18n/businessDate'
 import { FormField } from './ui'
@@ -12,6 +12,7 @@ import {
   type ResolvedSupplierBalance,
   type SupplierBalanceSource,
 } from './supplierFinancialLedger'
+import { buildXlsxWorkbook, downloadXlsxFile, supplierStatementSheet } from './supplierLedgerExport'
 
 type LedgerSupplier = SupplierBalanceSource & { name: string }
 type Preset = 'ALL' | 'DAYS_30' | 'DAYS_90' | 'DAYS_180' | 'CUSTOM'
@@ -93,6 +94,37 @@ export default function SupplierFinancialLedgerDrawer({
 
   const totalLabel = `${money(balance.amount)}${balance.currencyCode ? ` ${balance.currencyCode}` : ''}`
 
+  function exportStatement() {
+    const sheet = supplierStatementSheet({
+      sheetName: t('suppliers.ledger.exportSheet'),
+      supplierName: supplier.name,
+      supplierNumber: supplier.supplierNumber,
+      currencyCode: balance.currencyCode,
+      periodLabel: `${formatBusinessDate(from, language)} — ${formatBusinessDate(to, language)}`,
+      totalBalance: balance.amount,
+      openingBalance: summary.openingBalance,
+      totalPayable: summary.totalPayable,
+      totalPaid: summary.totalPaid,
+      closingBalance: summary.closingBalance,
+      entries: summary.rows,
+      language,
+      formatDate: iso => formatBusinessDate(iso, language),
+      kindLabel: kind => t(`suppliers.ledger.types.${kind}`),
+      labels: {
+        supplier: t('suppliers.supplier'), number: t('common.number'), currency: t('suppliers.ledger.exportCurrency'),
+        period: t('suppliers.ledger.exportPeriod'), totalBalance: t('suppliers.ledger.totalBalance'),
+        openingBalance: t('suppliers.ledger.openingBalance'), totalPayable: t('suppliers.ledger.periodPayable'),
+        totalPaid: t('suppliers.ledger.periodPaid'), closingBalance: t('suppliers.ledger.closingBalance'),
+        date: t('suppliers.ledger.date'), projectCode: t('suppliers.ledger.exportProjectCode'),
+        projectTitle: t('suppliers.ledger.project'), type: t('suppliers.ledger.type'),
+        previousBalance: t('suppliers.ledger.previousBalance'), payable: t('suppliers.ledger.projectPayable'),
+        paidToday: t('suppliers.ledger.paidToday'), balance: t('suppliers.ledger.balance'),
+        periodTotal: t('suppliers.ledger.periodTotal'),
+      },
+    })
+    downloadXlsxFile(`supplier-statement-${supplier.supplierNumber}-${from}_${to}.xlsx`, buildXlsxWorkbook([sheet]))
+  }
+
   return <div className="supplier-ledger-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={drawerRef} className="supplier-ledger-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <header className="supplier-ledger-drawer__header">
@@ -171,7 +203,10 @@ export default function SupplierFinancialLedgerDrawer({
 
         <footer className="supplier-ledger-drawer__footer">
           <p>{t('suppliers.ledger.footerNote')}</p>
-          <button type="button" className="button" onClick={onClose}>{t('common.close')}</button>
+          <div className="supplier-ledger-drawer__footer-actions">
+            <button type="button" className="button supplier-ledger-export-button" onClick={exportStatement} disabled={summary.rows.length === 0}><FileSpreadsheet aria-hidden="true" />{t('suppliers.ledger.exportExcel')}</button>
+            <button type="button" className="button" onClick={onClose}>{t('common.close')}</button>
+          </div>
         </footer>
       </div>
     </section>

@@ -86,6 +86,10 @@ test('overall balances page merges every supplier ledger and opens a single stat
     const selectedText = renderedText(renderer.toJSON())
     assert.match(selectedText, /[0-9\u06F0-\u06F9]+ ردیف انتخاب شده/)
     assert.ok(selectedText.includes('اثر خالص بر تراز'), `Expected selected totals bar\n${selectedText}`)
+    const excelButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('خروجی Excel'))!
+    assert.ok(excelButton, 'selection bar must offer Excel export of the ticked rows')
+    await act(async () => excelButton.props.onClick())
+    assert.ok(renderedText(renderer.toJSON()).includes('ردیف انتخاب شده'), 'exporting must not change the selection')
     const clearButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('حذف انتخاب'))!
     assert.ok(clearButton)
     await act(async () => clearButton.props.onClick())
@@ -108,6 +112,40 @@ test('overall balances page merges every supplier ledger and opens a single stat
     const dialog = renderer.root.findAll(node => node.props.role === 'dialog')[0]
     assert.ok(dialog, 'clicking a supplier total must open the single-supplier statement')
     assert.match(instanceText(dialog), /تراز مالی مجموع/)
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
+test('select all spans every page of the combined ledger, not just the visible page', async () => {
+  const manySuppliers = Array.from({ length: 6 }, (_, index) => ({
+    id: `supplier-bulk-${index}`, supplierNumber: `SUP-100${index}`, name: `Bulk Supplier ${index}`,
+    country: { id: 'country-ir', code: 'IR', nameFa: 'ایران', nameEn: 'Iran', isActive: true },
+    owner: null,
+    paymentProfile: { paymentTermId: null, paymentTerm: null, advancePercent: 0, beforeShipmentPercent: 0, creditPercent: 0, creditDays: null, creditAnchor: null },
+    isActive: true, version: 1, contacts: [],
+  }))
+  const restore = installFetch(input => {
+    if (input.includes('/suppliers?')) return json({ items: manySuppliers, totalCount: manySuppliers.length })
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await render('fa-IR')
+  try {
+    await flush()
+    const checkboxes = () => renderer.root.findAllByType('input').filter(node => node.props.type === 'checkbox')
+    assert.ok(checkboxes().length > 25, 'first page shows a header checkbox plus a full page of rows')
+    // Select the visible page from the header checkbox.
+    await act(async () => checkboxes()[0].props.onChange({ target: { checked: true } }))
+    let text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('این صفحه انتخاب شده'), `Expected page-selected note\n${text}`)
+    // The banner must offer selecting every page as well.
+    const allPagesButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('انتخاب همهٔ') && instanceText(node).includes('در همهٔ صفحه‌ها'))!
+    assert.ok(allPagesButton, 'select-all-pages banner action must be offered')
+    await act(async () => allPagesButton.props.onClick())
+    text = renderedText(renderer.toJSON())
+    assert.ok(text.includes('در همهٔ صفحه‌ها انتخاب شده‌اند'), `Expected all-pages selected confirmation\n${text}`)
+    const match = text.match(/([0-9\u06F0-\u06F9]+) ردیف انتخاب شده/)
+    assert.ok(match, 'selection bar must show the selected count')
+    const selectedCount = Number(match[1].replace(/[\u06F0-\u06F9]/g, digit => String('\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9'.indexOf(digit))))
+    assert.ok(selectedCount > 25, `expected more than one page selected, got ${selectedCount}`)
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 

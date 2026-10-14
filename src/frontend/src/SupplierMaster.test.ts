@@ -148,6 +148,9 @@ test('Supplier without an API balance gets a clickable fake balance that opens i
     for (const expected of ['ریز تراز مالی', 'تأمین‌کننده نمایشی', 'تراز مالی مجموع', 'مانده ابتدای دوره', 'جمع قابل پرداخت دوره', 'جمع پرداختی دوره', 'مانده پایان دوره', 'پروژه / دادوستد', 'تراز روز قبل', 'قابل پرداخت این پروژه', 'پرداختی امروز', 'فرمول تراز مالی: تراز روز قبل + قابل پرداخت این پروژه − پرداختی امروز', 'PRJ-'])
       assert.ok(dialogText.includes(expected), `Expected ledger text: ${expected}\n${dialogText}`)
     assert.doesNotMatch(dialogText, /20\d{2}-\d{2}-\d{2}/, 'Persian ledger must not show Gregorian dates')
+    const exportButton = dialog.findAllByType('button').find(node => instanceText(node).includes('خروجی Excel'))!
+    assert.ok(exportButton, 'statement drawer must offer Excel export')
+    await act(async () => exportButton.props.onClick())
     const ledgerRows = dialog.findAllByType('tr').filter(row => row.findAllByType('td').length === 6)
     assert.ok(ledgerRows.length >= 6, `expected at least 6 project ledger rows, got ${ledgerRows.length}`)
 

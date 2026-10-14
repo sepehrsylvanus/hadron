@@ -819,6 +819,11 @@ button.bom-usage-coefficient { cursor: pointer; }
 .supplier-ledger-empty strong { color: var(--text-primary); }
 .supplier-ledger-drawer__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .supplier-ledger-drawer__footer p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.8; }
+.supplier-ledger-drawer__footer-actions { display: inline-flex; flex: 0 0 auto; flex-wrap: wrap; gap: var(--space-2); }
+.supplier-ledger-export-button svg, .supplier-balances-selection__actions .button svg { width: 16px; height: 16px; }
+.supplier-balances-select-all-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid #edb9bf; border-radius: var(--radius-sm); background: #fff5f6; color: var(--text-secondary); font-size: 13px; line-height: 2; text-align: center; }
+.supplier-balances-select-all-note__button { padding: 0; border: 0; background: none; color: var(--brand-red); font: inherit; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.supplier-balances-select-all-note__button:hover { color: #a30d1d; }
 @media (max-width: 900px) {
   .supplier-ledger-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { CalendarRange, ListChecks, ReceiptText, X } from 'lucide-react'
+import { CalendarRange, FileSpreadsheet, ListChecks, ReceiptText, X } from 'lucide-react'
 import { formatCashAmount } from './cashFlowUi'
 import { formatBusinessDate } from './i18n/businessDate'
 import { FormField, LoadingState, MessageStrip, PageHeader, Pagination } from './ui'
@@ -17,6 +17,7 @@ import {
   type SupplierLedgerKind,
   type SupplierWithBalance,
 } from './supplierFinancialLedger'
+import { buildXlsxWorkbook, downloadXlsxFile, selectedLedgerSheets } from './supplierLedgerExport'
 
 type SupplierApiItem = SupplierBalanceSource & {
   name: string
@@ -176,6 +177,36 @@ export default function SupplierFinancialBalancesPage() {
     setSelectedKeys(previous => checked ? [...new Set([...previous, ...keys])] : previous.filter(candidate => !keys.includes(candidate)))
   }
 
+  /** Selects every filtered row across all pages, not just the visible page. */
+  function selectAllPages() {
+    setSelectedKeys(filteredRows.map(ledgerRowKey))
+  }
+
+  const allFilteredSelected = filteredRows.length > 0 && filteredRows.every(row => selectedKeys.includes(ledgerRowKey(row)))
+
+  function exportSelected() {
+    const selected = combinedRows.filter(row => selectedKeys.includes(ledgerRowKey(row)))
+    const sheets = selectedLedgerSheets({
+      rowsSheetName: t('suppliers.balancesPage.exportRowsSheet'),
+      summarySheetName: t('suppliers.balancesPage.exportSummarySheet'),
+      rows: selected,
+      language,
+      formatDate: iso => formatBusinessDate(iso, language),
+      kindLabel: kind => t(`suppliers.ledger.types.${kind}`),
+      labels: {
+        supplier: t('suppliers.supplier'), supplierNumber: t('common.number'),
+        date: t('suppliers.ledger.date'), projectCode: t('suppliers.ledger.exportProjectCode'),
+        projectTitle: t('suppliers.ledger.project'), type: t('suppliers.ledger.type'),
+        currency: t('suppliers.balancesPage.currency'), previousBalance: t('suppliers.ledger.previousBalance'),
+        payable: t('suppliers.ledger.projectPayable'), paidToday: t('suppliers.ledger.paidToday'),
+        balance: t('suppliers.balancesPage.supplierBalanceAfter'), rowsCount: t('suppliers.balancesPage.exportRowsCount'),
+        payableTotal: t('suppliers.balancesPage.selectedPayable'), paidTotal: t('suppliers.balancesPage.selectedPaid'),
+        netTotal: t('suppliers.balancesPage.selectedNet'),
+      },
+    })
+    downloadXlsxFile(`supplier-balances-selected-${selected.length}.xlsx`, buildXlsxWorkbook(sheets))
+  }
+
   const perSupplierSummaries = useMemo(
     () => suppliersWithBalance
       .filter(item => (currencyFilter === 'ALL' || item.balance.currencyCode === currencyFilter) && matchesSupplier(item.supplier.name, item.supplier.supplierNumber))
@@ -271,9 +302,17 @@ export default function SupplierFinancialBalancesPage() {
           </span>)}
         </div>
         <div className="supplier-balances-selection__actions">
-          <button type="button" className="button" onClick={() => setSelectedKeys(filteredRows.map(ledgerRowKey))}>{t('suppliers.balancesPage.selectAllFiltered', { count: filteredRows.length })}</button>
+          <button type="button" className="button" onClick={exportSelected}><FileSpreadsheet aria-hidden="true" />{t('suppliers.ledger.exportExcel')}</button>
+          {!allFilteredSelected && <button type="button" className="button" onClick={selectAllPages}>{t('suppliers.balancesPage.selectAllFiltered', { count: filteredRows.length })}</button>}
           <button type="button" className="button" onClick={() => setSelectedKeys([])}><X aria-hidden="true" />{t('suppliers.balancesPage.clearSelection')}</button>
         </div>
+      </div>}
+      {pageSelection === 'all' && !allFilteredSelected && <div className="supplier-balances-select-all-note" role="note">
+        <span>{t('suppliers.balancesPage.pageFullySelected', { pageCount: pageRows.length })}</span>
+        <button type="button" className="supplier-balances-select-all-note__button" onClick={selectAllPages}>{t('suppliers.balancesPage.selectAllPages', { count: filteredRows.length })}</button>
+      </div>}
+      {allFilteredSelected && filteredRows.length > pageRows.length && <div className="supplier-balances-select-all-note" role="note">
+        <span>{t('suppliers.balancesPage.allPagesSelected', { count: filteredRows.length })}</span>
       </div>}
       <div className="supplier-ledger-table-wrap">
         <table className="ui-data-table supplier-ledger-table supplier-balances-table">
