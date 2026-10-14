@@ -1,7 +1,7 @@
 import { lazy, ReactNode, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArchiveRestore, ArrowLeftRight, BarChart3, BookOpenText, Boxes, BriefcaseBusiness, Building2, CalendarRange, Calculator, ChartNoAxesCombined, CircleDollarSign, ClipboardCheck, ClipboardList, ClipboardPlus, Component, Container, Database, Factory, FileClock, FileSearch, History, House, Languages, Landmark, LogOut, Mail, MessageSquareText, Network, PackageMinus, PackageOpen, PackagePlus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PhoneCall, ReceiptText, Route as SourcingRoute, Scale, Settings, ShieldCheck, ShoppingCart, UserRoundCog, UsersRound, Warehouse, Wrench } from 'lucide-react'
+import { ArchiveRestore, ArrowLeftRight, BarChart3, BookOpenText, Boxes, BriefcaseBusiness, Building2, CalendarRange, Calculator, ChartNoAxesCombined, CircleDollarSign, ClipboardCheck, ClipboardList, ClipboardPlus, Component, Container, Database, Factory, FileClock, FileSearch, History, House, Languages, Landmark, LogOut, Mail, MessageSquareText, Network, PackageMinus, PackageOpen, PackagePlus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PhoneCall, ReceiptText, Route as SourcingRoute, Scale, Settings, ShieldCheck, ShoppingCart, UserRoundCog, UsersRound, Wallet, Warehouse, Wrench } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import officialHadronLogo from './assets/brand/hadron-logo-red.svg'
 import hadronCompanionWelcome from './assets/brand/character/hadron-companion-welcome.webp'
@@ -16,6 +16,7 @@ const ProductObjectPage = lazy(() => import('./ProductMaster').then(module => ({
 const SupplierMaster = lazy(() => import('./SupplierMaster'))
 const InternalPeoplePage = lazy(() => import('./SupplierMaster').then(module => ({ default: module.InternalPeoplePage })))
 const SupplierObjectPage = lazy(() => import('./SupplierMaster').then(module => ({ default: module.SupplierObjectPage })))
+const SupplierFinancialBalancesPage = lazy(() => import('./SupplierFinancialBalancesPage'))
 const MaterialItemMaster = lazy(() => import('./MaterialItemMaster'))
 const MaterialItemObjectPage = lazy(() => import('./MaterialItemMaster').then(module => ({ default: module.MaterialItemObjectPage })))
 const SourcingMaster = lazy(() => import('./SourcingMaster'))
@@ -64,7 +65,7 @@ const navigationIcons: Record<NavigationIconKey, LucideIcon> = {
   materialPlanning: ChartNoAxesCombined, mrpRuns: Calculator,
   orderPlanning: ClipboardCheck, parts: Wrench, products: PackageOpen, productionOrders: ClipboardList, productionRouting: Network,
   productionForecast: CalendarRange, purchaseOrders: ShoppingCart, referenceData: Database,
-  sourcing: SourcingRoute, suppliers: UsersRound,
+  sourcing: SourcingRoute, suppliers: UsersRound, supplierBalances: Wallet,
   tradeProjects: BriefcaseBusiness, tradeShipments: Container, tradeCustoms: Landmark,
   tradeCosts: ReceiptText, tradeReports: FileSearch, tradeReferences: Database,
   cashFlowObligations: CalendarRange, cashFlowCosting: Calculator, cashFlowMaterialBooks: BookOpenText,
@@ -212,7 +213,7 @@ function AuthenticatedApplication() {
     <Route path="/mrp/master-data/parts" element={<MaterialItemMaster itemType="PART" />} /><Route path="/mrp/parts/new" element={<MaterialItemObjectPage itemType="PART" />} /><Route path="/mrp/parts/:id" element={<MaterialItemObjectPage itemType="PART" />} /><Route path="/mrp/parts/:id/edit" element={<MaterialItemObjectPage itemType="PART" />} />
     <Route path="/mrp/master-data/components" element={<MaterialItemMaster itemType="COMPONENT" />} /><Route path="/mrp/components/new" element={<MaterialItemObjectPage itemType="COMPONENT" />} /><Route path="/mrp/components/:id" element={<MaterialItemObjectPage itemType="COMPONENT" />} /><Route path="/mrp/components/:id/edit" element={<MaterialItemObjectPage itemType="COMPONENT" />} />
     <Route path="/mrp/master-data/reference-data" element={<ReferenceDataPage />} />
-    <Route path="/mrp/supply/suppliers" element={<SupplierMaster />} /><Route path="/mrp/supply/internal-people" element={<InternalPeoplePage />} /><Route path="/mrp/suppliers/new" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id/edit" element={<SupplierObjectPage />} />
+    <Route path="/mrp/supply/suppliers" element={<SupplierMaster />} /><Route path="/mrp/supply/supplier-balances" element={<SupplierFinancialBalancesPage />} /><Route path="/mrp/supply/internal-people" element={<InternalPeoplePage />} /><Route path="/mrp/suppliers/new" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id" element={<SupplierObjectPage />} /><Route path="/mrp/suppliers/:id/edit" element={<SupplierObjectPage />} />
     <Route path="/mrp/supply/sourcing" element={<SourcingMaster />} /><Route path="/mrp/supply/sourcing/new" element={<SourcingObjectPage />} /><Route path="/mrp/supply/sourcing/:id" element={<SourcingObjectPage />} /><Route path="/mrp/supply/sourcing/:id/edit" element={<SourcingObjectPage />} />
     <Route path="/mrp/sourcing/new" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id" element={<SourcingObjectPage />} /><Route path="/mrp/sourcing/:id/edit" element={<SourcingObjectPage />} />
     <Route path="/mrp/supply/purchase-orders" element={<PurchaseOrderPage view="list" />} /><Route path="/mrp/purchase-orders/new" element={<PurchaseOrderPage view="create" />} /><Route path="/mrp/purchase-orders/:id" element={<PurchaseOrderPage view="object" />} />

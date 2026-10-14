@@ -183,7 +183,7 @@ export default function SupplierFinancialLedgerDrawer({
  * displays Persian digits (۱۴۰۵/۰۶/۰۲) and converts to a Gregorian ISO date
  * on blur/Enter; in English UI it stays a native Gregorian date input.
  */
-function LedgerDateField({ label, value, persian, onChange }: { label: string; value: string; persian: boolean; onChange: (value: string) => void }) {
+export function LedgerDateField({ label, value, persian, onChange }: { label: string; value: string; persian: boolean; onChange: (value: string) => void }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(() => (persian ? formatJalaliInputValue(value) : value))
   const [error, setError] = useState('')

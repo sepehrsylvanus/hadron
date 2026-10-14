@@ -26,6 +26,7 @@ export type NavigationIconKey =
   | 'referenceData'
   | 'sourcing'
   | 'suppliers'
+  | 'supplierBalances'
   | 'productionForecast'
   | 'tradeProjects'
   | 'tradeShipments'
@@ -106,6 +107,7 @@ export const mrpNavigationGroups: NavigationGroupDefinition[] = [
   ] },
   { labelKey: 'navigation.groups.suppliersAndSourcing', items: [
     { labelKey: 'navigation.items.suppliers', path: '/mrp/supply/suppliers', aliases: ['/mrp/suppliers', '/mrp/supply/internal-people'], icon: 'suppliers' },
+    { labelKey: 'navigation.items.supplierBalances', path: '/mrp/supply/supplier-balances', icon: 'supplierBalances' },
     { labelKey: 'navigation.items.sourcing', path: '/mrp/supply/sourcing', aliases: ['/mrp/sourcing'], icon: 'sourcing' },
     { labelKey: 'navigation.items.purchaseOrders', path: '/mrp/supply/purchase-orders', aliases: ['/mrp/purchase-orders'], icon: 'purchaseOrders' },
     { labelKey: 'navigation.items.orderPlanning', path: '/mrp/supply/order-planning', aliases: ['/mrp/order-planning'], icon: 'orderPlanning' },
@@ -295,6 +297,7 @@ export const routePermissionRules: RoutePermissionRule[] = [
   { prefix: '/mrp/master-data/components', view: 'catalog.component.view', manage: 'catalog.component.manage' },
   { prefix: '/mrp/components', view: 'catalog.component.view', manage: 'catalog.component.manage' },
   { prefix: '/mrp/master-data/reference-data', view: 'reference_data.view', manage: 'reference_data.manage' },
+  { prefix: '/mrp/supply/supplier-balances', view: 'procurement.supplier.view', manage: 'procurement.supplier.view' },
   { prefix: '/mrp/supply/suppliers', view: 'procurement.supplier.view', manage: 'procurement.supplier.manage' },
   { prefix: '/mrp/supply/internal-people', view: 'organization.internal_person.view', manage: 'organization.internal_person.manage' },
   { prefix: '/mrp/suppliers', view: 'procurement.supplier.view', manage: 'procurement.supplier.manage' },

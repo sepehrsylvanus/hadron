@@ -7,11 +7,13 @@ import {
   parseJalaliDateInput,
 } from './i18n/businessDate.ts'
 import {
+  buildCombinedSupplierLedger,
   buildSupplierLedger,
   fakeBalanceForSupplier,
   resolveSupplierBalance,
   summarizeSupplierLedger,
   supplierLedgerDateRange,
+  totalBalancesByCurrency,
 } from './supplierFinancialLedger.ts'
 
 const foreignSupplier = { id: 'supplier-1', supplierNumber: 'SUP-0001', country: { code: 'US' } }
@@ -88,6 +90,33 @@ test('Jalali date input accepts Persian, Arabic, and Latin digits', () => {
   assert.equal(parseJalaliDateInput('1405/06/32'), null)
   assert.equal(parseJalaliDateInput('1405/6/2'), null)
   assert.equal(parseJalaliDateInput(''), null)
+})
+
+test('combined ledger merges every supplier while keeping per-supplier running balances', () => {
+  const items = [foreignSupplier, domesticSupplier].map(supplier => ({ supplier, balance: resolveSupplierBalance(supplier) }))
+  const rows = buildCombinedSupplierLedger(items)
+  assert.ok(rows.length >= 18)
+  assert.deepEqual([...new Set(rows.map(row => row.supplierId))].sort(), ['supplier-1', 'supplier-2'])
+  const dates = rows.map(row => row.date)
+  assert.deepEqual(dates, [...dates].sort(), 'combined ledger must be chronological before display sorting')
+  for (const item of items) {
+    const supplierRows = rows.filter(row => row.supplierId === item.supplier.id)
+    assert.equal(supplierRows[supplierRows.length - 1].runningBalance, item.balance.amount)
+    assert.ok(supplierRows.every(row => row.currencyCode === item.balance.currencyCode))
+  }
+})
+
+test('overall balances are totalled per currency and never mixed', () => {
+  const items = [foreignSupplier, domesticSupplier].map(supplier => ({ supplier, balance: resolveSupplierBalance(supplier) }))
+  const totals = totalBalancesByCurrency(items)
+  assert.deepEqual(totals.map(total => total.currencyCode), ['IRR', 'USD'])
+  for (const total of totals) {
+    const expected = items.filter(item => item.balance.currencyCode === total.currencyCode)
+    assert.equal(total.supplierCount, expected.length)
+    assert.equal(total.totalAmount, expected[0].balance.amount, 'single-supplier currency total must equal that supplier balance')
+    assert.equal(total.fakeCount, expected.length)
+  }
+  assert.deepEqual(totalBalancesByCurrency([]), [])
 })
 
 test('ledger period summary respects the from/to date filter', () => {

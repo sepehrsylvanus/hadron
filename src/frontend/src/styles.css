@@ -780,6 +780,28 @@ button.bom-usage-coefficient { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .supplier-ledger-backdrop, .supplier-ledger-drawer { animation: none; }
 }
+/* Overall supplier financial balances page */
+.supplier-balances-section { display: grid; gap: var(--space-3); }
+.supplier-balances-section__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.supplier-balances-section__header h2 { margin: 0; font-size: 18px; }
+.supplier-balances-section__header p { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.8; }
+.supplier-balances-currency-grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.supplier-ledger-summary__card > small { color: var(--text-muted); font-size: 12px; }
+.supplier-balances-filters__row { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(170px, 1fr); gap: var(--space-4); }
+.supplier-balances-supplier a { color: var(--text-primary); font-weight: 700; text-decoration: none; }
+.supplier-balances-supplier a:hover { color: var(--brand-red); text-decoration: underline; }
+.supplier-balances-supplier small { display: block; margin-top: 2px; }
+.supplier-balances-table { min-width: 1180px; }
+.supplier-balances-table th:nth-child(1), .supplier-balances-table td:nth-child(1) { width: 118px; }
+.supplier-balances-table th:nth-child(2), .supplier-balances-table td:nth-child(2) { width: 210px; }
+.supplier-balances-table th:nth-child(3), .supplier-balances-table td:nth-child(3) { width: 128px; }
+.supplier-balances-table th:nth-child(4), .supplier-balances-table td:nth-child(4) { width: 140px; }
+.supplier-balances-table th:nth-child(6), .supplier-balances-table td:nth-child(6) { width: 84px; }
+.supplier-balances-table th:nth-child(7), .supplier-balances-table td:nth-child(7), .supplier-balances-table th:nth-child(8), .supplier-balances-table td:nth-child(8), .supplier-balances-table th:nth-child(9), .supplier-balances-table td:nth-child(9) { width: 136px; }
+.supplier-balances-summary-table { min-width: 1120px; }
+@media (max-width: 900px) {
+  .supplier-balances-filters__row { grid-template-columns: 1fr; }
+}
 .material-relationship-editor { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(360px, 2fr); gap: var(--space-4); align-items: start; margin-bottom: var(--space-4); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: 6px; background: #fafafa; }
 .material-relationship-editor .ui-action-row { grid-column: 1 / -1; }
 .material-item-supplier-list { display: grid; gap: 4px; min-width: 130px; }

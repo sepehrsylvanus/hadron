@@ -191,6 +191,69 @@ export function buildSupplierLedger(
   })
 }
 
+export type SupplierWithBalance = {
+  supplier: SupplierBalanceSource & { name: string }
+  balance: ResolvedSupplierBalance
+}
+
+export type CombinedSupplierLedgerRow = SupplierLedgerEntry & {
+  supplierId: string
+  supplierNumber: string
+  supplierName: string
+  currencyCode: string | null
+  decimalPrecision: number
+  isFakeBalance: boolean
+}
+
+export type CurrencyBalanceTotal = {
+  currencyCode: string | null
+  decimalPrecision: number
+  totalAmount: string
+  supplierCount: number
+  fakeCount: number
+}
+
+/**
+ * Merges every supplier's statement into one big ledger. Each row keeps its
+ * own supplier's running balance, so rows stay reconcilable per supplier
+ * even when the merged table is sorted or filtered globally.
+ */
+export function buildCombinedSupplierLedger(items: SupplierWithBalance[]): CombinedSupplierLedgerRow[] {
+  return items
+    .flatMap(({ supplier, balance }) => buildSupplierLedger(supplier, balance).map(entry => ({
+      ...entry,
+      supplierId: supplier.id,
+      supplierNumber: supplier.supplierNumber,
+      supplierName: supplier.name,
+      currencyCode: balance.currencyCode,
+      decimalPrecision: balance.decimalPrecision,
+      isFakeBalance: balance.isFake,
+    })))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.supplierNumber.localeCompare(right.supplierNumber) || left.id.localeCompare(right.id))
+}
+
+/** Totals the overall balance per currency; currencies are never mixed. */
+export function totalBalancesByCurrency(items: SupplierWithBalance[]): CurrencyBalanceTotal[] {
+  const groups = new Map<string, { currencyCode: string | null; decimalPrecision: number; minor: number; supplierCount: number; fakeCount: number }>()
+  for (const { balance } of items) {
+    const key = balance.currencyCode ?? ''
+    const group = groups.get(key) ?? { currencyCode: balance.currencyCode, decimalPrecision: balance.decimalPrecision, minor: 0, supplierCount: 0, fakeCount: 0 }
+    group.minor += toMinor(balance.amount, balance.decimalPrecision)
+    group.supplierCount += 1
+    if (balance.isFake) group.fakeCount += 1
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+    .sort((left, right) => (left.currencyCode ?? '').localeCompare(right.currencyCode ?? ''))
+    .map(group => ({
+      currencyCode: group.currencyCode,
+      decimalPrecision: group.decimalPrecision,
+      totalAmount: minorToAmountString(group.minor, group.decimalPrecision),
+      supplierCount: group.supplierCount,
+      fakeCount: group.fakeCount,
+    }))
+}
+
 export function supplierLedgerDateRange(entries: SupplierLedgerEntry[]) {
   if (!entries.length) return { from: '', to: '' }
   return { from: entries[0].date, to: entries[entries.length - 1].date }
