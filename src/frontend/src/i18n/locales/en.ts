@@ -384,6 +384,18 @@ const en = {
     createInactiveHint: 'A new supplier is always created inactive.', statusFilter: 'Supplier status filter', allStatuses: 'All statuses', activeOnly: 'Active only',
     inactiveNotice: 'This supplier has been saved but is still inactive. It cannot be selected for new sourcing options or orders until its information is complete and it is activated.',
     completeAndActivate: 'Complete and activate', activationConfirmTitle: 'Activate supplier', activationConfirmDescription: 'Activation succeeds only when the internal owner, payment term, and payment percentages are complete and valid.', activateNow: 'Activate now',
+    ledger: {
+      title: 'Financial balance statement', viewDetails: 'View balance statement', totalBalance: 'Total financial balance',
+      demoBadge: 'Demo data', demoNotice: 'This balance and the entries below are sample (fake) data created only to demonstrate the interface; they are not connected to real financial records.',
+      fromDate: 'From date', toDate: 'To date', quickRanges: 'Quick ranges', transactionsCount: '{{count}} financial entries',
+      presets: { ALL: 'Full period', DAYS_30: 'Last 30 days', DAYS_90: 'Last 90 days', DAYS_180: 'Last 6 months' },
+      openingBalance: 'Opening balance', periodDebit: 'Period debit total', periodCredit: 'Period credit total', closingBalance: 'Closing balance',
+      date: 'Date', document: 'Document no.', type: 'Entry type', description: 'Description', debit: 'Debit', credit: 'Credit', balance: 'Balance', periodTotal: 'Period total',
+      emptyTitle: 'No entries in this range', emptyDescription: 'Change the date range or choose one of the quick ranges.',
+      footerNote: 'Each row balance is cumulative; the last row balance equals the total financial balance.',
+      types: { OPENING: 'Opening balance', PURCHASE: 'Purchase invoice', ADVANCE_PAYMENT: 'Advance payment', BANK_PAYMENT: 'Bank payment', FREIGHT: 'Freight charge', PURCHASE_RETURN: 'Purchase return', ADJUSTMENT: 'Adjustment entry' },
+      descriptions: { OPENING: 'Balance carried forward from the previous period', PURCHASE: 'Purchase of goods and raw materials per supplier invoice', ADVANCE_PAYMENT: 'Purchase order advance per the payment profile', BANK_PAYMENT: 'Bank payment to the supplier account', FREIGHT: 'Freight and delivery charged to the supplier account', PURCHASE_RETURN: 'Returned goods and purchase invoice correction', ADJUSTMENT: 'Period reconciliation adjustment entry' },
+    },
   },
   sourcing: {
     title: 'Sourcing', subtitle: 'Item-supplier relationships, minimum order, route, and lead time', new: 'New sourcing option', option: 'Sourcing option',

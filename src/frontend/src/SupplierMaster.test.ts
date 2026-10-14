@@ -121,6 +121,43 @@ test('Supplier financial balance appears in the list and as a read-only value on
   } finally { restore() }
 })
 
+test('Supplier without an API balance gets a clickable fake balance that opens its ledger statement', async () => {
+  const supplier = {
+    id: 'supplier-fake-balance', supplierNumber: 'SUP-0099', name: 'تأمین‌کننده نمایشی',
+    country: { id: 'country', code: 'IR', nameFa: 'ایران', nameEn: 'Iran', isActive: true },
+    owner: null,
+    paymentProfile: { paymentTermId: null, paymentTerm: null, advancePercent: 0, beforeShipmentPercent: 0, creditPercent: 0, creditDays: null, creditAnchor: null },
+    isActive: true, version: 1, contacts: [],
+  }
+  const restore = installFetch((input) => {
+    if (input.includes('/suppliers?')) return json({ items: [supplier], totalCount: 1 })
+    throw new Error(`Unexpected request: ${input}`)
+  })
+  const renderer = await render('list', 'fa-IR', '/mrp/supply/suppliers')
+  try {
+    await act(async () => new Promise(resolve => setTimeout(resolve, 140)))
+    const balanceButton = renderer.root.findAllByType('button').find(node => String(node.props['aria-label'] ?? '').includes('مشاهده ریز تراز مالی'))!
+    assert.ok(balanceButton, 'financial balance must be a clickable button')
+    assert.match(instanceText(balanceButton), /IRR/)
+    assert.match(instanceText(balanceButton), /داده نمایشی/)
+
+    await act(async () => balanceButton.props.onClick())
+    const dialog = renderer.root.findAll(node => node.props.role === 'dialog')[0]
+    assert.ok(dialog, 'clicking the balance must open the ledger statement')
+    const dialogText = instanceText(dialog)
+    for (const expected of ['ریز تراز مالی', 'تأمین‌کننده نمایشی', 'تراز مالی مجموع', 'مانده ابتدای دوره', 'جمع بدهکار دوره', 'جمع بستانکار دوره', 'مانده پایان دوره', 'فاکتور خرید', 'پرداخت بانکی'])
+      assert.ok(dialogText.includes(expected), `Expected ledger text: ${expected}\n${dialogText}`)
+    const ledgerRows = dialog.findAllByType('tr').filter(row => row.findAllByType('td').length === 7)
+    assert.ok(ledgerRows.length >= 9, `expected at least 9 ledger rows, got ${ledgerRows.length}`)
+
+    const dateInputs = dialog.findAllByType('input').filter(node => node.props.type === 'date')
+    assert.equal(dateInputs.length, 2)
+    await act(async () => dateInputs[0].props.onChange({ target: { value: '2000-01-01' } }))
+    await act(async () => dateInputs[1].props.onChange({ target: { value: '2000-01-31' } }))
+    assert.match(instanceText(dialog), /در این بازه گردشی وجود ندارد/)
+  } finally { await act(async () => renderer.unmount()); restore() }
+})
+
 test('Supplier provided parts show a recursive BOM usage tree on hover and no tree for unused parts', async () => {
   const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
   const wire = { id: 'part-wire', code: 'PART-10', nameFa: 'سیم مسی', nameEn: 'Copper wire', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }

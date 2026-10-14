@@ -5,7 +5,10 @@ import { ConfirmationDialog, DataTable, Definition, DefinitionGrid, DisplayEditA
 import { currentListContext, useListQuery, useListReturn } from './ui/routeContext'
 import { UnsavedChangesGuard } from './ui/UnsavedChangesGuard'
 import { useOptionalAuth } from './AuthContext'
+import { ReceiptText } from 'lucide-react'
 import { formatCashAmount } from './cashFlowUi'
+import SupplierFinancialLedgerDrawer from './SupplierFinancialLedgerDrawer'
+import { resolveSupplierBalance } from './supplierFinancialLedger'
 import SupplierProvidedItems from './SupplierProvidedItems'
 
 type Ref = { id: string; code: string; nameFa: string; nameEn: string; isActive: boolean }
@@ -32,6 +35,16 @@ function formatSupplierFinancialBalance(supplier: Supplier, language: string, no
   return currencyCode ? `${formattedAmount} ${currencyCode}` : formattedAmount
 }
 
+function SupplierBalanceCell({ supplier, currencies, onOpen }: { supplier: Supplier; currencies: SupplierBalanceCurrency[]; onOpen: (supplier: Supplier) => void }) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const balance = resolveSupplierBalance(supplier, currencies)
+  if (balance.isPending) return <td className="ui-number">{t('common.noData')}</td>
+  const formattedBalance = formatCashAmount(balance.amount, balance.decimalPrecision, language)
+  const label = balance.currencyCode ? `${formattedBalance} ${balance.currencyCode}` : formattedBalance
+  return <td className="ui-number"><button type="button" className="supplier-balance-button" onClick={() => onOpen(supplier)} aria-label={`${t('suppliers.ledger.viewDetails')}: ${supplier.name} — ${label}`} title={t('suppliers.ledger.viewDetails')}><ReceiptText aria-hidden="true" /><span className="supplier-balance-button__amount" dir="ltr">{label}</span>{balance.isFake && <span className="supplier-balance-button__badge">{t('suppliers.ledger.demoBadge')}</span>}</button></td>
+}
+
 async function loadSupplierBalanceCurrencies() {
   const response = await fetch(`${api}/reference-data/currencies?includeInactive=true`)
   if (!response.ok) throw new Error(await problem(response))
@@ -44,7 +57,8 @@ function supplierGeographicScope(countryCode: string) {
 
 export default function SupplierMaster() {
   const { t, i18n } = useTranslation(); const english = i18n.resolvedLanguage === 'en'; const query = useListQuery(); const location = useLocation(); const search = query.value('search'); const status = query.value('status') || 'all'; const includeInactive = status !== 'active'
-  const [items, setItems] = useState<Supplier[]>([]); const [balanceCurrencies, setBalanceCurrencies] = useState<SupplierBalanceCurrency[]>([]); const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState('')
+  const [items, setItems] = useState<Supplier[]>([]); const [balanceCurrencies, setBalanceCurrencies] = useState<SupplierBalanceCurrency[]>([]); const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [ledgerSupplier, setLedgerSupplier] = useState<Supplier | null>(null)
+  const ledgerBalance = ledgerSupplier ? resolveSupplierBalance(ledgerSupplier, balanceCurrencies) : null
   const load = useCallback(async () => { setLoading(true); const q = new URLSearchParams({ search, includeInactive: String(includeInactive), page: String(query.page), pageSize: String(query.pageSize) }); try { const response = await fetch(`${api}/suppliers?${q}`); if (!response.ok) throw new Error(await problem(response)); const body = await response.json(); setItems(body.items); setTotal(body.totalCount) } catch (caught) { setError(caught instanceof Error ? caught.message : t('common.error')) } finally { setLoading(false) } }, [includeInactive, query.page, query.pageSize, search, t])
   useEffect(() => { const timer = window.setTimeout(() => void load(), 120); return () => window.clearTimeout(timer) }, [load])
   const needsBalanceCurrencies = items.some(item => item.financialBalanceAmount != null && item.financialBalanceCurrencyId != null && !item.financialBalanceCurrency?.code && !item.financialBalanceCurrencyCode)
@@ -57,7 +71,8 @@ export default function SupplierMaster() {
   const from = currentListContext(location.pathname, location.search); const filtered = Boolean(search || status !== 'all')
   return <main className="app-shell"><PageHeader title={t('suppliers.title')} subtitle={t('suppliers.subtitle')} actions={<><Link className="button" to="/mrp/supply/internal-people">{t('suppliers.manageInternalPeople')}</Link><Link className="button button--primary" to={`/mrp/suppliers/new?from=${from}`}>{t('suppliers.new')}</Link></>} />
     <FilterBar label={t('common.filterBar')}><FormField label={t('common.search')}><input value={search} onChange={event => query.update({ search: event.target.value }, true)} placeholder={t('suppliers.searchPlaceholder')} /></FormField><FormField label={t('common.status')}><select aria-label={t('suppliers.statusFilter')} value={status} onChange={event => query.update({ status: event.target.value === 'all' ? null : event.target.value }, true)}><option value="all">{t('suppliers.allStatuses')}</option><option value="active">{t('suppliers.activeOnly')}</option></select></FormField></FilterBar>{error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <section className="ui-table-surface"><TableToolbar title={t('suppliers.title')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.number'), t('common.nameFa'), t('suppliers.country'), t('suppliers.geographicScope'), t('suppliers.owner'), t('suppliers.financialBalance'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>{items.map(item => <tr key={item.id}><td className="ui-technical">{item.supplierNumber}</td><td>{item.name}</td><td>{english ? item.country.nameEn : item.country.nameFa}</td><td>{t(`suppliers.${supplierGeographicScope(item.country.code)}`)}</td><td>{english ? item.owner?.displayNameEn ?? item.owner?.displayNameFa : item.owner?.displayNameFa ?? t('common.noData')}</td><td className="ui-number">{formatSupplierFinancialBalance(item, i18n.resolvedLanguage ?? i18n.language, t('common.noData'), balanceCurrencies)}</td><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`/mrp/suppliers/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}</DataTable><Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
+    <section className="ui-table-surface"><TableToolbar title={t('suppliers.title')} count={t('common.count', { count: total })} /><DataTable headers={[t('common.number'), t('common.nameFa'), t('suppliers.country'), t('suppliers.geographicScope'), t('suppliers.owner'), t('suppliers.financialBalance'), t('common.status'), t('common.actions')]} loading={loading} empty={!items.length} filtered={filtered} loadingLabel={t('common.loading')} emptyTitle={t('common.emptyTitle')} emptyDescription={t('common.emptyDescription')} noResultTitle={t('common.noResultsTitle')} noResultDescription={t('common.noResultsDescription')}>{items.map(item => <tr key={item.id}><td className="ui-technical">{item.supplierNumber}</td><td>{item.name}</td><td>{english ? item.country.nameEn : item.country.nameFa}</td><td>{t(`suppliers.${supplierGeographicScope(item.country.code)}`)}</td><td>{english ? item.owner?.displayNameEn ?? item.owner?.displayNameFa : item.owner?.displayNameFa ?? t('common.noData')}</td><SupplierBalanceCell supplier={item} currencies={balanceCurrencies} onOpen={setLedgerSupplier} /><td><StatusBadge text={item.isActive ? t('common.active') : t('common.inactive')} tone={item.isActive ? 'positive' : 'neutral'} /></td><td className="actions"><Link className="button button--quiet" to={`/mrp/suppliers/${item.id}?from=${from}`}>{t('common.details')}</Link></td></tr>)}</DataTable><Pagination page={query.page} pageSize={query.pageSize} totalCount={total} onPageChange={page => query.update({ page })} previousLabel={t('common.previous')} nextLabel={t('common.next')} summary={t('common.page', { page: query.page, pages: Math.max(1, Math.ceil(total / query.pageSize)), count: total })} /></section>
+    {ledgerSupplier && ledgerBalance && !ledgerBalance.isPending && <SupplierFinancialLedgerDrawer key={ledgerSupplier.id} supplier={ledgerSupplier} balance={ledgerBalance} onClose={() => setLedgerSupplier(null)} />}
   </main>
 }
 

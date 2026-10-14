@@ -703,6 +703,69 @@ button.bom-usage-coefficient { cursor: pointer; }
 .supplier-usage-tree__identity .ui-technical { color: var(--text-primary); }
 .supplier-usage-tree__identity a { color: var(--brand-red); text-decoration: none; }
 .supplier-usage-tree__identity a:hover { text-decoration: underline; }
+/* Supplier financial balance — clickable total + slide-over statement */
+.supplier-balance-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); max-width: 100%; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
+.supplier-balance-button svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand-red); opacity: 0; transition: opacity .16s ease; }
+.supplier-balance-button:hover, .supplier-balance-button:focus-visible { border-color: #edb9bf; background: #fff5f6; }
+.supplier-balance-button:hover svg, .supplier-balance-button:focus-visible svg { opacity: 1; }
+.supplier-balance-button:focus-visible { outline: 3px solid rgb(206 22 40 / 22%); outline-offset: 1px; }
+.supplier-balance-button__amount { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.supplier-balance-button__badge { padding: 1px 6px; border: 1px solid #ead49b; border-radius: 999px; background: #fff8e6; color: #7c5700; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.supplier-ledger-backdrop { position: fixed; inset: 0; z-index: 70; background: rgb(30 27 28 / 48%); backdrop-filter: blur(3px); animation: supplier-ledger-fade .18s ease; }
+.supplier-ledger-drawer { position: absolute; inset-block: 0; inset-inline-end: 0; display: flex; width: min(920px, 96vw); max-width: 100%; flex-direction: column; gap: var(--space-4); overflow: auto; padding: var(--space-6); background: var(--surface-page); box-shadow: 0 24px 64px rgb(0 0 0 / 28%); animation: supplier-ledger-in .24s cubic-bezier(.21, 1.02, .73, 1); }
+@keyframes supplier-ledger-fade { from { opacity: 0; } }
+@keyframes supplier-ledger-in { from { opacity: 0; transform: translateY(14px); } }
+.supplier-ledger-drawer__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.supplier-ledger-drawer__identity { display: grid; gap: 4px; min-width: 0; }
+.supplier-ledger-drawer__eyebrow { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--brand-red); font-size: 12px; font-weight: 800; }
+.supplier-ledger-drawer__eyebrow svg { width: 16px; height: 16px; }
+.supplier-ledger-drawer__identity h2 { margin: 0; font-size: 24px; overflow-wrap: anywhere; }
+.supplier-ledger-drawer__meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 0; color: var(--text-muted); font-size: 12px; }
+.supplier-ledger-drawer__close { flex: 0 0 auto; border-color: var(--border-default); background: #fff; }
+.supplier-ledger-hero { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-6); border: 1px solid var(--surface-dark); border-radius: var(--radius-lg); background: var(--surface-dark); color: #fff; }
+.supplier-ledger-hero__label { display: inline-flex; align-items: center; gap: var(--space-2); color: #d8d3d4; font-size: 12px; font-weight: 700; }
+.supplier-ledger-hero__label svg { width: 16px; height: 16px; }
+.supplier-ledger-hero__amount { display: block; margin-top: 6px; font-size: clamp(24px, 4vw, 36px); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.supplier-ledger-hero__amount.is-negative, .supplier-ledger-summary dd.is-negative, .supplier-ledger-running.is-negative { color: var(--brand-red); }
+.supplier-ledger-hero__amount.is-negative { color: #ff8a94; }
+.supplier-ledger-demo-badge { flex: 0 0 auto; padding: 4px 10px; border: 1px solid #ead49b; border-radius: 999px; background: #fff8e6; color: #7c5700; font-size: 12px; font-weight: 800; }
+.supplier-ledger-demo-note { margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid #ead49b; border-inline-start: 3px solid #b98000; border-radius: var(--radius-sm); background: #fff9e9; color: #725000; font-size: 13px; line-height: 1.8; }
+.supplier-ledger-filters { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: #fff; }
+.supplier-ledger-filters__dates { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: var(--space-3); }
+.supplier-ledger-presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.supplier-ledger-presets > svg { width: 16px; height: 16px; color: var(--text-muted); }
+.supplier-ledger-preset { min-height: 36px; padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: #fff; color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.supplier-ledger-preset:hover { border-color: #999; background: #fafafa; }
+.supplier-ledger-preset.is-active { border-color: var(--brand-red); background: var(--brand-red); color: #fff; }
+.supplier-ledger-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--border-default); }
+.supplier-ledger-summary > div { display: grid; align-content: center; gap: 6px; min-height: 84px; padding: var(--space-3) var(--space-4); background: #fff; }
+.supplier-ledger-summary > div.is-closing { background: #fff5f6; }
+.supplier-ledger-summary dt { color: var(--text-muted); font-size: 12px; }
+.supplier-ledger-summary dd { margin: 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.supplier-ledger-table-wrap { overflow: auto; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: #fff; }
+.supplier-ledger-table { min-width: 860px; }
+.supplier-ledger-table tfoot td { border-top: 2px solid var(--border-default); background: #f7f7f8; font-weight: 800; }
+.supplier-ledger-date span { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.supplier-ledger-date small { color: var(--text-muted); font-size: 11px; }
+.supplier-ledger-kind { display: inline-flex; padding: 3px 8px; border: 1px solid var(--border-default); border-radius: 999px; background: #f6f6f6; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.supplier-ledger-kind--purchase, .supplier-ledger-kind--freight { border-color: #bad7e6; background: #f0f8fc; color: #215b78; }
+.supplier-ledger-kind--bank_payment, .supplier-ledger-kind--advance_payment { border-color: #b9dec8; background: #f1faf5; color: #17633a; }
+.supplier-ledger-kind--opening, .supplier-ledger-kind--adjustment { border-color: #ead49b; background: #fff8e6; color: #7c5700; }
+.supplier-ledger-description { min-width: 220px; color: var(--text-secondary); font-size: 13px; }
+.supplier-ledger-running { font-weight: 800; }
+.supplier-ledger-empty { display: grid; justify-items: center; gap: 4px; padding: var(--space-6); color: var(--text-muted); text-align: center; }
+.supplier-ledger-empty strong { color: var(--text-primary); }
+.supplier-ledger-drawer__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: auto; padding-top: var(--space-3); }
+.supplier-ledger-drawer__footer p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.8; }
+@media (max-width: 760px) {
+  .supplier-ledger-drawer { width: 100vw; padding: var(--space-4); }
+  .supplier-ledger-hero, .supplier-ledger-drawer__footer { align-items: stretch; flex-direction: column; }
+  .supplier-ledger-filters__dates, .supplier-ledger-summary { grid-template-columns: 1fr 1fr; }
+  .supplier-ledger-demo-badge { align-self: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .supplier-ledger-backdrop, .supplier-ledger-drawer { animation: none; }
+}
 .material-relationship-editor { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(360px, 2fr); gap: var(--space-4); align-items: start; margin-bottom: var(--space-4); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: 6px; background: #fafafa; }
 .material-relationship-editor .ui-action-row { grid-column: 1 / -1; }
 .material-item-supplier-list { display: grid; gap: 4px; min-width: 130px; }
