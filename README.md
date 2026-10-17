@@ -13,6 +13,13 @@ Node.js 26 is currently a Current release, not LTS. It is used by explicit proje
 
 ## Local setup
 
+> **One-click launcher (Windows):** double-click `run-hadron.bat` in the repository
+> root. It performs the steps below automatically (Docker Desktop → PostgreSQL/MinIO
+> health → EF migrations → API on port 5080 → frontend on port 5173) and opens
+> http://127.0.0.1:5173. `run-hadron.bat` is the canonical local launcher — do not
+> replace, rename, or regenerate it; the numbered steps below are the manual
+> equivalent for reference only.
+
 1. Create the local environment file:
 
    ```powershell
