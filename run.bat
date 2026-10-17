@@ -1,37 +1,72 @@
 @echo off
-chcp 65001 >nul
 title Hadron ERP - Local Runner
 cd /d "%~dp0"
 
 echo ============================================================
-echo   Hadron ERP - اجرای لوکال همه سرویس‌ها
+echo   Hadron ERP - Start all local services
 echo ============================================================
 echo.
 
-REM ---------- 1) فایل محیطی .env ----------
+REM ---------- 0) Prerequisites ----------
+where docker >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Docker CLI was not found in PATH.
+  echo         Install Docker Desktop, then run this file again:
+  echo         https://www.docker.com/products/docker-desktop/
+  pause
+  exit /b 1
+)
+where npm >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Node.js / npm was not found in PATH.
+  echo         Install Node.js, then run this file again:
+  echo         https://nodejs.org/
+  pause
+  exit /b 1
+)
+
+REM --- Locate the .NET SDK even when it is not on PATH ---
+where dotnet >nul 2>&1
+if not errorlevel 1 goto dotnet_ready
+for %%D in ("%ProgramFiles%\dotnet" "%ProgramFiles(x86)%\dotnet" "%USERPROFILE%\.dotnet" "%LOCALAPPDATA%\Microsoft\dotnet") do (
+  if exist "%%~D\dotnet.exe" set "PATH=%%~D;%PATH%"
+)
+where dotnet >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] The .NET SDK was not found on this machine.
+  echo         This project needs .NET SDK 10. Install it from:
+  echo         https://dotnet.microsoft.com/download/dotnet/10.0
+  echo         After installing, close this window and run run.bat again.
+  pause
+  exit /b 1
+)
+:dotnet_ready
+for /f "delims=" %%V in ('dotnet --version') do echo [OK] Prerequisites found - .NET SDK %%V, Node/npm, Docker.
+
+REM ---------- 1) Environment file (.env) ----------
 if not exist ".env" (
-  echo [خطا] فایل .env پیدا نشد. از روی نمونه ساخته شد:
+  echo [ERROR] The .env file was not found. A copy was created from .env.example:
   copy /y ".env.example" ".env" >nul
   echo.
-  echo   مقادیر POSTGRES_PASSWORD و MINIO_ACCESS_KEY و MINIO_SECRET_KEY
-  echo   و IDENTITY_BOOTSTRAP_TOKEN را در فایل .env عوض کنید،
-  echo   بعد دوباره run.bat را اجرا کنید.
+  echo   Replace POSTGRES_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+  echo   and IDENTITY_BOOTSTRAP_TOKEN in .env with local-only secrets,
+  echo   then run this file again.
   echo.
   notepad ".env"
   pause
   exit /b 1
 )
 
-REM ----- خواندن .env و ست‌کردن متغیرهای محیطی همین ترمینال -----
+REM ----- Load .env into this terminal's environment -----
 for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do (
   if not "%%B"=="" set "%%A=%%B"
 )
-echo [OK] متغیرهای .env خوانده شد.
+echo [OK] Environment variables loaded from .env.
 
 REM ---------- 2) Docker Desktop ----------
 docker info >nul 2>&1
 if not errorlevel 1 goto docker_ready
-echo [...] Docker Desktop در حال اجرا نیست؛ در حال باز کردنش...
+echo [...] Docker Desktop is not running. Starting it...
 start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
 set /a docker_tries=0
 :wait_docker
@@ -40,17 +75,17 @@ docker info >nul 2>&1
 if not errorlevel 1 goto docker_ready
 set /a docker_tries+=1
 if %docker_tries% lss 24 goto wait_docker
-echo [خطا] Docker Desktop بالا نیامد. دستی اجراش کنید و دوباره run.bat را بزنید.
+echo [ERROR] Docker Desktop did not start in time. Start it manually, then run this file again.
 pause
 exit /b 1
 :docker_ready
-echo [OK] Docker آماده است.
+echo [OK] Docker is running.
 
-REM ---------- 3) PostgreSQL و MinIO ----------
-echo [...] در حال اجرای PostgreSQL و MinIO ...
+REM ---------- 3) PostgreSQL and MinIO ----------
+echo [...] Starting PostgreSQL and MinIO ...
 docker compose up -d postgres minio
 if errorlevel 1 (
-  echo [خطا] اجرای کانتینرها ناموفق بود.
+  echo [ERROR] Failed to start the containers. See the output above.
   pause
   exit /b 1
 )
@@ -60,89 +95,89 @@ docker compose exec -T postgres pg_isready -U %POSTGRES_USER% -d %POSTGRES_DB% >
 if not errorlevel 1 goto db_ready
 set /a db_tries+=1
 if %db_tries% geq 30 (
-  echo [خطا] PostgreSQL آماده نشد. وضعیت: docker compose ps
+  echo [ERROR] PostgreSQL did not become ready. Check: docker compose ps
   pause
   exit /b 1
 )
 timeout /t 2 /nobreak >nul
 goto wait_db
 :db_ready
-echo [OK] PostgreSQL و MinIO بالا هستند.
+echo [OK] PostgreSQL and MinIO are up.
 
-REM ---------- 4) وابستگی‌های فرانت‌اند (فقط بار اول) ----------
+REM ---------- 4) Frontend dependencies (first run only) ----------
 if not exist "src\frontend\node_modules" (
-  echo [...] در حال نصب وابستگی‌های فرانت‌اند، فقط بار اول طول می‌کشد...
+  echo [...] Installing frontend dependencies. This takes a while on the first run...
   pushd src\frontend
   call npm install
   popd
 ) else (
-  echo [OK] وابستگی‌های فرانت‌اند نصب هستند.
+  echo [OK] Frontend dependencies are already installed.
 )
 
-REM ---------- 5) Migration دیتابیس ----------
-echo [...] در حال اعمال Migration های دیتابیس...
+REM ---------- 5) Database migrations ----------
+echo [...] Applying database migrations...
 call dotnet tool restore
 call dotnet tool run dotnet-ef database update --project src\backend\Hadron.Erp.Api --startup-project src\backend\Hadron.Erp.Api
 if errorlevel 1 (
-  echo [خطا] Migration ناموفق بود. خروجی بالا را بررسی کنید.
+  echo [ERROR] Database migration failed. See the output above.
   pause
   exit /b 1
 )
-echo [OK] دیتابیس به‌روز است.
+echo [OK] Database is up to date.
 
-REM ---------- 6) API روی پورت 5080 ----------
+REM ---------- 6) API on port 5080 ----------
 call :is_open 5080
 if not errorlevel 1 (
-  echo [OK] API از قبل روی پورت 5080 در حال اجراست.
+  echo [OK] The API is already running on port 5080.
   goto api_done
 )
-echo [...] در حال اجرای API در یک پنجره جدا...
+echo [...] Starting the API in a separate window...
 start "Hadron API (5080)" cmd /k dotnet run --project src\backend\Hadron.Erp.Api
 call :wait_port 5080 120
 if errorlevel 1 (
-  echo [خطا] API روی پورت 5080 بالا نیامد. پنجره Hadron API را بررسی کنید.
+  echo [ERROR] The API did not start on port 5080. Check the "Hadron API" window.
   pause
   exit /b 1
 )
-echo [OK] API آماده است: http://localhost:5080
+echo [OK] API is ready: http://localhost:5080
 :api_done
 
-REM ---------- 7) فرانت‌اند روی پورت 5173 ----------
+REM ---------- 7) Frontend on port 5173 ----------
 call :is_open 5173
 if not errorlevel 1 (
-  echo [OK] فرانت‌اند از قبل روی پورت 5173 در حال اجراست.
+  echo [OK] The frontend is already running on port 5173.
   goto frontend_done
 )
-echo [...] در حال اجرای فرانت‌اند در یک پنجره جدا...
+echo [...] Starting the frontend in a separate window...
 start "Hadron Frontend (5173)" /D "src\frontend" cmd /k npm run dev
 call :wait_port 5173 60
 if errorlevel 1 (
-  echo [خطا] فرانت‌اند روی پورت 5173 بالا نیامد. پنجره Hadron Frontend را بررسی کنید.
+  echo [ERROR] The frontend did not start on port 5173. Check the "Hadron Frontend" window.
   pause
   exit /b 1
 )
-echo [OK] فرانت‌اند آماده است: http://127.0.0.1:5173
+echo [OK] Frontend is ready: http://127.0.0.1:5173
 :frontend_done
 
-REM ---------- 8) باز کردن مرورگر ----------
+REM ---------- 8) Open the browser ----------
 start "" http://127.0.0.1:5173
 
 echo.
 echo ============================================================
-echo   همه سرویس‌ها بالا هستند:
+echo   All services are up:
 echo     Frontend : http://127.0.0.1:5173
 echo     API      : http://localhost:5080
 echo     MinIO    : http://127.0.0.1:9001
 echo     Postgres : 127.0.0.1:5432
 echo.
-echo   برای توقف: پنجره‌های Hadron API و Hadron Frontend را ببندید.
-echo   برای توقف کامل Docker هم: docker compose down
+echo   To stop: close the "Hadron API" and "Hadron Frontend" windows.
+echo   To also stop Docker services: docker compose down
 echo ============================================================
 echo.
 pause
 exit /b 0
 
-REM ================= توابع کمکی =================
+REM ================= Helpers =================
 :is_open
 powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', %~1); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
 exit /b %errorlevel%
