@@ -114,10 +114,22 @@ if not exist "src\frontend\node_modules" (
   echo [OK] Frontend dependencies are already installed.
 )
 
-REM ---------- 5) Database migrations ----------
+REM ---------- 5) Build the API, then apply database migrations ----------
+echo [...] Building the API. The first build can take a few minutes...
+dotnet build src\backend\Hadron.Erp.Api --nologo -v minimal
+if errorlevel 1 (
+  echo.
+  echo [ERROR] The API build failed. The compiler errors are printed above.
+  echo         Common causes: NuGet restore needs internet access, or stale
+  echo         build output - delete src\backend\Hadron.Erp.Api\bin and
+  echo         src\backend\Hadron.Erp.Api\obj, then run this file again.
+  pause
+  exit /b 1
+)
+echo [OK] API build succeeded.
 echo [...] Applying database migrations...
 call dotnet tool restore
-call dotnet tool run dotnet-ef database update --project src\backend\Hadron.Erp.Api --startup-project src\backend\Hadron.Erp.Api
+call dotnet tool run dotnet-ef database update --no-build --project src\backend\Hadron.Erp.Api --startup-project src\backend\Hadron.Erp.Api
 if errorlevel 1 (
   echo [ERROR] Database migration failed. See the output above.
   pause
