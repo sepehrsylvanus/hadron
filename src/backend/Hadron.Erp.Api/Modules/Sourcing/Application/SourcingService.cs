@@ -404,6 +404,8 @@ public sealed class SourcingService(IDbContextFactory<HadronDbContext> factory, 
         if (errors.Count > 0) throw new SourcingValidationException(errors);
     }
 
+    private static string? Clean(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
+
     private static void ValidateImageUrl(string? value)
     {
         var imageUrl = Clean(value);
