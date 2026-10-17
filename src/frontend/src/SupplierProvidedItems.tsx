@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { History, Package, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { History, Package, Pencil, Plus, Trash2 } from 'lucide-react'
 import { gregorianToJalaliParts, toPersianDigits } from './i18n/businessDate'
 import { localizedName } from './i18n/localizedName'
 import { structureTypeKey } from './productStructureSupport'
@@ -19,7 +19,6 @@ import {
   updateSupplierProject,
   type SupplierProject,
   type SupplierProjectDraft,
-  type SupplierProjectItemRef,
 } from './supplierProjectsSession'
 
 type UnitRef = { id: string; code: string; nameFa: string; nameEn: string; symbol?: string | null; isActive: boolean }
@@ -91,9 +90,6 @@ function recordToProjectSeed(record: ProvidedItemRecord): Omit<SupplierProject, 
   const jalaliYear = record.since ? String(gregorianToJalaliParts(record.since)?.year ?? '') : ''
   return {
     manualInfo: '',
-    shamsiYear: jalaliYear,
-    orderCount: Math.max(1, record.optionsCount),
-    pieceName: record.item.nameFa,
     productName: record.item.nameFa,
     orderYear: jalaliYear,
     orderRepeat: 1,
@@ -172,8 +168,8 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
     setEditor({
       projectId: project.id,
       draft: {
-        manualInfo: project.manualInfo, shamsiYear: project.shamsiYear, orderCount: project.orderCount,
-        pieceName: project.pieceName, productName: project.productName, orderYear: project.orderYear,
+        manualInfo: project.manualInfo,
+        productName: project.productName, orderYear: project.orderYear,
         orderRepeat: project.orderRepeat, pieceSerial: project.pieceSerial,
         item: project.item ? { ...project.item } : null, status: project.status, demo: project.demo,
       },
@@ -184,7 +180,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
   function saveProject() {
     if (!editor) return
     const draft = editor.draft
-    if (!draft.pieceName.trim() && !draft.item) {
+    if (!draft.productName.trim()) {
       setEditorError(t('suppliers.projects.validation'))
       return
     }
@@ -242,7 +238,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
             </span>
           </div>
           {manualNote(project) !== '' && <span className="supplier-project-card__note">{manualNote(project)}</span>}
-          <span className="supplier-project-card__serial">{t('suppliers.projects.serialLabel')}: <bdi className="ui-technical">{project.pieceSerial || '—'}</bdi></span>
+          {project.pieceSerial.trim() !== '' && <span className="supplier-project-card__serial">{t('suppliers.projects.serialLabel')}: <bdi className="ui-technical">{project.pieceSerial}</bdi></span>}
           <div className="supplier-project-card__foot">
             {project.item
               ? <span className="supplier-supply-chip is-period"><Package aria-hidden="true" />{localizedName(project.item, language)} · <bdi className="ui-technical">{project.item.code}</bdi> · {t(structureTypeKey(project.item.itemType))}</span>
@@ -281,23 +277,11 @@ function ProjectEditorPanel({ editor, displayName, manualNote, localizeDigits, o
     </div>
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
     <div className="ui-form-grid ui-form-grid--3">
-      <FormField label={t('suppliers.projects.manualInfo')}><input value={draft.manualInfo} onChange={event => set({ manualInfo: event.target.value })} /></FormField>
-      <FormField label={t('suppliers.projects.shamsiYear')}><input dir="ltr" inputMode="numeric" value={draft.shamsiYear} onChange={event => set({ shamsiYear: digitsOnly(event.target.value).slice(0, 4) })} /></FormField>
-      <FormField label={t('suppliers.projects.orderCount')}><input dir="ltr" type="number" min="0" value={draft.orderCount} onChange={event => set({ orderCount: numberOr(event.target.value, 0) })} /></FormField>
-      <FormField label={t('suppliers.projects.pieceName')}><input value={draft.pieceName} onChange={event => set({ pieceName: event.target.value })} /></FormField>
       <FormField label={t('suppliers.projects.productName')}><input value={draft.productName} onChange={event => set({ productName: event.target.value })} /></FormField>
       <FormField label={t('suppliers.projects.orderYear')}><input dir="ltr" inputMode="numeric" value={draft.orderYear} onChange={event => set({ orderYear: digitsOnly(event.target.value).slice(0, 4) })} /></FormField>
       <FormField label={t('suppliers.projects.orderRepeat')}><input dir="ltr" type="number" min="0" value={draft.orderRepeat} onChange={event => set({ orderRepeat: numberOr(event.target.value, 0) })} /></FormField>
-      <FormField label={t('suppliers.projects.pieceSerial')}><input dir="ltr" value={draft.pieceSerial} onChange={event => set({ pieceSerial: event.target.value })} /></FormField>
-      <FormField label={t('suppliers.projects.statusLabel')}>
-        <select value={draft.status} onChange={event => set({ status: event.target.value as SupplierProjectDraft['status'] })}>
-          <option value="current">{t('suppliers.projects.current')}</option>
-          <option value="previous">{t('suppliers.projects.previous')}</option>
-        </select>
-      </FormField>
     </div>
-
-    <ProjectItemAssign value={draft.item} onChange={item => set({ item })} />
+    <FormField label={t('suppliers.projects.manualInfo')}><input value={draft.manualInfo} onChange={event => set({ manualInfo: event.target.value })} /></FormField>
 
     <div className="supplier-project-editor__actions">
       <button type="button" className="button button--primary" onClick={onSave}>{t('common.save')}</button>
@@ -308,65 +292,6 @@ function ProjectEditorPanel({ editor, displayName, manualNote, localizeDigits, o
       {onDelete && <button type="button" className="button button--danger supplier-project-editor__delete" onClick={onDelete}><Trash2 aria-hidden="true" />{t('suppliers.projects.deleteProject')}</button>}
     </div>
   </div>
-}
-
-const ITEM_RESOURCES: Record<string, string> = { PRODUCT: 'products', PART: 'parts', COMPONENT: 'components' }
-
-/** Catalog picker: assign one product / part / component to the project. */
-function ProjectItemAssign({ value, onChange }: { value: SupplierProjectItemRef | null; onChange: (item: SupplierProjectItemRef | null) => void }) {
-  const { t, i18n } = useTranslation()
-  const language = i18n.resolvedLanguage ?? i18n.language
-  const [itemType, setItemType] = useState('PRODUCT')
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<SupplierProjectItemRef[]>([])
-  const [searching, setSearching] = useState(false)
-
-  useEffect(() => {
-    if (value) return
-    let active = true
-    const timer = setTimeout(() => {
-      setSearching(true)
-      const query = new URLSearchParams({ page: '1', pageSize: '8', includeInactive: 'false' })
-      if (search.trim()) query.set('search', search.trim())
-      void fetch(`${api}/${ITEM_RESOURCES[itemType]}?${query}`)
-        .then(async response => { if (!response.ok) throw new Error(await problem(response)); return response.json() })
-        .then(body => {
-          if (!active) return
-          const rows = (body.items ?? []) as Array<{ id: string; code: string; nameFa: string; nameEn?: string | null; itemType?: string }>
-          setResults(rows.map(row => ({ id: row.id, code: row.code, nameFa: row.nameFa, nameEn: row.nameEn ?? null, itemType: row.itemType ?? itemType })))
-        })
-        .catch(() => { if (active) setResults([]) })
-        .finally(() => { if (active) setSearching(false) })
-    }, 200)
-    return () => { active = false; clearTimeout(timer) }
-  }, [itemType, search, value])
-
-  return <fieldset className="supplier-project-assign">
-    <legend>{t('suppliers.projects.assignItem')}</legend>
-    {value ? <div className="supplier-project-assign__selected">
-      <Package aria-hidden="true" />
-      <strong>{localizedName(value, language)}</strong>
-      <bdi className="ui-technical">{value.code}</bdi>
-      <span>{t(structureTypeKey(value.itemType))}</span>
-      <button type="button" className="button button--quiet" onClick={() => onChange(null)}><X aria-hidden="true" />{t('suppliers.projects.removeItem')}</button>
-    </div> : <>
-      <div className="supplier-project-assign__controls">
-        <div className="segmented-control" role="group" aria-label={t('suppliers.projects.assignItem')}>
-          {Object.keys(ITEM_RESOURCES).map(type => <button key={type} type="button" className={itemType === type ? 'active' : ''} aria-pressed={itemType === type} onClick={() => setItemType(type)}>{t(structureTypeKey(type))}</button>)}
-        </div>
-        <FormField label={t('common.search')}>
-          <input value={search} placeholder={t('suppliers.projects.itemSearchPlaceholder')} onChange={event => setSearch(event.target.value)} />
-        </FormField>
-      </div>
-      <div className="supplier-project-assign__results">
-        {searching ? <LoadingState label={t('common.loading')} compact /> : results.length === 0
-          ? <span className="supplier-project-assign__empty">{t('common.noResultsTitle')}</span>
-          : results.map(item => <button key={item.id} type="button" className="supplier-project-assign__option" onClick={() => onChange(item)}>
-            <span>{localizedName(item, language)}</span><bdi className="ui-technical">{item.code}</bdi>
-          </button>)}
-      </div>
-    </>}
-  </fieldset>
 }
 
 function toProvidedItemRecord(group: SupplierItemGroup): ProvidedItemRecord {

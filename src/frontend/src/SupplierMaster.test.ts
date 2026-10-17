@@ -178,7 +178,6 @@ test('Supplier supplied items become session projects with the product - year - 
       { item: currentItem, options: [{ isPreferred: true, isActive: true, sourcingNumber: 'SRC-30', imageUrl: null, createdAtUtc: '2024-02-10T08:00:00Z', updatedAtUtc: '2024-02-10T08:00:00Z', totalConfiguredLeadTimeDays: 25 }] },
       { item: pastItem, options: [{ isPreferred: false, isActive: false, sourcingNumber: 'SRC-40', imageUrl: null, createdAtUtc: '2022-04-01T08:00:00Z', updatedAtUtc: '2023-09-15T08:00:00Z', totalConfiguredLeadTimeDays: 10 }] },
     ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
-    if (input.includes('/products?')) return json({ items: [{ id: 'prod-fan', code: 'PROD-100', nameFa: 'پنکه ایستاده', nameEn: 'Standing fan', itemType: 'PRODUCT', isActive: true, baseUnit: unit }], totalCount: 1 })
     throw new Error(`Unexpected request: ${input}`)
   })
   const renderer = await renderProvidedItems('fa-IR', undefined, 'supplier-projects-1')
@@ -189,17 +188,13 @@ test('Supplier supplied items become session projects with the product - year - 
     assert.ok(instanceText(cards()[0]).includes('موتور فن'))
     assert.ok(instanceText(cards()[0]).includes('PART-30'), 'piece serial line must show the item code by default')
 
-    // Create a project manually: separate inputs, one final formatted name.
+    // Create a project manually: product / order year / repeat, manual note below.
     const newButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('پروژه جدید'))!
     await act(async () => newButton.props.onClick())
     const editor = renderer.root.findAll(node => node.props.className === 'supplier-project-editor')[0]
     const inputs = editor.findAllByType('input')
-    for (const [index, value] of ['پروژه خط تولید', '1404', '3', 'پره فن', 'پنکه ایستاده', '1404', '2', 'SN-7788'].entries())
+    for (const [index, value] of ['پنکه ایستاده', '1404', '2', 'پروژه خط تولید'].entries())
       await act(async () => inputs[index].props.onChange({ target: { value } }))
-    await act(async () => new Promise(resolve => setTimeout(resolve, 350)))
-    const option = renderer.root.findAll(node => node.props.className === 'supplier-project-assign__option')[0]
-    assert.ok(option, 'catalog picker must offer products to assign')
-    await act(async () => option.props.onClick())
     assert.ok(renderedText(renderer.toJSON()).includes('پنکه ایستاده - ۱۴۰۴ - ۲'), 'live preview must show the product - order year - repeat name')
     assert.ok(renderedText(renderer.toJSON()).includes('(پروژه خط تولید)'), 'live preview must show the manual info as the parenthesized note below the name')
     const save = renderer.root.findAllByType('button').find(node => instanceText(node) === 'ذخیره')!
@@ -208,8 +203,6 @@ test('Supplier supplied items become session projects with the product - year - 
     const allCurrent = cards().map(card => instanceText(card)).join('\n')
     assert.ok(allCurrent.includes('پنکه ایستاده - ۱۴۰۴ - ۲'), 'saved card must show the product - order year - repeat name')
     assert.ok(allCurrent.includes('(پروژه خط تولید)'), 'saved card must show the manual info note under the name')
-    assert.ok(allCurrent.includes('SN-7788'))
-    assert.ok(allCurrent.includes('PROD-100'))
 
     // Ending the seeded project from its editor moves it to previous projects.
     const seededCard = cards().find(card => instanceText(card).includes('موتور فن'))!

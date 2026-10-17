@@ -26,21 +26,15 @@ export type SupplierProject = {
   supplierId: string
   /** Free-form manual info shown as the parenthesized note under the project name (اطلاعات دستی). */
   manualInfo: string
-  /** Shamsi year recorded on the project, e.g. "1404" (سال شمسی). */
-  shamsiYear: string
-  /** Number of orders (تعداد سفارش). */
-  orderCount: number
-  /** Display name of the piece (نام قطعه). */
-  pieceName: string
   /** Display name of the product; leads the project name (نام محصول). */
   productName: string
   /** Order year shown in the project name (سال سفارش). */
   orderYear: string
   /** Order repeat number (شماره تکرار سفارش). */
   orderRepeat: number
-  /** Piece serial number, shown wrapped on its own line (سریال قطعه). */
+  /** Piece serial carried from the seeded supplied item, shown on the card (سریال قطعه). */
   pieceSerial: string
-  /** Assigned catalog product / part / component, if any. */
+  /** Supplied catalog item the project was seeded from, if any. */
   item: SupplierProjectItemRef | null
   status: SupplierProjectStatus
   /** Seeded demo record (currently only Hadron Plast SUP-0002 history). */
@@ -50,7 +44,7 @@ export type SupplierProject = {
 export type SupplierProjectDraft = Omit<SupplierProject, 'id' | 'supplierId'>
 
 const emptyDraft = (): SupplierProjectDraft => ({
-  manualInfo: '', shamsiYear: '', orderCount: 1, pieceName: '', productName: '',
+  manualInfo: '', productName: '',
   orderYear: '', orderRepeat: 1, pieceSerial: '', item: null, status: 'current',
 })
 
