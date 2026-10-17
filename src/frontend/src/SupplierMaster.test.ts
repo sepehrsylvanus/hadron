@@ -169,7 +169,7 @@ test('Supplier without an API balance gets a clickable fake balance that opens i
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
-test('Supplier supplied items become session projects with the standard name formula', async () => {
+test('Supplier supplied items become session projects with the product - year - repeat name', async () => {
   const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
   const currentItem = { id: 'part-now', code: 'PART-30', nameFa: 'موتور فن', nameEn: 'Fan motor', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
   const pastItem = { id: 'part-before', code: 'PART-40', nameFa: 'تسمه قدیمی', nameEn: 'Legacy belt', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
@@ -200,11 +200,14 @@ test('Supplier supplied items become session projects with the standard name for
     const option = renderer.root.findAll(node => node.props.className === 'supplier-project-assign__option')[0]
     assert.ok(option, 'catalog picker must offer products to assign')
     await act(async () => option.props.onClick())
-    assert.ok(renderedText(renderer.toJSON()).includes('پروژه خط تولید ۱۴۰۴ - ۳ - پره فن-پنکه ایستاده-۱۴۰۴-۲'), 'live preview must show the final formatted name')
+    assert.ok(renderedText(renderer.toJSON()).includes('پنکه ایستاده - ۱۴۰۴ - ۲'), 'live preview must show the product - order year - repeat name')
+    assert.ok(renderedText(renderer.toJSON()).includes('(پروژه خط تولید)'), 'live preview must show the manual info as the parenthesized note below the name')
     const save = renderer.root.findAllByType('button').find(node => instanceText(node) === 'ذخیره')!
     await act(async () => save.props.onClick())
     assert.equal(cards().length, 2)
     const allCurrent = cards().map(card => instanceText(card)).join('\n')
+    assert.ok(allCurrent.includes('پنکه ایستاده - ۱۴۰۴ - ۲'), 'saved card must show the product - order year - repeat name')
+    assert.ok(allCurrent.includes('(پروژه خط تولید)'), 'saved card must show the manual info note under the name')
     assert.ok(allCurrent.includes('SN-7788'))
     assert.ok(allCurrent.includes('PROD-100'))
 

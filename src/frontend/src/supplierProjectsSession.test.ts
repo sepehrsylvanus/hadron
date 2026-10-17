@@ -9,25 +9,27 @@ import {
   resetSupplierProjectsSession,
   setSupplierProjectStatus,
   supplierProjectDisplayName,
+  supplierProjectManualNote,
   supplierProjectsFor,
   updateSupplierProject,
 } from './supplierProjectsSession.ts'
 
 beforeEach(() => resetSupplierProjectsSession())
 
-test('project display name follows the standard formula', () => {
-  const name = supplierProjectDisplayName({
-    manualInfo: 'پروژه خط تولید', shamsiYear: '1404', orderCount: 3,
-    pieceName: 'پره فن', productName: 'پنکه ایستاده', orderYear: '1404', orderRepeat: 2,
-  })
-  assert.equal(name, 'پروژه خط تولید 1404 - 3 - پره فن-پنکه ایستاده-1404-2')
+test('project display name is product - order year - repeat, manual info is the note below', () => {
+  const project = {
+    manualInfo: 'پروژه خط تولید', productName: 'پنکه ایستاده', orderYear: '1404', orderRepeat: 2,
+  }
+  assert.equal(supplierProjectDisplayName(project), 'پنکه ایستاده - 1404 - 2')
+  assert.equal(supplierProjectManualNote(project), '(پروژه خط تولید)')
 
-  // Seeded projects (no manual info yet) still produce a clean name.
-  const seeded = supplierProjectDisplayName({
-    manualInfo: '', shamsiYear: '1402', orderCount: 1,
-    pieceName: 'موتور فن', productName: '', orderYear: '1402', orderRepeat: 1,
-  })
-  assert.equal(seeded, '1402 - 1 - موتور فن-1402-1')
+  // Seeded projects (no manual info yet) get a clean name and no note.
+  const seeded = { manualInfo: '', productName: 'موتور فن', orderYear: '1402', orderRepeat: 1 }
+  assert.equal(supplierProjectDisplayName(seeded), 'موتور فن - 1402 - 1')
+  assert.equal(supplierProjectManualNote(seeded), '')
+
+  // Missing leading parts drop out; the repeat number always closes the name.
+  assert.equal(supplierProjectDisplayName({ productName: '', orderYear: '', orderRepeat: 1 }), '1')
 })
 
 test('projects are created per supplier, edited, ended, and removed in session only', () => {

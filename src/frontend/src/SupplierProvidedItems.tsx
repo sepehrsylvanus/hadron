@@ -14,6 +14,7 @@ import {
   removeSupplierProject,
   subscribeSupplierProjectsSession,
   supplierProjectDisplayName,
+  supplierProjectManualNote,
   supplierProjectsFor,
   updateSupplierProject,
   type SupplierProject,
@@ -93,7 +94,7 @@ function recordToProjectSeed(record: ProvidedItemRecord): Omit<SupplierProject, 
     shamsiYear: jalaliYear,
     orderCount: Math.max(1, record.optionsCount),
     pieceName: record.item.nameFa,
-    productName: record.item.nameEn ?? '',
+    productName: record.item.nameFa,
     orderYear: jalaliYear,
     orderRepeat: 1,
     pieceSerial: record.item.code,
@@ -160,6 +161,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
 
   const localizeDigits = (value: string) => persian ? toPersianDigits(value) : value
   const displayName = (project: SupplierProject) => localizeDigits(supplierProjectDisplayName(project))
+  const manualNote = (project: SupplierProject) => localizeDigits(supplierProjectManualNote(project))
 
   function openNewProject() {
     setEditor({ projectId: null, draft: { ...blankSupplierProjectDraft(), status: view } })
@@ -220,6 +222,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
       {editor && <ProjectEditorPanel
         editor={editor}
         displayName={supplierProjectDisplayName(editor.draft)}
+        manualNote={supplierProjectManualNote(editor.draft)}
         localizeDigits={localizeDigits}
         onChange={draft => { setEditor({ ...editor, draft }); setEditorError('') }}
         onSave={saveProject}
@@ -238,6 +241,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
               <StatusBadge text={t(project.status === 'current' ? 'suppliers.projects.currentBadge' : 'suppliers.projects.endedBadge')} tone={project.status === 'current' ? 'positive' : 'neutral'} />
             </span>
           </div>
+          {manualNote(project) !== '' && <span className="supplier-project-card__note">{manualNote(project)}</span>}
           <span className="supplier-project-card__serial">{t('suppliers.projects.serialLabel')}: <bdi className="ui-technical">{project.pieceSerial || '—'}</bdi></span>
           <div className="supplier-project-card__foot">
             {project.item
@@ -250,9 +254,10 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber }: { 
   </Section>
 }
 
-function ProjectEditorPanel({ editor, displayName, localizeDigits, onChange, onSave, onCancel, onDelete, error }: {
+function ProjectEditorPanel({ editor, displayName, manualNote, localizeDigits, onChange, onSave, onCancel, onDelete, error }: {
   editor: ProjectEditor
   displayName: string
+  manualNote: string
   localizeDigits: (value: string) => string
   onChange: (draft: SupplierProjectDraft) => void
   onSave: () => void
@@ -272,7 +277,7 @@ function ProjectEditorPanel({ editor, displayName, localizeDigits, onChange, onS
   return <div className="supplier-project-editor">
     <div className="supplier-project-editor__head">
       <strong>{t(editor.projectId ? 'suppliers.projects.editProject' : 'suppliers.projects.newProject')}</strong>
-      <span className="supplier-project-editor__preview">{t('suppliers.projects.namePreview')}: <bdi>{displayName ? localizeDigits(displayName) : '—'}</bdi></span>
+      <span className="supplier-project-editor__preview">{t('suppliers.projects.namePreview')}: <bdi>{displayName ? localizeDigits(displayName) : '—'}</bdi>{manualNote && <span className="supplier-project-editor__preview-note"><bdi>{localizeDigits(manualNote)}</bdi></span>}</span>
     </div>
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
     <div className="ui-form-grid ui-form-grid--3">

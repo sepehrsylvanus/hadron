@@ -2,9 +2,10 @@
  * Supplier projects (پروژه‌ها) — session-only, front-end-only for now.
  *
  * A project replaces the plain "supplied item" presentation on a supplier:
- * it has a structured name built from manual inputs
- *   {manual info} {shamsi year} - {order count} - {piece}-{product}-{year}-{repeat}
- * with the piece serial shown on its own line, and one assigned catalog item
+ * its display name is
+ *   {product name} - {order year} - {order repeat}
+ * with the manual info shown as a parenthesized note under the name, the
+ * piece serial on its own line, and one assigned catalog item
  * (product / part / component). Projects live in module memory keyed by
  * supplier: nothing is sent to the backend and a page refresh resets them
  * to the seeded state (the supplier's real supplied items).
@@ -23,17 +24,17 @@ export type SupplierProjectItemRef = {
 export type SupplierProject = {
   id: string
   supplierId: string
-  /** Free-form manual info shown at the start of the project name (اطلاعات دستی). */
+  /** Free-form manual info shown as the parenthesized note under the project name (اطلاعات دستی). */
   manualInfo: string
-  /** Shamsi year shown after the manual info, e.g. "1404". */
+  /** Shamsi year recorded on the project, e.g. "1404" (سال شمسی). */
   shamsiYear: string
   /** Number of orders (تعداد سفارش). */
   orderCount: number
   /** Display name of the piece (نام قطعه). */
   pieceName: string
-  /** Display name of the product (نام محصول). */
+  /** Display name of the product; leads the project name (نام محصول). */
   productName: string
-  /** Year inside the piece-product-year-repeat group. */
+  /** Order year shown in the project name (سال سفارش). */
   orderYear: string
   /** Order repeat number (شماره تکرار سفارش). */
   orderRepeat: number
@@ -58,16 +59,21 @@ export function blankSupplierProjectDraft(): SupplierProjectDraft {
 }
 
 /**
- * Builds the full project display name from its inputs:
- * `{manual} {shamsiYear} - {orderCount} - {piece}-{product}-{orderYear}-{repeat}`.
- * Empty leading parts are skipped so seeded projects still read cleanly.
+ * Builds the project's display name from its inputs:
+ * `{product name} - {order year} - {order repeat}`. Empty leading parts are
+ * skipped so seeded projects still read cleanly; the repeat always closes
+ * the name.
  */
-export function supplierProjectDisplayName(project: Pick<SupplierProject, 'manualInfo' | 'shamsiYear' | 'orderCount' | 'pieceName' | 'productName' | 'orderYear' | 'orderRepeat'>): string {
-  const head = [project.manualInfo.trim(), project.shamsiYear.trim()].filter(Boolean).join(' ')
-  const group = [project.pieceName.trim(), project.productName.trim(), project.orderYear.trim(), String(project.orderRepeat)]
-    .filter((part, index) => part !== '' || index === 3)
-    .join('-')
-  return [head, String(project.orderCount), group].filter(part => part !== '').join(' - ')
+export function supplierProjectDisplayName(project: Pick<SupplierProject, 'productName' | 'orderYear' | 'orderRepeat'>): string {
+  return [project.productName.trim(), project.orderYear.trim(), String(project.orderRepeat)]
+    .filter((part, index) => part !== '' || index === 2)
+    .join(' - ')
+}
+
+/** The manual info as the parenthesized note shown under the name, or '' when blank. */
+export function supplierProjectManualNote(project: Pick<SupplierProject, 'manualInfo'>): string {
+  const note = project.manualInfo.trim()
+  return note === '' ? '' : `(${note})`
 }
 
 export type SupplierProjectsSessionState = {

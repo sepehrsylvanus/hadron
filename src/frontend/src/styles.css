@@ -796,6 +796,7 @@ button.bom-usage-coefficient { cursor: pointer; }
 .supplier-project-card.is-previous { background: #fbfbfc; }
 .supplier-project-card__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
 .supplier-project-card__name { font-size: 15px; line-height: 2; overflow-wrap: anywhere; }
+.supplier-project-card__note { display: block; color: var(--text-secondary); font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
 .supplier-project-card__badges { display: inline-flex; flex: 0 0 auto; flex-wrap: wrap; gap: var(--space-2); }
 .supplier-project-card__serial { color: var(--text-secondary); font-size: 13px; }
 .supplier-project-card__serial .ui-technical { color: var(--text-primary); font-weight: 700; }
@@ -807,6 +808,7 @@ button.bom-usage-coefficient { cursor: pointer; }
 .supplier-project-editor__head strong { font-size: 15px; }
 .supplier-project-editor__preview { color: var(--text-secondary); font-size: 13px; }
 .supplier-project-editor__preview bdi { color: var(--brand-red); font-weight: 800; }
+.supplier-project-editor__preview-note { display: block; }
 .supplier-project-editor__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .supplier-project-editor__actions .button svg { width: 14px; height: 14px; }
 .supplier-project-editor__delete { margin-inline-start: auto; }
