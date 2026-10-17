@@ -16,6 +16,15 @@ test('Trading operational worklists preserve server paging, search, and perspect
   assert.equal(costs.has('status'), false)
 })
 
+test('Trading main page flow lists the six steps in order in both languages', () => {
+  const expected = ['createProject', 'orderRegistrations', 'fxOperations', 'shipments', 'transportStages', 'customs']
+  assert.deepEqual(Object.keys(fa.trading.flow.steps), expected)
+  assert.deepEqual(Object.keys(en.trading.flow.steps), expected)
+  assert.equal(fa.trading.flow.steps.createProject, 'ایجاد پروژه جدید')
+  assert.equal(fa.trading.flow.steps.shipments, 'ثبت و مدیریت محموله‌ها')
+  assert.equal(fa.trading.flow.steps.customs, 'ثبت و مدیریت گمرک و ترخیص')
+})
+
 test('Trading UI names the independent workspace and original-currency reporting in FA and EN', () => {
   assert.equal(fa.tradingWorkspace.title, 'فضای کاری بازرگانی')
   assert.equal(en.tradingWorkspace.title, 'Trading Workspace')

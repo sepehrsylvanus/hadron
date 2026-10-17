@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CircleDollarSign, Container, FileCheck2, FolderKanban, Plus, RefreshCw, Search } from 'lucide-react'
+import { CircleDollarSign, ClipboardList, Container, FileCheck2, Plus, RefreshCw, Search, Truck } from 'lucide-react'
 import { apiRoot } from './apiClient'
 import { useAuth } from './AuthContext'
 import { formatBusinessDate, formatBusinessDateTime } from './i18n/businessDate'
@@ -26,7 +26,6 @@ type Cost = { id: string; scopeType: string; scopeId: string; costType: string; 
 type Audit = { id: string; actorUserId: string; action: string; reason?: string; occurredAtUtc: string }
 type ProjectCapabilities = { canViewOrders: boolean; canViewFx: boolean; canViewShipments: boolean; canViewCustoms: boolean; canViewCosts: boolean; canViewAudit: boolean }
 type ProjectDetail = { project: Project; notes?: string; orderRegistrations: OrderRegistration[]; fxAllocations: Fx[]; shipments: ShipmentLink[]; costs: Cost[]; audit: Audit[]; capabilities: ProjectCapabilities }
-type Overview = { openProjects: number; activeShipments?: number; customsInProgress?: number; criticalProjects: number; recentProjects: Project[]; upcomingShipments: Shipment[] }
 type ProjectContext = { id: string; projectNumber: string; titleFa: string; titleEn?: string }
 type ShipmentWorklist = { items: Array<{ shipment: Shipment; projects: ProjectContext[] }>; page: number; pageSize: number; totalCount: number }
 type CustomsWorklist = { items: Array<{ customs: Customs; shipmentNumber: string; projects: ProjectContext[] }>; page: number; pageSize: number; totalCount: number }
@@ -61,21 +60,47 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
   return response.status === 204 ? undefined as T : response.json() as Promise<T>
 }
 
+const TRADING_FLOW_STEPS = [
+  { key: 'createProject', icon: Plus },
+  { key: 'orderRegistrations', icon: ClipboardList },
+  { key: 'fxOperations', icon: CircleDollarSign },
+  { key: 'shipments', icon: Container },
+  { key: 'transportStages', icon: Truck },
+  { key: 'customs', icon: FileCheck2 },
+] as const
+
 export function TradingOverviewPage() {
   const { t, i18n } = useTranslation(); const language = i18n.resolvedLanguage ?? i18n.language
-  const [data, setData] = useState<Overview | null>(null); const [error, setError] = useState('')
-  const load = useCallback(() => { request<Overview>('/overview').then(value => { setError(''); setData(value) }).catch(e => setError(e.message)) }, [])
-  useEffect(load, [load])
-  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.title')} subtitle={t('trading.subtitle')} actions={<Link className="button button--primary" to="/trading/projects/new"><Plus />{t('trading.newProject')}</Link>} />
-    {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <div className="trading-kpi-grid">
-      <article><FolderKanban /><small>{t('trading.openProjects')}</small><strong>{data?.openProjects ?? '—'}</strong></article>
-      <article><Container /><small>{t('trading.activeShipments')}</small><strong>{data?.activeShipments ?? '—'}</strong></article>
-      <article><FileCheck2 /><small>{t('trading.customsInProgress')}</small><strong>{data?.customsInProgress ?? '—'}</strong></article>
-      <article className="critical"><CircleDollarSign /><small>{t('trading.criticalProjects')}</small><strong>{data?.criticalProjects ?? '—'}</strong></article>
-    </div>
-    <Section title={t('trading.recentProjects')} description={t('trading.singleContextHint')}>
-      <ProjectTable projects={data?.recentProjects ?? []} language={language} loading={!data && !error} />
+  const [activeStep, setActiveStep] = useState(0)
+  const ActiveStepIcon = TRADING_FLOW_STEPS[activeStep].icon
+  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.title')} subtitle={t('trading.subtitle')} />
+    <Section title={t('trading.flow.title')} description={t('trading.flow.description')}>
+      <ol className="trading-flow-steps" aria-label={t('trading.flow.stepsLabel')}>
+        {TRADING_FLOW_STEPS.map((step, index) => {
+          const StepIcon = step.icon
+          return <li key={step.key}>
+            <button type="button" className={`trading-flow-step${index === activeStep ? ' is-active' : ''}${index < activeStep ? ' is-done' : ''}`} aria-current={index === activeStep ? 'step' : undefined} onClick={() => setActiveStep(index)}>
+              <b aria-hidden="true">{number(index + 1, language)}</b>
+              <StepIcon aria-hidden="true" />
+              <span>{t(`trading.flow.steps.${step.key}`)}</span>
+            </button>
+          </li>
+        })}
+      </ol>
+      <div className="trading-flow-panel">
+        <div className="trading-flow-panel__head">
+          <span className="trading-flow-panel__icon"><ActiveStepIcon aria-hidden="true" /></span>
+          <div>
+            <strong>{t(`trading.flow.steps.${TRADING_FLOW_STEPS[activeStep].key}`)}</strong>
+            <small>{t('trading.flow.stepOf', { current: number(activeStep + 1, language), total: number(TRADING_FLOW_STEPS.length, language) })}</small>
+          </div>
+        </div>
+        <p className="trading-flow-panel__placeholder">{t('trading.flow.contentPlaceholder')}</p>
+        <div className="trading-flow-nav">
+          <button type="button" className="button" disabled={activeStep === 0} onClick={() => setActiveStep(step => step - 1)}>{t('common.previous')}</button>
+          <button type="button" className="button button--primary" disabled={activeStep === TRADING_FLOW_STEPS.length - 1} onClick={() => setActiveStep(step => step + 1)}>{t('common.next')}</button>
+        </div>
+      </div>
     </Section>
   </main>
 }

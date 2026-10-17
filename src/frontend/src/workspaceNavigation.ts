@@ -166,11 +166,6 @@ export const administrationNavigationGroups: NavigationGroupDefinition[] = [
 ]
 
 export const tradingNavigationGroups: NavigationGroupDefinition[] = [
-  { labelKey: 'navigation.groups.tradeOperations', items: [
-    { labelKey: 'navigation.items.tradeProjects', path: '/trading/projects', aliases: ['/trading/projects'], icon: 'tradeProjects' },
-    { labelKey: 'navigation.items.tradeShipments', path: '/trading/shipments', icon: 'tradeShipments' },
-    { labelKey: 'navigation.items.tradeCustoms', path: '/trading/customs', icon: 'tradeCustoms' },
-  ] },
   { labelKey: 'navigation.groups.tradeControl', items: [
     { labelKey: 'navigation.items.tradeCosts', path: '/trading/costs', icon: 'tradeCosts' },
     { labelKey: 'navigation.items.tradeReports', path: '/trading/reports', icon: 'tradeReports' },
