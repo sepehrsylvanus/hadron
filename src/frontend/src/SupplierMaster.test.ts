@@ -169,111 +169,83 @@ test('Supplier without an API balance gets a clickable fake balance that opens i
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
-test('Supplier provided parts show a recursive BOM usage tree on hover and no tree for unused parts', async () => {
-  const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
-  const wire = { id: 'part-wire', code: 'PART-10', nameFa: 'سیم مسی', nameEn: 'Copper wire', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
-  const unused = { id: 'part-direct', code: 'PART-20', nameFa: 'برچسب فروش', nameEn: 'Retail label', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
-  const motor = { id: 'component-motor', code: 'COMP-10', nameFa: 'مجموعه موتور', nameEn: 'Motor assembly', itemType: 'COMPONENT', isActive: true, currentBaseUnit: unit }
-  const fan = { id: 'product-fan', code: 'PROD-10', nameFa: 'پنکه', nameEn: 'Ventilation fan', itemType: 'PRODUCT', isActive: true, currentBaseUnit: unit }
-  const calls: string[] = []
-  const restore = installFetch(input => {
-    calls.push(input)
-    if (input.includes('/sourcing-options/tree?')) return json({ items: [
-      { item: wire, options: [{ isPreferred: true, imageUrl: 'https://images.example.test/copper-wire.png' }] },
-      { item: unused, options: [] },
-    ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
-    if (input.includes('/bom-revisions/where-used')) {
-      const itemId = new URL(input, 'http://localhost').searchParams.get('itemId')
-      if (itemId === wire.id) return json({ item: wire, directParents: [{ parentItem: motor, revision: { revisionCode: 'BOM-2' }, relationship: { usageQty: 4, childBaseUnitSnapshot: unit } }], finalProducts: [fan] })
-      if (itemId === motor.id) return json({ item: motor, directParents: [{ parentItem: fan, revision: { revisionCode: 'BOM-5' }, relationship: { usageQty: 1, childBaseUnitSnapshot: unit } }], finalProducts: [fan] })
-      if (itemId === unused.id) return json({ item: unused, directParents: [], finalProducts: [] })
-    }
-    throw new Error(`Unexpected request: ${input}`)
-  })
-  const renderer = await renderProvidedItems('en')
-  try {
-    const rows = renderer.root.findAll(node => node.props.className === 'supplier-provided-item')
-    assert.equal(rows.length, 2)
-    const usedRow = rows.find(row => instanceText(row).includes('Copper wire'))!
-    const unusedRow = rows.find(row => instanceText(row).includes('Retail label'))!
-    assert.equal(usedRow.findByType('img').props.src, 'https://images.example.test/copper-wire.png')
-    assert.equal(unusedRow.findByType('img').props.src, `https://picsum.photos/seed/${unused.id}/640/360`)
-
-    await act(async () => usedRow.props.onMouseEnter())
-    await flush()
-    const text = renderedText(renderer.toJSON())
-    assert.ok(text.includes('Motor assembly'))
-    assert.ok(text.includes('Ventilation fan'))
-    assert.ok(calls.some(input => input.includes('itemId=component-motor')), 'Where-used lookup should continue through intermediate BOM parents')
-
-    await act(async () => usedRow.props.onMouseLeave({ currentTarget: { contains: () => false } }))
-    await act(async () => unusedRow.props.onMouseEnter())
-    await flush()
-    assert.equal(renderer.root.findAll(node => node.props.className === 'supplier-item-usage-popover').length, 0,
-      'A sourced item with no current approved-BOM usage must not show a tree')
-    assert.ok(calls.some(input => input.includes('itemId=part-direct')))
-  } finally { await act(async () => renderer.unmount()); restore() }
-})
-
-test('Supplier provided items history shows what is supplied now and what was supplied before', async () => {
+test('Supplier supplied items become session projects with the standard name formula', async () => {
   const unit = { id: 'unit-each', code: 'EA', nameFa: 'عدد', nameEn: 'Each', symbol: 'ea', isActive: true }
   const currentItem = { id: 'part-now', code: 'PART-30', nameFa: 'موتور فن', nameEn: 'Fan motor', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
   const pastItem = { id: 'part-before', code: 'PART-40', nameFa: 'تسمه قدیمی', nameEn: 'Legacy belt', itemType: 'PART', supplyMethod: 'BUY', isActive: true, baseUnit: unit }
   const restore = installFetch(input => {
-    if (input.includes('/sourcing-options/tree?')) {
-      assert.ok(input.includes('includeInactive=true'), 'supply history needs the inactive sourcing options too')
-      return json({ items: [
-        { item: currentItem, options: [{ isPreferred: true, isActive: true, sourcingNumber: 'SRC-30', imageUrl: 'https://images.example.test/motor.png', createdAtUtc: '2024-02-10T08:00:00Z', updatedAtUtc: '2024-02-10T08:00:00Z', totalConfiguredLeadTimeDays: 25 }] },
-        { item: pastItem, options: [{ isPreferred: false, isActive: false, sourcingNumber: 'SRC-40', imageUrl: null, createdAtUtc: '2022-04-01T08:00:00Z', updatedAtUtc: '2023-09-15T08:00:00Z', totalConfiguredLeadTimeDays: 10 }] },
-      ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
-    }
+    if (input.includes('/sourcing-options/tree?')) return json({ items: [
+      { item: currentItem, options: [{ isPreferred: true, isActive: true, sourcingNumber: 'SRC-30', imageUrl: null, createdAtUtc: '2024-02-10T08:00:00Z', updatedAtUtc: '2024-02-10T08:00:00Z', totalConfiguredLeadTimeDays: 25 }] },
+      { item: pastItem, options: [{ isPreferred: false, isActive: false, sourcingNumber: 'SRC-40', imageUrl: null, createdAtUtc: '2022-04-01T08:00:00Z', updatedAtUtc: '2023-09-15T08:00:00Z', totalConfiguredLeadTimeDays: 10 }] },
+    ], page: 1, pageSize: 100, totalItemCount: 2, totalOptionCount: 2 })
+    if (input.includes('/products?')) return json({ items: [{ id: 'prod-fan', code: 'PROD-100', nameFa: 'پنکه ایستاده', nameEn: 'Standing fan', itemType: 'PRODUCT', isActive: true, baseUnit: unit }], totalCount: 1 })
     throw new Error(`Unexpected request: ${input}`)
   })
-  const renderer = await renderProvidedItems('fa-IR')
+  const renderer = await renderProvidedItems('fa-IR', undefined, 'supplier-projects-1')
   try {
-    // The default view only lists what the supplier provides right now.
-    const currentRows = renderer.root.findAll(node => node.props.className === 'supplier-provided-item')
-    assert.equal(currentRows.length, 1)
-    assert.ok(instanceText(currentRows[0]).includes('موتور فن'))
+    const cards = () => renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-project-card'))
+    assert.ok(renderedText(renderer.toJSON()).includes('پروژه‌ها'), 'section must be titled Projects')
+    assert.equal(cards().length, 1, 'one current project is seeded from the supplied items')
+    assert.ok(instanceText(cards()[0]).includes('موتور فن'))
+    assert.ok(instanceText(cards()[0]).includes('PART-30'), 'piece serial line must show the item code by default')
 
-    const historyTab = renderer.root.findAllByType('button').find(node => instanceText(node).includes('تاریخچه تأمین'))!
-    assert.ok(historyTab, 'history tab must be offered')
-    await act(async () => historyTab.props.onClick())
-    const text = renderedText(renderer.toJSON())
-    for (const expected of ['موتور فن', 'تسمه قدیمی', 'در حال تأمین', 'پایان‌یافته', 'تاکنون', 'SRC-30', 'SRC-40', 'قلم در سوابق قبلی'])
-      assert.ok(text.includes(expected), `Expected history text: ${expected}\n${text}`)
-    assert.doesNotMatch(text, /20\d{2}-\d{2}-\d{2}/, 'Persian history must not show Gregorian dates')
-    const entries = renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry'))
-    assert.equal(entries.length, 2)
+    // Create a project manually: separate inputs, one final formatted name.
+    const newButton = renderer.root.findAllByType('button').find(node => instanceText(node).includes('پروژه جدید'))!
+    await act(async () => newButton.props.onClick())
+    const editor = renderer.root.findAll(node => node.props.className === 'supplier-project-editor')[0]
+    const inputs = editor.findAllByType('input')
+    for (const [index, value] of ['پروژه خط تولید', '1404', '3', 'پره فن', 'پنکه ایستاده', '1404', '2', 'SN-7788'].entries())
+      await act(async () => inputs[index].props.onChange({ target: { value } }))
+    await act(async () => new Promise(resolve => setTimeout(resolve, 350)))
+    const option = renderer.root.findAll(node => node.props.className === 'supplier-project-assign__option')[0]
+    assert.ok(option, 'catalog picker must offer products to assign')
+    await act(async () => option.props.onClick())
+    assert.ok(renderedText(renderer.toJSON()).includes('پروژه خط تولید ۱۴۰۴ - ۳ - پره فن-پنکه ایستاده-۱۴۰۴-۲'), 'live preview must show the final formatted name')
+    const save = renderer.root.findAllByType('button').find(node => instanceText(node) === 'ذخیره')!
+    await act(async () => save.props.onClick())
+    assert.equal(cards().length, 2)
+    const allCurrent = cards().map(card => instanceText(card)).join('\n')
+    assert.ok(allCurrent.includes('SN-7788'))
+    assert.ok(allCurrent.includes('PROD-100'))
+
+    // Ending the seeded project from its editor moves it to previous projects.
+    const seededCard = cards().find(card => instanceText(card).includes('موتور فن'))!
+    await act(async () => seededCard.findAllByType('button').find(node => instanceText(node).includes('ویرایش'))!.props.onClick())
+    await act(async () => renderer.root.findAllByType('button').find(node => instanceText(node).includes('پایان پروژه'))!.props.onClick())
+    await act(async () => renderer.root.findAllByType('button').find(node => instanceText(node) === 'ذخیره')!.props.onClick())
+    const previousCards = cards().map(card => instanceText(card)).join('\n')
+    assert.equal(cards().length, 2, 'ended project plus the previously supplied item')
+    assert.ok(previousCards.includes('موتور فن'))
+    assert.ok(previousCards.includes('تسمه قدیمی'))
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
-test('Hadron Plast (SUP-0002) shows clearly-badged demo items in its supply history', async () => {
+test('Hadron Plast (SUP-0002) shows clearly-badged demo records in its previous projects', async () => {
   const restore = installFetch(input => {
     if (input.includes('/sourcing-options/tree?')) return json({ items: [], page: 1, pageSize: 100, totalItemCount: 0, totalOptionCount: 0 })
     throw new Error(`Unexpected request: ${input}`)
   })
-  const renderer = await renderProvidedItems('fa-IR', 'SUP-0002')
+  const renderer = await renderProvidedItems('fa-IR', 'SUP-0002', 'supplier-demo-1')
   try {
-    const historyTab = renderer.root.findAllByType('button').find(node => instanceText(node).includes('تاریخچه تأمین'))!
-    assert.ok(historyTab, 'demo records must make the history view reachable')
+    const historyTab = renderer.root.findAllByType('button').find(node => instanceText(node).includes('پروژه‌های قبلی'))!
+    assert.ok(historyTab, 'demo records must make the previous projects view reachable')
     await act(async () => historyTab.props.onClick())
     const text = renderedText(renderer.toJSON())
     for (const expected of ['گرانول پلی‌اتیلن سبک', 'مستربچ رنگی مشکی', 'رزین PVC گرید S65', 'فیلم استرچ بسته‌بندی', 'داده نمایشی', 'پایان‌یافته'])
       assert.ok(text.includes(expected), `Expected demo history text: ${expected}\n${text}`)
-    const entries = renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry'))
+    const entries = renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-project-card'))
     assert.equal(entries.length, 4)
   } finally { await act(async () => renderer.unmount()); restore() }
 })
 
-test('Other suppliers get no demo supply history', async () => {
+test('Other suppliers get no demo projects', async () => {
   const restore = installFetch(input => {
     if (input.includes('/sourcing-options/tree?')) return json({ items: [], page: 1, pageSize: 100, totalItemCount: 0, totalOptionCount: 0 })
     throw new Error(`Unexpected request: ${input}`)
   })
-  const renderer = await renderProvidedItems('fa-IR', 'SUP-0007')
+  const renderer = await renderProvidedItems('fa-IR', 'SUP-0007', 'supplier-demo-2')
   try {
-    assert.equal(renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-supply-entry')).length, 0)
+    assert.equal(renderer.root.findAll(node => node.type === 'li' && typeof node.props.className === 'string' && node.props.className.startsWith('supplier-project-card')).length, 0)
     assert.ok(!renderedText(renderer.toJSON()).includes('گرانول پلی‌اتیلن سبک'))
   } finally { await act(async () => renderer.unmount()); restore() }
 })
@@ -385,7 +357,7 @@ async function render(view: 'list' | 'people' | 'object', language: 'fa-IR' | 'e
   return renderer
 }
 
-async function renderProvidedItems(language: 'fa-IR' | 'en', supplierNumber?: string) {
+async function renderProvidedItems(language: 'fa-IR' | 'en', supplierNumber?: string, supplierId = 'supplier-1') {
   const translation = await translations(language)
   await component()
   ProvidedItemsModule ??= await server!.ssrLoadModule('/src/SupplierProvidedItems.tsx') as typeof import('./SupplierProvidedItems.tsx')
@@ -393,7 +365,7 @@ async function renderProvidedItems(language: 'fa-IR' | 'en', supplierNumber?: st
   await act(async () => {
     renderer = create(React.createElement(I18nextProvider, { i18n: translation },
       React.createElement(MemoryRouter, null,
-        React.createElement(ProvidedItemsModule!.default, { supplierId: 'supplier-1', supplierNumber, canViewBom: true }))))
+        React.createElement(ProvidedItemsModule!.default, { supplierId, supplierNumber }))))
   })
   await flush()
   return renderer

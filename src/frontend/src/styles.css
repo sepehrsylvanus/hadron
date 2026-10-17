@@ -785,6 +785,41 @@ button.bom-usage-coefficient { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .bom-version-entry.is-active .bom-version-entry__node { animation: none; }
 }
+/* Supplier projects (session-only): formatted project names + editor */
+.supplier-projects { display: grid; gap: var(--space-4); }
+.supplier-projects-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.supplier-projects-actions .button svg { width: 15px; height: 15px; }
+.supplier-projects-note { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid #ead49b; border-inline-start: 3px solid #b98000; border-radius: var(--radius-sm); background: #fff9e9; color: #725000; font-size: 12.5px; line-height: 1.9; }
+.supplier-projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.supplier-project-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: #fff; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.supplier-project-card:hover { transform: translateY(-1px); border-color: #edb9bf; box-shadow: 0 10px 26px rgb(30 27 28 / 9%); }
+.supplier-project-card.is-previous { background: #fbfbfc; }
+.supplier-project-card__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.supplier-project-card__name { font-size: 15px; line-height: 2; overflow-wrap: anywhere; }
+.supplier-project-card__badges { display: inline-flex; flex: 0 0 auto; flex-wrap: wrap; gap: var(--space-2); }
+.supplier-project-card__serial { color: var(--text-secondary); font-size: 13px; }
+.supplier-project-card__serial .ui-technical { color: var(--text-primary); font-weight: 700; }
+.supplier-project-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+.supplier-project-card__edit { margin-inline-start: auto; }
+.supplier-project-card__edit svg { width: 14px; height: 14px; }
+.supplier-project-editor { display: grid; gap: var(--space-4); padding: var(--space-4); border: 1px solid #edb9bf; border-radius: var(--radius-md); background: #fffafa; }
+.supplier-project-editor__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.supplier-project-editor__head strong { font-size: 15px; }
+.supplier-project-editor__preview { color: var(--text-secondary); font-size: 13px; }
+.supplier-project-editor__preview bdi { color: var(--brand-red); font-weight: 800; }
+.supplier-project-editor__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.supplier-project-editor__actions .button svg { width: 14px; height: 14px; }
+.supplier-project-editor__delete { margin-inline-start: auto; }
+.supplier-project-assign { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: #fff; }
+.supplier-project-assign legend { padding: 0 var(--space-2); color: var(--text-secondary); font-size: 13px; font-weight: 700; }
+.supplier-project-assign__selected { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.supplier-project-assign__selected svg { width: 17px; height: 17px; color: var(--brand-red); }
+.supplier-project-assign__controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.supplier-project-assign__controls .ui-form-field { flex: 1 1 220px; }
+.supplier-project-assign__results { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.supplier-project-assign__option { display: inline-flex; align-items: center; gap: var(--space-2); padding: 7px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: #fff; color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.supplier-project-assign__option:hover { border-color: var(--brand-red); background: #fff5f6; }
+.supplier-project-assign__empty { color: var(--text-muted); font-size: 13px; }
 /* Supplier financial balance — clickable total + slide-over statement */
 .supplier-balance-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); max-width: 100%; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
 .supplier-balance-button svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand-red); opacity: 0; transition: opacity .16s ease; }

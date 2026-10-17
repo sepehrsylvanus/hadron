@@ -374,7 +374,24 @@ const en = {
   suppliers: {
     title: 'Suppliers', subtitle: 'Master data, contacts, and default payment profile', new: 'New supplier', supplier: 'Supplier',
     searchPlaceholder: 'Number or name', country: 'Country', geographicScope: 'Geographic scope', domestic: 'Domestic', foreign: 'Foreign', owner: 'Internal owner', financialBalance: 'Financial balance', providedItems: 'Provided items', providedItemsHint: 'Active items linked to this supplier through sourcing relationships.', providedItemsHoverHint: 'Hover over an item to see its BOM usage path.', noProvidedItems: 'No active sourcing items are registered for this supplier.',
-    providedHistory: {
+    projects: {
+      title: 'Projects',
+      description: 'Projects of this supplier; assign a product, part, or component to each project and its name is built with the standard formula.',
+      viewLabel: 'Projects view', current: 'Current projects', previous: 'Previous projects',
+      currentBadge: 'Current', endedBadge: 'Ended',
+      newProject: 'New project', editProject: 'Edit project',
+      namePreview: 'Final project name',
+      manualInfo: 'Manual info', shamsiYear: 'Shamsi year', orderCount: 'Order count',
+      pieceName: 'Piece name', productName: 'Product name', orderYear: 'Order year', orderRepeat: 'Order repeat no.',
+      pieceSerial: 'Piece serial', serialLabel: 'Piece serial', statusLabel: 'Project status',
+      assignItem: 'Assign product / part / component', itemSearchPlaceholder: 'Search item name or code…',
+      noItemAssigned: 'No item assigned', removeItem: 'Remove assignment',
+      endProject: 'End project', reactivateProject: 'Back to current', deleteProject: 'Delete project',
+      emptyCurrent: 'No current project is registered for this supplier.', emptyPrevious: 'No previous project is registered for this supplier.',
+      validation: 'To save the project, enter a piece name or assign a product/part/component.',
+      sessionNote: 'Projects are currently kept only in this session; nothing is sent to the server, and a page refresh restores the initial state (supplied items).',
+    },
+        providedHistory: {
       viewLabel: 'Supply view', current: 'Currently supplying', history: 'Supply history',
       ongoing: 'Currently supplying', ended: 'Ended', present: 'Present',
       currentCount: '{{count}} items currently supplied', pastCount: '{{count}} items in history',

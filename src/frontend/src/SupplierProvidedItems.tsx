@@ -1,13 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
-import { Boxes, CalendarRange, GitBranch, History, Star, Truck } from 'lucide-react'
-import { formatBusinessDate } from './i18n/businessDate'
-import { formatOperationalNumber } from './i18n/numberFormatting'
+import { History, Package, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { gregorianToJalaliParts, toPersianDigits } from './i18n/businessDate'
 import { localizedName } from './i18n/localizedName'
-import { structureItemRoute, structureTypeKey } from './productStructureSupport'
+import { structureTypeKey } from './productStructureSupport'
 import { tehranTodayIso } from './cashFlowUi'
-import { EmptyState, LoadingState, MessageStrip, Section, StatusBadge } from './ui'
+import { EmptyState, FormField, LoadingState, MessageStrip, Section, StatusBadge } from './ui'
+import {
+  addSupplierProject,
+  blankSupplierProjectDraft,
+  ensureSupplierProjects,
+  getSupplierProjectsSessionState,
+  removeSupplierProject,
+  subscribeSupplierProjectsSession,
+  supplierProjectDisplayName,
+  supplierProjectsFor,
+  updateSupplierProject,
+  type SupplierProject,
+  type SupplierProjectDraft,
+  type SupplierProjectItemRef,
+} from './supplierProjectsSession'
 
 type UnitRef = { id: string; code: string; nameFa: string; nameEn: string; symbol?: string | null; isActive: boolean }
 type SuppliedItem = { id: string; code: string; nameFa: string; nameEn?: string | null; itemType: string; supplyMethod: string; isActive: boolean; baseUnit: UnitRef }
@@ -21,12 +33,13 @@ type SupplierSourcingOption = {
   totalConfiguredLeadTimeDays?: number | null
 }
 type SupplierItemGroup = { item: SuppliedItem; options?: SupplierSourcingOption[] }
+type SupplierItemsPage = { items: SupplierItemGroup[]; totalItemCount: number }
 
 /**
  * One supplied item with its sourcing history: an item counts as currently
  * supplied while at least one of its sourcing options is active; when every
- * option has been deactivated it becomes supply history (previously
- * produced/supplied for us). Periods come from the real option timestamps.
+ * option has been deactivated it becomes supply history. These records seed
+ * the supplier's session projects (see supplierProjectsSession).
  */
 type ProvidedItemRecord = {
   item: SuppliedItem
@@ -41,16 +54,10 @@ type ProvidedItemRecord = {
   /** True for the clearly-labelled demo history of one showcase supplier. */
   demo?: boolean
 }
-type SupplierItemsPage = { items: SupplierItemGroup[]; totalItemCount: number }
-type SupplierProvidedItem = SuppliedItem & { imageUrl: string }
-type WhereUsedItem = { id: string; code: string; nameFa: string; nameEn?: string | null; itemType: string; isActive: boolean; currentBaseUnit: UnitRef }
-type UsageRelationship = { usageQty: number; childBaseUnitSnapshot: UnitRef }
-type WhereUsedParent = { parentItem: WhereUsedItem; revision: { revisionCode: string }; relationship: UsageRelationship }
-type WhereUsedResponse = { directParents: WhereUsedParent[] }
-type UsageTreeNode = { item: SuppliedItem | WhereUsedItem; revisionCode?: string; relationship?: UsageRelationship; children: UsageTreeNode[] }
-type UsageStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 
 const api = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
+const pageSize = 100
+const picsumImageUrl = (itemId: string) => `https://picsum.photos/seed/${encodeURIComponent(itemId)}/640/360`
 
 /**
  * Demo supply history exists for exactly one showcase supplier —
@@ -77,15 +84,37 @@ function demoSupplyHistoryRecords(supplierNumber?: string): ProvidedItemRecord[]
     make('demo-history-stretch-film', 'PK-3310', 'فیلم استرچ بسته‌بندی', 'Stretch packaging film', demoEachUnit, '2023-03-12', '2025-01-08', 'SRC-1420', false),
   ]
 }
-const pageSize = 100
-const picsumImageUrl = (itemId: string) => `https://picsum.photos/seed/${encodeURIComponent(itemId)}/640/360`
 
-export default function SupplierProvidedItems({ supplierId, supplierNumber, canViewBom }: { supplierId: string; supplierNumber?: string; canViewBom: boolean }) {
-  const { t } = useTranslation()
-  const [records, setRecords] = useState<ProvidedItemRecord[]>([])
+/** Converts a real supplied-item record into a seeded session project. */
+function recordToProjectSeed(record: ProvidedItemRecord): Omit<SupplierProject, 'id' | 'supplierId'> {
+  const jalaliYear = record.since ? String(gregorianToJalaliParts(record.since)?.year ?? '') : ''
+  return {
+    manualInfo: '',
+    shamsiYear: jalaliYear,
+    orderCount: Math.max(1, record.optionsCount),
+    pieceName: record.item.nameFa,
+    productName: record.item.nameEn ?? '',
+    orderYear: jalaliYear,
+    orderRepeat: 1,
+    pieceSerial: record.item.code,
+    item: { id: record.item.id, code: record.item.code, nameFa: record.item.nameFa, nameEn: record.item.nameEn ?? null, itemType: record.item.itemType },
+    status: record.state === 'current' ? 'current' : 'previous',
+    demo: record.demo,
+  }
+}
+
+type ProjectEditor = { projectId: string | null; draft: SupplierProjectDraft }
+
+export default function SupplierProvidedItems({ supplierId, supplierNumber }: { supplierId: string; supplierNumber?: string }) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const persian = !language.toLowerCase().startsWith('en')
+  const session = useSyncExternalStore(subscribeSupplierProjectsSession, getSupplierProjectsSessionState, getSupplierProjectsSessionState)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [view, setView] = useState<'current' | 'history'>('current')
+  const [view, setView] = useState<'current' | 'previous'>('current')
+  const [editor, setEditor] = useState<ProjectEditor | null>(null)
+  const [editorError, setEditorError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -94,7 +123,7 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber, canV
       setError('')
       try {
         // includeInactive=true so deactivated sourcing options (the real
-        // supply history) arrive next to the currently active ones.
+        // supply history) seed previous projects next to current ones.
         const loaded: ProvidedItemRecord[] = []
         const evaluationDate = tehranTodayIso()
         let page = 1
@@ -111,7 +140,9 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber, canV
           pageCount = Math.max(1, Math.ceil(body.totalItemCount / pageSize))
           page++
         } while (page <= pageCount)
-        if (active) setRecords([...loaded, ...demoSupplyHistoryRecords(supplierNumber)])
+        if (active) {
+          ensureSupplierProjects(supplierId, [...loaded, ...demoSupplyHistoryRecords(supplierNumber)].map(recordToProjectSeed))
+        }
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : t('common.error'))
       } finally {
@@ -122,25 +153,215 @@ export default function SupplierProvidedItems({ supplierId, supplierNumber, canV
     return () => { active = false }
   }, [supplierId, supplierNumber, t])
 
-  const currentItems = records.filter(record => record.state === 'current')
-  const description = [t('suppliers.providedItemsHint'), ...(canViewBom ? [t('suppliers.providedItemsHoverHint')] : [])].join(' ')
-  const toggle = records.length > 0 ? <div className="supplier-provided-toggle" role="tablist" aria-label={t('suppliers.providedHistory.viewLabel')}>
-    <button type="button" role="tab" aria-selected={view === 'current'} className={`supplier-provided-toggle__button${view === 'current' ? ' is-active' : ''}`} onClick={() => setView('current')}>
-      <span className="supplier-provided-toggle__dot is-live" aria-hidden="true" />{t('suppliers.providedHistory.current')}<span className="supplier-provided-toggle__count">{currentItems.length}</span>
-    </button>
-    <button type="button" role="tab" aria-selected={view === 'history'} className={`supplier-provided-toggle__button${view === 'history' ? ' is-active' : ''}`} onClick={() => setView('history')}>
-      <History aria-hidden="true" />{t('suppliers.providedHistory.history')}<span className="supplier-provided-toggle__count">{records.length}</span>
-    </button>
-  </div> : undefined
+  const projects = supplierProjectsFor(session, supplierId)
+  const currentProjects = projects.filter(project => project.status === 'current')
+  const previousProjects = projects.filter(project => project.status === 'previous')
+  const visibleProjects = view === 'current' ? currentProjects : previousProjects
 
-  return <Section title={t('suppliers.providedItems')} description={description} actions={toggle}>
-    {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    {loading ? <LoadingState label={t('common.loading')} compact /> : view === 'history'
-      ? <SupplierSupplyHistory records={records} />
-      : currentItems.length === 0
-        ? <EmptyState title={t('suppliers.noProvidedItems')} compact />
-        : <ul className="supplier-provided-items">{currentItems.map(record => <SupplierProvidedItem key={record.item.id} item={{ ...record.item, imageUrl: record.imageUrl }} canViewBom={canViewBom} />)}</ul>}
+  const localizeDigits = (value: string) => persian ? toPersianDigits(value) : value
+  const displayName = (project: SupplierProject) => localizeDigits(supplierProjectDisplayName(project))
+
+  function openNewProject() {
+    setEditor({ projectId: null, draft: { ...blankSupplierProjectDraft(), status: view } })
+    setEditorError('')
+  }
+
+  function openEditProject(project: SupplierProject) {
+    setEditor({
+      projectId: project.id,
+      draft: {
+        manualInfo: project.manualInfo, shamsiYear: project.shamsiYear, orderCount: project.orderCount,
+        pieceName: project.pieceName, productName: project.productName, orderYear: project.orderYear,
+        orderRepeat: project.orderRepeat, pieceSerial: project.pieceSerial,
+        item: project.item ? { ...project.item } : null, status: project.status, demo: project.demo,
+      },
+    })
+    setEditorError('')
+  }
+
+  function saveProject() {
+    if (!editor) return
+    const draft = editor.draft
+    if (!draft.pieceName.trim() && !draft.item) {
+      setEditorError(t('suppliers.projects.validation'))
+      return
+    }
+    if (editor.projectId) updateSupplierProject(supplierId, editor.projectId, draft)
+    else addSupplierProject(supplierId, draft)
+    setView(draft.status)
+    setEditor(null)
+    setEditorError('')
+  }
+
+  function deleteProject() {
+    if (!editor?.projectId) return
+    removeSupplierProject(supplierId, editor.projectId)
+    setEditor(null)
+  }
+
+  const toggle = <div className="supplier-projects-actions">
+    <div className="supplier-provided-toggle" role="tablist" aria-label={t('suppliers.projects.viewLabel')}>
+      <button type="button" role="tab" aria-selected={view === 'current'} className={`supplier-provided-toggle__button${view === 'current' ? ' is-active' : ''}`} onClick={() => setView('current')}>
+        <span className="supplier-provided-toggle__dot is-live" aria-hidden="true" />{t('suppliers.projects.current')}<span className="supplier-provided-toggle__count">{currentProjects.length}</span>
+      </button>
+      <button type="button" role="tab" aria-selected={view === 'previous'} className={`supplier-provided-toggle__button${view === 'previous' ? ' is-active' : ''}`} onClick={() => setView('previous')}>
+        <History aria-hidden="true" />{t('suppliers.projects.previous')}<span className="supplier-provided-toggle__count">{previousProjects.length}</span>
+      </button>
+    </div>
+    <button type="button" className="button button--primary" onClick={openNewProject}><Plus aria-hidden="true" />{t('suppliers.projects.newProject')}</button>
+  </div>
+
+  return <Section title={t('suppliers.projects.title')} description={t('suppliers.projects.description')} actions={toggle}>
+    <div className="supplier-projects">
+      <p className="supplier-projects-note" role="note">{t('suppliers.projects.sessionNote')}</p>
+      {projects.some(project => project.demo) && <p className="supplier-supply-demo-note" role="note">{t('suppliers.providedHistory.demoNotice')}</p>}
+      {error && <MessageStrip tone="critical">{error}</MessageStrip>}
+
+      {editor && <ProjectEditorPanel
+        editor={editor}
+        displayName={supplierProjectDisplayName(editor.draft)}
+        localizeDigits={localizeDigits}
+        onChange={draft => { setEditor({ ...editor, draft }); setEditorError('') }}
+        onSave={saveProject}
+        onCancel={() => setEditor(null)}
+        onDelete={editor.projectId ? deleteProject : undefined}
+        error={editorError}
+      />}
+
+      {loading && projects.length === 0 ? <LoadingState label={t('common.loading')} compact /> : visibleProjects.length === 0
+        ? <EmptyState title={t(view === 'current' ? 'suppliers.projects.emptyCurrent' : 'suppliers.projects.emptyPrevious')} compact />
+        : <ul className="supplier-projects-grid">{visibleProjects.map(project => <li key={project.id} className={`supplier-project-card${project.status === 'previous' ? ' is-previous' : ''}`}>
+          <div className="supplier-project-card__head">
+            <strong className="supplier-project-card__name">{displayName(project)}</strong>
+            <span className="supplier-project-card__badges">
+              {project.demo && <span className="supplier-supply-chip is-demo">{t('suppliers.providedHistory.demoBadge')}</span>}
+              <StatusBadge text={t(project.status === 'current' ? 'suppliers.projects.currentBadge' : 'suppliers.projects.endedBadge')} tone={project.status === 'current' ? 'positive' : 'neutral'} />
+            </span>
+          </div>
+          <span className="supplier-project-card__serial">{t('suppliers.projects.serialLabel')}: <bdi className="ui-technical">{project.pieceSerial || '—'}</bdi></span>
+          <div className="supplier-project-card__foot">
+            {project.item
+              ? <span className="supplier-supply-chip is-period"><Package aria-hidden="true" />{localizedName(project.item, language)} · <bdi className="ui-technical">{project.item.code}</bdi> · {t(structureTypeKey(project.item.itemType))}</span>
+              : <span className="supplier-supply-chip">{t('suppliers.projects.noItemAssigned')}</span>}
+            <button type="button" className="button button--quiet supplier-project-card__edit" onClick={() => openEditProject(project)}><Pencil aria-hidden="true" />{t('common.edit')}</button>
+          </div>
+        </li>)}</ul>}
+    </div>
   </Section>
+}
+
+function ProjectEditorPanel({ editor, displayName, localizeDigits, onChange, onSave, onCancel, onDelete, error }: {
+  editor: ProjectEditor
+  displayName: string
+  localizeDigits: (value: string) => string
+  onChange: (draft: SupplierProjectDraft) => void
+  onSave: () => void
+  onCancel: () => void
+  onDelete?: () => void
+  error: string
+}) {
+  const { t } = useTranslation()
+  const draft = editor.draft
+  const set = (patch: Partial<SupplierProjectDraft>) => onChange({ ...draft, ...patch })
+  const digitsOnly = (value: string) => value.replace(/[^0-9]/g, '')
+  const numberOr = (value: string, fallback: number) => {
+    const parsed = Number.parseInt(value, 10)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
+  }
+
+  return <div className="supplier-project-editor">
+    <div className="supplier-project-editor__head">
+      <strong>{t(editor.projectId ? 'suppliers.projects.editProject' : 'suppliers.projects.newProject')}</strong>
+      <span className="supplier-project-editor__preview">{t('suppliers.projects.namePreview')}: <bdi>{displayName ? localizeDigits(displayName) : '—'}</bdi></span>
+    </div>
+    {error && <MessageStrip tone="critical">{error}</MessageStrip>}
+    <div className="ui-form-grid ui-form-grid--3">
+      <FormField label={t('suppliers.projects.manualInfo')}><input value={draft.manualInfo} onChange={event => set({ manualInfo: event.target.value })} /></FormField>
+      <FormField label={t('suppliers.projects.shamsiYear')}><input dir="ltr" inputMode="numeric" value={draft.shamsiYear} onChange={event => set({ shamsiYear: digitsOnly(event.target.value).slice(0, 4) })} /></FormField>
+      <FormField label={t('suppliers.projects.orderCount')}><input dir="ltr" type="number" min="0" value={draft.orderCount} onChange={event => set({ orderCount: numberOr(event.target.value, 0) })} /></FormField>
+      <FormField label={t('suppliers.projects.pieceName')}><input value={draft.pieceName} onChange={event => set({ pieceName: event.target.value })} /></FormField>
+      <FormField label={t('suppliers.projects.productName')}><input value={draft.productName} onChange={event => set({ productName: event.target.value })} /></FormField>
+      <FormField label={t('suppliers.projects.orderYear')}><input dir="ltr" inputMode="numeric" value={draft.orderYear} onChange={event => set({ orderYear: digitsOnly(event.target.value).slice(0, 4) })} /></FormField>
+      <FormField label={t('suppliers.projects.orderRepeat')}><input dir="ltr" type="number" min="0" value={draft.orderRepeat} onChange={event => set({ orderRepeat: numberOr(event.target.value, 0) })} /></FormField>
+      <FormField label={t('suppliers.projects.pieceSerial')}><input dir="ltr" value={draft.pieceSerial} onChange={event => set({ pieceSerial: event.target.value })} /></FormField>
+      <FormField label={t('suppliers.projects.statusLabel')}>
+        <select value={draft.status} onChange={event => set({ status: event.target.value as SupplierProjectDraft['status'] })}>
+          <option value="current">{t('suppliers.projects.current')}</option>
+          <option value="previous">{t('suppliers.projects.previous')}</option>
+        </select>
+      </FormField>
+    </div>
+
+    <ProjectItemAssign value={draft.item} onChange={item => set({ item })} />
+
+    <div className="supplier-project-editor__actions">
+      <button type="button" className="button button--primary" onClick={onSave}>{t('common.save')}</button>
+      <button type="button" className="button" onClick={onCancel}>{t('common.cancel')}</button>
+      {editor.projectId && (draft.status === 'current'
+        ? <button type="button" className="button button--quiet" onClick={() => set({ status: 'previous' })}>{t('suppliers.projects.endProject')}</button>
+        : <button type="button" className="button button--quiet" onClick={() => set({ status: 'current' })}>{t('suppliers.projects.reactivateProject')}</button>)}
+      {onDelete && <button type="button" className="button button--danger supplier-project-editor__delete" onClick={onDelete}><Trash2 aria-hidden="true" />{t('suppliers.projects.deleteProject')}</button>}
+    </div>
+  </div>
+}
+
+const ITEM_RESOURCES: Record<string, string> = { PRODUCT: 'products', PART: 'parts', COMPONENT: 'components' }
+
+/** Catalog picker: assign one product / part / component to the project. */
+function ProjectItemAssign({ value, onChange }: { value: SupplierProjectItemRef | null; onChange: (item: SupplierProjectItemRef | null) => void }) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const [itemType, setItemType] = useState('PRODUCT')
+  const [search, setSearch] = useState('')
+  const [results, setResults] = useState<SupplierProjectItemRef[]>([])
+  const [searching, setSearching] = useState(false)
+
+  useEffect(() => {
+    if (value) return
+    let active = true
+    const timer = setTimeout(() => {
+      setSearching(true)
+      const query = new URLSearchParams({ page: '1', pageSize: '8', includeInactive: 'false' })
+      if (search.trim()) query.set('search', search.trim())
+      void fetch(`${api}/${ITEM_RESOURCES[itemType]}?${query}`)
+        .then(async response => { if (!response.ok) throw new Error(await problem(response)); return response.json() })
+        .then(body => {
+          if (!active) return
+          const rows = (body.items ?? []) as Array<{ id: string; code: string; nameFa: string; nameEn?: string | null; itemType?: string }>
+          setResults(rows.map(row => ({ id: row.id, code: row.code, nameFa: row.nameFa, nameEn: row.nameEn ?? null, itemType: row.itemType ?? itemType })))
+        })
+        .catch(() => { if (active) setResults([]) })
+        .finally(() => { if (active) setSearching(false) })
+    }, 200)
+    return () => { active = false; clearTimeout(timer) }
+  }, [itemType, search, value])
+
+  return <fieldset className="supplier-project-assign">
+    <legend>{t('suppliers.projects.assignItem')}</legend>
+    {value ? <div className="supplier-project-assign__selected">
+      <Package aria-hidden="true" />
+      <strong>{localizedName(value, language)}</strong>
+      <bdi className="ui-technical">{value.code}</bdi>
+      <span>{t(structureTypeKey(value.itemType))}</span>
+      <button type="button" className="button button--quiet" onClick={() => onChange(null)}><X aria-hidden="true" />{t('suppliers.projects.removeItem')}</button>
+    </div> : <>
+      <div className="supplier-project-assign__controls">
+        <div className="segmented-control" role="group" aria-label={t('suppliers.projects.assignItem')}>
+          {Object.keys(ITEM_RESOURCES).map(type => <button key={type} type="button" className={itemType === type ? 'active' : ''} aria-pressed={itemType === type} onClick={() => setItemType(type)}>{t(structureTypeKey(type))}</button>)}
+        </div>
+        <FormField label={t('common.search')}>
+          <input value={search} placeholder={t('suppliers.projects.itemSearchPlaceholder')} onChange={event => setSearch(event.target.value)} />
+        </FormField>
+      </div>
+      <div className="supplier-project-assign__results">
+        {searching ? <LoadingState label={t('common.loading')} compact /> : results.length === 0
+          ? <span className="supplier-project-assign__empty">{t('common.noResultsTitle')}</span>
+          : results.map(item => <button key={item.id} type="button" className="supplier-project-assign__option" onClick={() => onChange(item)}>
+            <span>{localizedName(item, language)}</span><bdi className="ui-technical">{item.code}</bdi>
+          </button>)}
+      </div>
+    </>}
+  </fieldset>
 }
 
 function toProvidedItemRecord(group: SupplierItemGroup): ProvidedItemRecord {
@@ -168,198 +389,6 @@ function pickOptionImage(options: SupplierSourcingOption[], itemId: string) {
   const preferredImage = options.find(option => option.isPreferred && option.imageUrl?.trim())?.imageUrl?.trim()
   const anyImage = options.find(option => option.imageUrl?.trim())?.imageUrl?.trim()
   return preferredImage || anyImage || picsumImageUrl(itemId)
-}
-
-/** Whole calendar months between two ISO dates (never negative). */
-function supplyDurationMonths(fromIso: string, toIso: string) {
-  const [fromYear, fromMonth, fromDay] = fromIso.split('-').map(Number)
-  const [toYear, toMonth, toDay] = toIso.split('-').map(Number)
-  let months = (toYear - fromYear) * 12 + (toMonth - fromMonth)
-  if (toDay < fromDay) months -= 1
-  return Math.max(0, months)
-}
-
-function SupplierSupplyHistory({ records }: { records: ProvidedItemRecord[] }) {
-  const { t, i18n } = useTranslation()
-  const language = i18n.resolvedLanguage ?? i18n.language
-  const today = tehranTodayIso()
-  const ordered = [...records].sort((left, right) => {
-    if (left.state !== right.state) return left.state === 'current' ? -1 : 1
-    const leftKey = left.until ?? left.since ?? ''
-    const rightKey = right.until ?? right.since ?? ''
-    return rightKey.localeCompare(leftKey)
-  })
-  const currentCount = records.filter(record => record.state === 'current').length
-  const pastCount = records.length - currentCount
-  const oldestSince = records.map(record => record.since).filter((value): value is string => Boolean(value)).sort()[0]
-
-  function durationLabel(record: ProvidedItemRecord) {
-    if (!record.since) return null
-    const months = supplyDurationMonths(record.since, record.until ?? today)
-    if (months <= 0) return t('suppliers.providedHistory.durationLessThanMonth')
-    const years = Math.floor(months / 12)
-    const rest = months % 12
-    return [
-      years > 0 ? t('suppliers.providedHistory.durationYears', { count: years }) : '',
-      rest > 0 ? t('suppliers.providedHistory.durationMonths', { count: rest }) : '',
-    ].filter(Boolean).join(' ')
-  }
-
-  return <div className="supplier-supply-history">
-    {records.some(record => record.demo) && <p className="supplier-supply-demo-note" role="note">{t('suppliers.providedHistory.demoNotice')}</p>}
-    <div className="supplier-supply-history__stats">
-      <div className="supplier-supply-stat"><span className="supplier-supply-stat__dot is-live" aria-hidden="true" /><span>{t('suppliers.providedHistory.currentCount', { count: currentCount })}</span></div>
-      <div className="supplier-supply-stat"><History aria-hidden="true" /><span>{t('suppliers.providedHistory.pastCount', { count: pastCount })}</span></div>
-      {oldestSince && <div className="supplier-supply-stat"><CalendarRange aria-hidden="true" /><span>{t('suppliers.providedHistory.collaborationSince', { date: formatBusinessDate(oldestSince, language) })}</span></div>}
-    </div>
-    {ordered.length === 0
-      ? <EmptyState title={t('suppliers.providedHistory.emptyHistory')} compact />
-      : <ol className="supplier-supply-timeline">
-        {ordered.map(record => <li key={record.item.id} className={`supplier-supply-entry is-${record.state}`}>
-          <span className="supplier-supply-entry__node" aria-hidden="true" />
-          <article className="supplier-supply-card">
-            <img className="supplier-supply-card__image" src={record.imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
-              onError={event => { const fallback = picsumImageUrl(record.item.id); if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback }} />
-            <div className="supplier-supply-card__main">
-              <div className="supplier-supply-card__title">
-                <strong>{localizedName(record.item, language)}</strong>
-                <bdi className="ui-technical">{record.item.code}</bdi>
-                <span className={`supplier-supply-state is-${record.state}`}>{t(record.state === 'current' ? 'suppliers.providedHistory.ongoing' : 'suppliers.providedHistory.ended')}</span>
-              </div>
-              <span className="supplier-supply-card__meta">{t(structureTypeKey(record.item.itemType))} · {record.item.baseUnit.symbol ?? record.item.baseUnit.code}{!record.item.isActive ? ` · ${t('common.inactive')}` : ''}</span>
-              <div className="supplier-supply-card__chips">
-                {record.since && <span className="supplier-supply-chip is-period"><CalendarRange aria-hidden="true" />{formatBusinessDate(record.since, language)} ← {record.until ? formatBusinessDate(record.until, language) : t('suppliers.providedHistory.present')}</span>}
-                {durationLabel(record) && <span className="supplier-supply-chip"><History aria-hidden="true" />{durationLabel(record)}</span>}
-                {record.state === 'current' && record.leadTimeDays != null && <span className="supplier-supply-chip"><Truck aria-hidden="true" />{t('suppliers.providedHistory.leadTime', { count: record.leadTimeDays })}</span>}
-                {record.preferred && <span className="supplier-supply-chip is-preferred"><Star aria-hidden="true" />{t('suppliers.providedHistory.preferredOption')}</span>}
-                {record.demo && <span className="supplier-supply-chip is-demo">{t('suppliers.providedHistory.demoBadge')}</span>}
-                {record.sourcingNumbers.slice(0, 2).map(number => <span key={number} className="supplier-supply-chip ui-technical">{number}</span>)}
-                {record.sourcingNumbers.length > 2 && <span className="supplier-supply-chip ui-technical">+{record.sourcingNumbers.length - 2}</span>}
-              </div>
-            </div>
-          </article>
-        </li>)}
-      </ol>}
-  </div>
-}
-
-function SupplierProvidedItem({ item, canViewBom }: { item: SupplierProvidedItem; canViewBom: boolean }) {
-  const { t, i18n } = useTranslation()
-  const language = i18n.resolvedLanguage ?? i18n.language
-  const [tree, setTree] = useState<UsageTreeNode | null>(null)
-  const [status, setStatus] = useState<UsageStatus>('idle')
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState('')
-  const popoverId = `supplier-usage-${item.id}`
-  const statusRef = useRef<UsageStatus>('idle')
-  const pointerOrFocusInside = useRef(false)
-  const mounted = useRef(true)
-
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-
-  function showUsage() {
-    if (!canViewBom || statusRef.current === 'empty') return
-    pointerOrFocusInside.current = true
-    setOpen(true)
-    if (statusRef.current !== 'idle') return
-    statusRef.current = 'loading'
-    setStatus('loading')
-    void loadUsageTree(item).then(value => {
-      if (!mounted.current) return
-      statusRef.current = value ? 'ready' : 'empty'
-      setStatus(statusRef.current)
-      setTree(value)
-      if (!value) {
-        pointerOrFocusInside.current = false
-        setOpen(false)
-      } else if (pointerOrFocusInside.current) setOpen(true)
-    }).catch(caught => {
-      if (!mounted.current) return
-      statusRef.current = 'error'
-      setStatus('error')
-      setError(caught instanceof Error ? caught.message : t('common.error'))
-      if (pointerOrFocusInside.current) setOpen(true)
-    })
-  }
-
-  function hideUsage() {
-    pointerOrFocusInside.current = false
-    setOpen(false)
-  }
-
-  return <li className="supplier-provided-item" onMouseEnter={showUsage} onMouseLeave={event => {
-    const focused = typeof document !== 'undefined' && event.currentTarget.contains(document.activeElement)
-    if (!focused) hideUsage()
-  }} onFocusCapture={showUsage} onBlurCapture={event => {
-    const next = event.relatedTarget
-    if (!(next instanceof Node) || !event.currentTarget.contains(next)) hideUsage()
-  }}>
-    <button type="button" className={`supplier-provided-item__trigger${canViewBom ? ' supplier-provided-item__trigger--interactive' : ''}`}
-      aria-expanded={canViewBom ? open : undefined} aria-controls={canViewBom && open ? popoverId : undefined} onClick={showUsage}>
-      <img className="supplier-provided-item__image" src={item.imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
-        onError={event => { const fallback = picsumImageUrl(item.id); if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback }} />
-      <span className="supplier-provided-item__content">
-        <span className="supplier-provided-item__title"><strong>{localizedName(item, language)}</strong><bdi className="ui-technical">{item.code}</bdi></span>
-        <span className="supplier-provided-item__metadata">{t(structureTypeKey(item.itemType))} · {item.baseUnit.symbol ?? item.baseUnit.code}</span>
-        {!item.isActive && <StatusBadge text={t('common.inactive')} tone="warning" />}
-      </span>
-    </button>
-    {canViewBom && open && <div id={popoverId} className="supplier-item-usage-popover" role="region" aria-label={t('productStructure.whereUsed')}>
-      <h3>{t('productStructure.whereUsed')}</h3>
-      {status === 'loading' && <LoadingState label={t('common.loading')} compact />}
-      {status === 'error' && <MessageStrip tone="critical">{error}</MessageStrip>}
-      {status === 'ready' && tree && <ul className="supplier-usage-tree"><UsageTreeBranch node={tree} language={language} t={t} /></ul>}
-    </div>}
-  </li>
-}
-
-function UsageTreeBranch({ node, language, t }: { node: UsageTreeNode; language: string; t: ReturnType<typeof useTranslation>['t'] }) {
-  const route = structureItemRoute(node.item.itemType, node.item.id)
-  const name = localizedName(node.item, language)
-  const unit = node.relationship?.childBaseUnitSnapshot
-  return <li className="supplier-usage-tree__branch">
-    <div className="supplier-usage-tree__node">
-      <span className="supplier-usage-tree__icon" aria-hidden="true">{node.children.length ? <GitBranch /> : <Boxes />}</span>
-      <div className="supplier-usage-tree__identity">
-        <strong>{route ? <Link to={route}>{name}</Link> : name}</strong>
-        <span><bdi className="ui-technical">{node.item.code}</bdi> · {t(structureTypeKey(node.item.itemType))}</span>
-        {node.revisionCode && <small><bdi>{node.revisionCode}</bdi></small>}
-        {node.relationship && <small>{t('productStructure.usage')}: {formatOperationalNumber(node.relationship.usageQty, language)} {unit?.symbol ?? unit?.code}</small>}
-      </div>
-    </div>
-    {node.children.length > 0 && <ul className="supplier-usage-tree__children">{node.children.map((child, index) =>
-      <UsageTreeBranch key={`${node.item.id}-${child.item.id}-${index}`} node={child} language={language} t={t} />)}</ul>}
-  </li>
-}
-
-async function loadUsageTree(root: SuppliedItem): Promise<UsageTreeNode | null> {
-  const cache = new Map<string, Promise<WhereUsedResponse>>()
-  const whereUsed = (itemId: string) => {
-    const existing = cache.get(itemId)
-    if (existing) return existing
-    const query = new URLSearchParams({ itemId })
-    const request = fetch(`${api}/bom-revisions/where-used?${query}`).then(async response => {
-      if (!response.ok) throw new Error(await problem(response))
-      return await response.json() as WhereUsedResponse
-    })
-    cache.set(itemId, request)
-    return request
-  }
-
-  const rootResponse = await whereUsed(root.id)
-  if (!rootResponse.directParents.length) return null
-
-  async function expand(item: SuppliedItem | WhereUsedItem, via: WhereUsedParent | undefined, ancestors: Set<string>): Promise<UsageTreeNode> {
-    const path = new Set(ancestors)
-    path.add(item.id)
-    const parentRows = item.itemType === 'PRODUCT' ? [] : (await whereUsed(item.id)).directParents
-    const children = await Promise.all(parentRows.map(parent => path.has(parent.parentItem.id)
-      ? Promise.resolve({ item: parent.parentItem, revisionCode: parent.revision.revisionCode, relationship: parent.relationship, children: [] })
-      : expand(parent.parentItem, parent, path)))
-    return { item, revisionCode: via?.revision.revisionCode, relationship: via?.relationship, children }
-  }
-
-  return expand(root, undefined, new Set())
 }
 
 async function problem(response: Response) {

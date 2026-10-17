@@ -374,7 +374,24 @@ const fa = {
   suppliers: {
     title: 'تأمین‌کنندگان', subtitle: 'اطلاعات پایه، مخاطبان و پروفایل پرداخت پیش‌فرض', new: 'تأمین‌کننده جدید', supplier: 'تأمین‌کننده',
     searchPlaceholder: 'شماره یا نام', country: 'کشور', geographicScope: 'محدوده جغرافیایی', domestic: 'داخلی', foreign: 'خارجی', owner: 'مالک داخلی', financialBalance: 'تراز مالی', providedItems: 'اقلامی که تأمین می‌کند', providedItemsHint: 'اقلام فعال مرتبط با این تأمین‌کننده از طریق منابع تأمین.', providedItemsHoverHint: 'برای دیدن مسیر مصرف در BOM، روی نام قلم مکث کنید.', noProvidedItems: 'هیچ قلم تأمین فعالی برای این تأمین‌کننده ثبت نشده است.',
-    providedHistory: {
+    projects: {
+      title: 'پروژه‌ها',
+      description: 'پروژه‌های این تأمین‌کننده؛ برای هر پروژه می‌توانید محصول، قطعه یا جزء اختصاص دهید و نام پروژه با فرمول استاندارد ساخته می‌شود.',
+      viewLabel: 'نمای پروژه‌ها', current: 'پروژه‌های جاری', previous: 'پروژه‌های قبلی',
+      currentBadge: 'جاری', endedBadge: 'پایان‌یافته',
+      newProject: 'پروژه جدید', editProject: 'ویرایش پروژه',
+      namePreview: 'نام نهایی پروژه',
+      manualInfo: 'اطلاعات دستی', shamsiYear: 'سال شمسی', orderCount: 'تعداد سفارش',
+      pieceName: 'نام قطعه', productName: 'نام محصول', orderYear: 'سال سفارش', orderRepeat: 'شماره تکرار سفارش',
+      pieceSerial: 'سریال قطعه', serialLabel: 'سریال قطعه', statusLabel: 'وضعیت پروژه',
+      assignItem: 'اختصاص محصول / قطعه / جزء', itemSearchPlaceholder: 'جستجوی نام یا کد قلم…',
+      noItemAssigned: 'قلمی اختصاص نیافته است', removeItem: 'حذف اختصاص',
+      endProject: 'پایان پروژه', reactivateProject: 'برگرداندن به جاری', deleteProject: 'حذف پروژه',
+      emptyCurrent: 'پروژه جاری‌ای برای این تأمین‌کننده ثبت نشده است.', emptyPrevious: 'پروژه قبلی‌ای برای این تأمین‌کننده ثبت نشده است.',
+      validation: 'برای ذخیره پروژه، نام قطعه را بنویسید یا یک محصول/قطعه/جزء اختصاص دهید.',
+      sessionNote: 'پروژه‌ها فعلاً فقط در همین نشست (Session) نگهداری می‌شوند و چیزی به سرور ارسال نمی‌شود؛ با تازه‌سازی صفحه به حالت اولیه (اقلام تأمین‌شده) برمی‌گردند.',
+    },
+        providedHistory: {
       viewLabel: 'نمای تأمین', current: 'در حال تأمین', history: 'تاریخچه تأمین',
       ongoing: 'در حال تأمین', ended: 'پایان‌یافته', present: 'تاکنون',
       currentCount: '{{count}} قلم در حال تأمین', pastCount: '{{count}} قلم در سوابق قبلی',
