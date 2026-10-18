@@ -1,0 +1,9 @@
+[
+  { "key": "projectId", "actual": "trading.order_registrations.ProjectId → trading.projects.Id", "proposed": "order_registrations.projectId → trade_projects.id", "source": "پروندهٔ انتخاب‌شده؛ تغییر ارتباط سفارش با پرونده در ویرایش مجاز نیست." },
+  { "key": "registrationNumber", "actual": "trading.order_registrations.RegistrationNumber", "proposed": "order_registrations.orderNumber", "source": "شمارهٔ سند ثبت سفارش، ورودی کاربر؛ یکتا در کل سامانه، متفاوت از شمارهٔ داخلی پروژه." },
+  { "key": "registrationDate", "actual": "trading.order_registrations.RegistrationDate", "proposed": "order_registrations.registrationDate", "source": "تاریخ کاری سند؛ ورود شمسی با تقویم مشترک به date میلادی تبدیل می‌شود. تاریخ ثبت سیستمی نیست." },
+  { "key": "currencyId", "actual": "trading.order_registrations.CurrencyId → reference_data.currencies.Id", "proposed": "order_registrations.currencyId", "source": "فهرست ارزهای فعال مرجع مرکزی، با جست‌وجو و صفحه‌بندی مستقل؛ نام و کد ارز snapshot می‌شوند." },
+  { "key": "registeredAmount", "actual": "trading.order_registrations.RegisteredAmount", "proposed": "order_registrations.declaredValueAmount", "source": "مبلغ سند در ارز اصلی؛ numeric(24,6). تبادل رشتهٔ اعشاری بدون گردکردن JavaScript؛ سرور اعتبارسنجی می‌کند." },
+  { "key": "status", "actual": "trading.order_registrations.Status", "proposed": "order_registrations.status", "source": "ایجاد فقط DRAFT؛ تغییر وضعیت فرمان مستقل، با دلیل و کنترل نسخه. قرارداد فعلی DRAFT/SUBMITTED/ACTIVE/SUSPENDED/CANCELLED حفظ شده است." },
+  { "key": "notes", "actual": "trading.order_registrations.Notes", "proposed": "order_registrations.notes", "source": "توضیحات همین سند، حداکثر ۲۰۰۰ کاراکتر مطابق دیتابیس فعلی؛ نه یادداشت کل پروژه یا مرحلهٔ ارز." }
+]

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Hadron.Erp.Api.Modules.Trading.Application;
 
 public sealed record TradeReferenceResponse(Guid Id, string ReferenceType, string Code, string NameFa,
@@ -84,7 +86,8 @@ public sealed record UpdateTradeProjectRequest(string TitleFa, string? TitleEn, 
 public sealed record ChangeTradeProjectStatusRequest(string Status, long ExpectedVersion, string Reason, bool IsCorrection = false);
 public sealed record ReopenTradeProjectRequest(long ExpectedVersion, string Reason);
 public sealed record CreateOrderRegistrationRequest(Guid ProjectId, string RegistrationNumber, string Status,
-    DateOnly RegistrationDate, decimal RegisteredAmount, Guid CurrencyId, string? Notes);
+    DateOnly RegistrationDate, [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] decimal RegisteredAmount,
+    Guid CurrencyId, string? Notes);
 public sealed record CreateFxAllocationRequest(Guid ProjectId, Guid? OrderRegistrationId, string ProcessType,
     string DealStatus, string ReceiptStatus, decimal Amount, Guid CurrencyId, Guid? BankId, DateOnly RequestDate,
     DateOnly? AllocationDate, string? ReferenceNumber, string? Notes);

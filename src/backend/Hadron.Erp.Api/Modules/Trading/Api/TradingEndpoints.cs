@@ -57,6 +57,19 @@ public static class TradingEndpoints
         group.MapPost("/references/{id:guid}/state", (Guid id, ChangeTradeReferenceStateRequest request, TradingService service, CancellationToken ct) => Run(() => service.StateReference(id, request, ct)))
             .RequirePermission(Permissions.TradingReferenceManage);
 
+        group.MapGet("/projects/{id:guid}/order-registrations", (Guid id, string? search, string? status, int? page, int? pageSize, TradingService service, CancellationToken ct) =>
+                Run(() => service.ListProjectOrders(id, search, status, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.TradingOrderRegistrationView);
+        group.MapGet("/order-registrations/currencies", (string? search, int? page, int? pageSize, TradingService service, CancellationToken ct) =>
+                Run(() => service.OrderCurrencies(search, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.TradingOrderRegistrationManage);
+        group.MapPost("/order-registrations/resolve-jalali-date", (ResolveTradeProjectSetupDateRequest request, TradingService service) =>
+                Run(() => Task.FromResult(service.ResolveSetupDate(request))))
+            .RequirePermission(Permissions.TradingOrderRegistrationManage);
+        group.MapGet("/order-registrations/{id:guid}", (Guid id, TradingService service, CancellationToken ct) => Run(() => service.GetManagedOrder(id, ct)))
+            .RequirePermission(Permissions.TradingOrderRegistrationView);
+        group.MapPut("/order-registrations/{id:guid}", (Guid id, UpdateTradeOrderRequest request, TradingService service, CancellationToken ct) => Run(() => service.UpdateOrder(id, request, ct)))
+            .RequirePermission(Permissions.TradingOrderRegistrationManage);
         group.MapPost("/order-registrations", (CreateOrderRegistrationRequest request, TradingService service, CancellationToken ct) => Created(() => service.CreateOrder(request, ct), x => $"/api/trading/order-registrations/{x.Id}"))
             .RequirePermission(Permissions.TradingOrderRegistrationManage);
         group.MapPost("/order-registrations/{id:guid}/status", (Guid id, ChangeOrderRegistrationStatusRequest request, TradingService service, CancellationToken ct) => Run(() => service.ChangeOrderStatus(id, request, ct)))

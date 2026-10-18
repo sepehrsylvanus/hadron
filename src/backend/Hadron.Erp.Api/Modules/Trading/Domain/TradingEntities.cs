@@ -105,6 +105,14 @@ public sealed class TradeOrderRegistration
     public long Version { get; private set; } = 1;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
+    public void EditDetails(string registrationNumber, DateOnly date, decimal amount, Guid currencyId,
+        string currencyCode, string currencyNameFa, string? currencyNameEn, string? notes)
+    {
+        if (Status != "DRAFT") throw new InvalidOperationException("Only draft orders are editable.");
+        RegistrationNumber = registrationNumber; RegistrationDate = date; RegisteredAmount = amount;
+        CurrencyId = currencyId; CurrencyCodeSnapshot = currencyCode; CurrencyNameFaSnapshot = currencyNameFa;
+        CurrencyNameEnSnapshot = currencyNameEn; Notes = notes; Advance();
+    }
     public void Edit(string status, DateOnly date, decimal amount, string? notes) { Status = status; RegistrationDate = date; RegisteredAmount = amount; Notes = notes; Advance(); }
     public void ChangeStatus(string status) { Status = status; Advance(); }
     private void Advance() { Version++; UpdatedAtUtc = DateTime.UtcNow; }

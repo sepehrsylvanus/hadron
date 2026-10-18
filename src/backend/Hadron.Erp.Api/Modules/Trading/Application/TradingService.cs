@@ -12,7 +12,7 @@ using Hadron.Erp.Api.Platform.Security;
 
 namespace Hadron.Erp.Api.Modules.Trading.Application;
 
-public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, IHttpContextAccessor accessor, IActiveUserDirectory userDirectory, IPlanningCalendar calendar)
+public sealed partial class TradingService(IDbContextFactory<HadronDbContext> factory, IHttpContextAccessor accessor, IActiveUserDirectory userDirectory, IPlanningCalendar calendar)
 {
     private static readonly string[] ReferenceTypes = ["CUSTOMER", "BUSINESS_CARD", "BANK", "FORWARDER", "CARRIER", "DESTINATION", "INSURANCE_COMPANY", "INSPECTION_COMPANY", "CUSTOMS_OFFICE", "CUSTOMS_BROKER"];
     private static readonly string[] Priorities = ["LOW", "NORMAL", "HIGH", "CRITICAL"];
@@ -457,13 +457,24 @@ public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, I
 
     public async Task<TradeOrderRegistrationResponse> CreateOrder(CreateOrderRegistrationRequest request, CancellationToken ct)
     {
-        Text(request.RegistrationNumber, "registrationNumber", 80); var status = Code(request.Status, OrderStatuses, "status"); if (status != "DRAFT") throw Validation("status", "ثبت سفارش جدید باید از وضعیت پیش‌نویس آغاز شود."); Positive(request.RegisteredAmount, "registeredAmount"); await using var db = await factory.CreateDbContextAsync(ct); await OpenProject(db, request.ProjectId, ct); var currency = await Currency(db, request.CurrencyId, ct);
-        var entity = new TradeOrderRegistration(request.ProjectId, request.RegistrationNumber.Trim(), status, request.RegistrationDate, request.RegisteredAmount, currency.Id, currency.Code, currency.NameFa, currency.NameEn, Clean(request.Notes)); db.TradeOrderRegistrations.Add(entity); AddAudit(db, "TradeProject", request.ProjectId, "ORDER_REGISTRATION_CREATE", null, OrderOf(entity), null); await Save(db, ct); return OrderOf(entity);
+        if (request.ProjectId == Guid.Empty) throw Validation("projectId", "انتخاب پروژه الزامی است.");
+        ValidateOrderDetails(request.RegistrationNumber, request.RegistrationDate, request.RegisteredAmount, request.Notes);
+        if (!string.Equals(request.Status?.Trim(), "DRAFT", StringComparison.OrdinalIgnoreCase))
+            throw Validation("status", "ثبت سفارش جدید باید از وضعیت پیش‌نویس آغاز شود.");
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await OpenProject(db, request.ProjectId, ct);
+        var currency = await Currency(db, request.CurrencyId, ct);
+        var entity = new TradeOrderRegistration(request.ProjectId, request.RegistrationNumber.Trim(), "DRAFT",
+            request.RegistrationDate, request.RegisteredAmount, currency.Id, currency.Code, currency.NameFa, currency.NameEn, Clean(request.Notes));
+        db.TradeOrderRegistrations.Add(entity);
+        AddAudit(db, "TradeProject", request.ProjectId, "ORDER_REGISTRATION_CREATE", null, OrderOf(entity), null);
+        await Save(db, ct);
+        return OrderOf(entity);
     }
 
     public async Task<TradeOrderRegistrationResponse> ChangeOrderStatus(Guid id, ChangeOrderRegistrationStatusRequest request, CancellationToken ct)
     {
-        var status = Code(request.Status, OrderStatuses, "status"); Reason(request.Reason); await using var db = await factory.CreateDbContextAsync(ct);
+        var status = Code(request.Status ?? "", OrderStatuses, "status"); Text(request.Reason, "reason", 1000); await using var db = await factory.CreateDbContextAsync(ct);
         var entity = await db.TradeOrderRegistrations.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException();
         await OpenProject(db, entity.ProjectId, ct); Version(entity.Version, request.ExpectedVersion);
         EnsureTransition(entity.Status, status, OrderTransitions, OrderStatuses, request.IsCorrection, "ORDER_STATUS_TRANSITION_INVALID");
@@ -475,8 +486,25 @@ public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, I
     public async Task<TradeFxAllocationResponse> CreateFx(CreateFxAllocationRequest request, CancellationToken ct)
     {
         var process = Code(request.ProcessType, FxProcesses, "processType"); var deal = Code(request.DealStatus, FxDeals, "dealStatus"); var receipt = Code(request.ReceiptStatus, FxReceipts, "receiptStatus"); if (process != "REQUEST" || deal != "NOT_STARTED" || receipt != "NOT_RECEIVED") throw Validation("status", "فرایند ارزی جدید باید از وضعیت اولیه آغاز شود."); Positive(request.Amount, "amount"); if (request.AllocationDate < request.RequestDate) throw Validation("allocationDate", "تاریخ تخصیص نمی‌تواند پیش از درخواست باشد.");
-        await using var db = await factory.CreateDbContextAsync(ct); await OpenProject(db, request.ProjectId, ct); if (request.OrderRegistrationId.HasValue && !await db.TradeOrderRegistrations.AnyAsync(x => x.Id == request.OrderRegistrationId && x.ProjectId == request.ProjectId, ct)) throw Validation("orderRegistrationId", "ثبت سفارش متعلق به این پرونده نیست."); var currency = await Currency(db, request.CurrencyId, ct); TradeReferenceValue? bank = request.BankId.HasValue ? await ActiveReference(db, request.BankId.Value, "BANK", ct) : null;
-        var entity = new TradeFxAllocation(request.ProjectId, request.OrderRegistrationId, process, deal, receipt, request.Amount, currency.Id, currency.Code, currency.NameFa, currency.NameEn, bank?.Id, bank?.Code, bank?.NameFa, bank?.NameEn, request.RequestDate, request.AllocationDate, Clean(request.ReferenceNumber), Clean(request.Notes)); db.TradeFxAllocations.Add(entity); AddAudit(db, "TradeProject", request.ProjectId, "FX_CREATE", null, FxOf(entity), null); await Save(db, ct); return FxOf(entity);
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await OpenProject(db, request.ProjectId, ct);
+        if (request.OrderRegistrationId.HasValue)
+        {
+            var order = await LockOrder(db, request.OrderRegistrationId.Value, ct);
+            if (order is null || order.ProjectId != request.ProjectId)
+                throw Validation("orderRegistrationId", "ثبت سفارش متعلق به این پرونده نیست.");
+        }
+        var currency = await Currency(db, request.CurrencyId, ct);
+        TradeReferenceValue? bank = request.BankId.HasValue ? await ActiveReference(db, request.BankId.Value, "BANK", ct) : null;
+        var entity = new TradeFxAllocation(request.ProjectId, request.OrderRegistrationId, process, deal, receipt, request.Amount,
+            currency.Id, currency.Code, currency.NameFa, currency.NameEn, bank?.Id, bank?.Code, bank?.NameFa, bank?.NameEn,
+            request.RequestDate, request.AllocationDate, Clean(request.ReferenceNumber), Clean(request.Notes));
+        db.TradeFxAllocations.Add(entity);
+        AddAudit(db, "TradeProject", request.ProjectId, "FX_CREATE", null, FxOf(entity), null);
+        await Save(db, ct);
+        await tx.CommitAsync(ct);
+        return FxOf(entity);
     }
 
     public async Task<TradeFxAllocationResponse> ChangeFxStatus(Guid id, ChangeFxStatusRequest request, CancellationToken ct)

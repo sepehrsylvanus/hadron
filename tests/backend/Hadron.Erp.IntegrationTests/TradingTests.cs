@@ -592,6 +592,177 @@ public sealed class TradingTests : IClassFixture<FoundationApiFactory>, IAsyncLi
             $"UPDATE trading.costs SET \"ProjectId\" = {second} WHERE \"Id\" = {costId}"));
     }
 
+    [Fact]
+    public async Task Order_management_pages_filter_by_project_and_preserves_exact_decimal_text()
+    {
+        var first = await CreateProject("پرونده سفارش اول");
+        var other = await CreateProject("پرونده سفارش دوم");
+        for (var i = 0; i < 27; i++) await CreateManagedOrder(first, $"REG-{i:D3}");
+        await CreateManagedOrder(other, "OTHER-PROJECT");
+        var secondPage = await Get($"/api/trading/projects/{first}/order-registrations?page=2&pageSize=25");
+        Assert.Equal(27, secondPage.GetProperty("totalCount").GetInt32());
+        Assert.Equal(2, secondPage.GetProperty("items").GetArrayLength());
+        Assert.All(secondPage.GetProperty("items").EnumerateArray(), x => Assert.Equal(first, x.GetProperty("projectId").GetGuid()));
+        var filtered = await Get($"/api/trading/projects/{first}/order-registrations?search=reg-026&status=DRAFT");
+        var row = Assert.Single(filtered.GetProperty("items").EnumerateArray());
+        Assert.Equal("9007199254740993.123456", row.GetProperty("registeredAmount").GetString());
+        Assert.False(row.TryGetProperty("bankId", out _));
+        using var invalidPage = await _client.GetAsync($"/api/trading/projects/{first}/order-registrations?page=2147483647");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidPage.StatusCode);
+        using var unknownProject = await _client.GetAsync($"/api/trading/projects/{Guid.NewGuid()}/order-registrations");
+        Assert.Equal(HttpStatusCode.NotFound, unknownProject.StatusCode);
+    }
+
+    [Fact]
+    public async Task Draft_order_edit_is_versioned_audited_and_does_not_create_later_operations()
+    {
+        var project = await CreateProject("ویرایش سفارش");
+        var created = await CreateManagedOrder(project, "REG-EDIT");
+        var id = created.GetProperty("id").GetGuid();
+        var version = created.GetProperty("version").GetInt64();
+        var request = new { registrationNumber = "REG-CORRECTED", registrationDate = "2026-10-19",
+            registeredAmount = "999999999999999999.999999", currencyId = _currencyId, notes = "یادداشت سند",
+            expectedVersion = version, reason = "اصلاح مشخصات پیش‌نویس", projectId = Guid.NewGuid(), status = "ACTIVE" };
+        var edited = await Put($"/api/trading/order-registrations/{id}", request);
+        Assert.Equal("999999999999999999.999999", edited.GetProperty("registeredAmount").GetString());
+        var resource = await Get($"/api/trading/order-registrations/{id}");
+        Assert.Equal("999999999999999999.999999", resource.GetProperty("registeredAmount").GetString());
+        Assert.Equal(version + 1, edited.GetProperty("version").GetInt64());
+        Assert.Equal("DRAFT", edited.GetProperty("status").GetString());
+        Assert.Equal(project, edited.GetProperty("projectId").GetGuid());
+        using var stale = await _client.PutAsJsonAsync($"/api/trading/order-registrations/{id}", request);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync();
+        var audit = await db.TradeAuditEvents.SingleAsync(x => x.EntityId == project && x.Action == "ORDER_REGISTRATION_EDIT");
+        Assert.Contains("REG-EDIT", audit.PreviousJson!);
+        Assert.Contains("REG-CORRECTED", audit.CurrentJson!);
+        Assert.Equal(request.reason, audit.Reason);
+        Assert.Equal(0, await db.TradeFxAllocations.CountAsync(x => x.ProjectId == project));
+        Assert.Equal(0, await db.TradeProjectShipments.CountAsync(x => x.ProjectId == project));
+        Assert.Equal("DRAFT", (await db.TradeProjects.SingleAsync(x => x.Id == project)).Status);
+        Assert.Single(await db.TradeAuditEvents.Where(x => x.EntityId == project && x.Action == "ORDER_REGISTRATION_EDIT").ToListAsync());
+    }
+
+    [Fact]
+    public async Task Order_commands_validate_precision_duplicates_and_lifecycle_boundaries()
+    {
+        var project = await CreateProject("اعتبارسنجی سفارش");
+        foreach (var amount in new[] { "0", "-1", "0.0000001", "1000000000000000000" })
+        {
+            using var invalid = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+                projectId = project, registrationNumber = "INVALID", status = "DRAFT", registrationDate = "2026-10-18",
+                registeredAmount = amount, currencyId = _currencyId });
+            Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        }
+        using var missingDate = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+            projectId = project, registrationNumber = "INVALID", status = "DRAFT", registeredAmount = "1", currencyId = _currencyId });
+        Assert.Equal(HttpStatusCode.BadRequest, missingDate.StatusCode);
+        using var invalidCurrency = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+            projectId = project, registrationNumber = "INVALID", status = "DRAFT", registrationDate = "2026-10-18", registeredAmount = "1", currencyId = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidCurrency.StatusCode);
+        var created = await CreateManagedOrder(project, "REG-UNIQUE");
+        using var duplicate = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+            projectId = project, registrationNumber = "REG-UNIQUE", status = "DRAFT", registrationDate = "2026-10-18", registeredAmount = "1", currencyId = _currencyId });
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+        var id = created.GetProperty("id").GetGuid();
+        var submitted = await Ok($"/api/trading/order-registrations/{id}/status", new { status = "SUBMITTED", expectedVersion = 1, reason = "ارسال سند" });
+        using var forbiddenEdit = await _client.PutAsJsonAsync($"/api/trading/order-registrations/{id}", new {
+            registrationNumber = "REG-UNIQUE", registrationDate = "2026-10-18", registeredAmount = "2", currencyId = _currencyId,
+            expectedVersion = submitted.GetProperty("version").GetInt64(), reason = "تغییر نامعتبر" });
+        Assert.Equal(HttpStatusCode.Conflict, forbiddenEdit.StatusCode);
+        await Ok($"/api/trading/order-registrations/{id}/status", new { status = "CANCELLED", expectedVersion = submitted.GetProperty("version").GetInt64(), reason = "لغو سند" });
+        using var revive = await _client.PostAsJsonAsync($"/api/trading/order-registrations/{id}/status", new { status = "DRAFT", expectedVersion = 3, reason = "بازگشت نامعتبر", isCorrection = true });
+        Assert.Equal(HttpStatusCode.Conflict, revive.StatusCode);
+    }
+
+    [Fact]
+    public async Task Order_management_reuses_only_order_permissions_for_lookup_and_date_conversion()
+    {
+        var project = await CreateProject("مجوز سفارش");
+        var order = await CreateManagedOrder(project, "REG-PERMISSION");
+        var id = order.GetProperty("id").GetGuid();
+        using var viewer = _factory.CreateClient();
+        viewer.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", Permissions.TradingOrderRegistrationView);
+        using var read = await viewer.GetAsync($"/api/trading/projects/{project}/order-registrations");
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        using var deniedWrite = await viewer.PutAsJsonAsync($"/api/trading/order-registrations/{id}", new {
+            registrationNumber = "REG-PERMISSION", registrationDate = "2026-10-18", registeredAmount = "5", currencyId = _currencyId, expectedVersion = 1, reason = "forbidden" });
+        Assert.Equal(HttpStatusCode.Forbidden, deniedWrite.StatusCode);
+        using var deniedCurrencies = await viewer.GetAsync("/api/trading/order-registrations/currencies");
+        Assert.Equal(HttpStatusCode.Forbidden, deniedCurrencies.StatusCode);
+        using var deniedDate = await viewer.PostAsJsonAsync("/api/trading/order-registrations/resolve-jalali-date", new { jalaliDate = "14050726" });
+        Assert.Equal(HttpStatusCode.Forbidden, deniedDate.StatusCode);
+        using var projectViewer = _factory.CreateClient();
+        projectViewer.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", Permissions.TradingProjectView);
+        using var deniedRead = await projectViewer.GetAsync($"/api/trading/projects/{project}/order-registrations");
+        Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
+        using var manager = _factory.CreateClient();
+        manager.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", Permissions.TradingOrderRegistrationManage);
+        using var date = await manager.PostAsJsonAsync("/api/trading/order-registrations/resolve-jalali-date", new { jalaliDate = "۱۴۰۵۰۷۲۶" });
+        Assert.Equal(HttpStatusCode.OK, date.StatusCode);
+        using var currencies = await manager.GetAsync("/api/trading/order-registrations/currencies?search=usd");
+        Assert.Equal(HttpStatusCode.OK, currencies.StatusCode);
+        var lookup = await currencies.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(lookup.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == _currencyId);
+        using var planning = await manager.PostAsJsonAsync("/api/planning/resolve-jalali-date", new { jalaliDate = "14050726" });
+        Assert.Equal(HttpStatusCode.Forbidden, planning.StatusCode);
+    }
+
+    [Fact]
+    public async Task Closed_projects_and_fx_linked_drafts_reject_order_data_rewrites()
+    {
+        var project = await CreateProject("مرز عملیات سفارش");
+        var order = await CreateManagedOrder(project, "REG-LINKED");
+        var id = order.GetProperty("id").GetGuid();
+        await Created("/api/trading/fx-allocations", new { projectId = project, orderRegistrationId = id,
+            processType = "REQUEST", dealStatus = "NOT_STARTED", receiptStatus = "NOT_RECEIVED",
+            amount = 1m, currencyId = _currencyId, requestDate = "2026-10-18" });
+        using var linkedEdit = await _client.PutAsJsonAsync($"/api/trading/order-registrations/{id}", new {
+            registrationNumber = "REG-LINKED", registrationDate = "2026-10-18", registeredAmount = "2", currencyId = _currencyId, expectedVersion = 1, reason = "تغییر سند متصل" });
+        Assert.Equal(HttpStatusCode.Conflict, linkedEdit.StatusCode);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync();
+            (await db.TradeProjects.SingleAsync(x => x.Id == project)).ChangeStatus("CLOSED");
+            await db.SaveChangesAsync();
+        }
+        using var closedCreate = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+            projectId = project, registrationNumber = "REG-CLOSED", status = "DRAFT", registrationDate = "2026-10-18", registeredAmount = "1", currencyId = _currencyId });
+        Assert.Equal(HttpStatusCode.Conflict, closedCreate.StatusCode);
+        using var closedRead = await _client.GetAsync($"/api/trading/projects/{project}/order-registrations");
+        Assert.Equal(HttpStatusCode.OK, closedRead.StatusCode);
+    }
+
+    [Fact]
+    public async Task Inactive_currencies_are_hidden_for_new_orders_but_existing_snapshots_survive_edit()
+    {
+        var project = await CreateProject("مرجع ارز سفارش");
+        var order = await CreateManagedOrder(project, "REG-SNAPSHOT");
+        var id = order.GetProperty("id").GetGuid();
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            await using var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>().CreateDbContextAsync();
+            var currency = await db.Currencies.SingleAsync(x => x.Id == _currencyId);
+            currency.SetNames("نام جدید مرجع", "Renamed currency"); currency.SetActive(false); currency.Touch();
+            await db.SaveChangesAsync();
+        }
+        var lookup = await Get("/api/trading/order-registrations/currencies?search=usd");
+        Assert.Empty(lookup.GetProperty("items").EnumerateArray());
+        using var create = await _client.PostAsJsonAsync("/api/trading/order-registrations", new {
+            projectId = project, registrationNumber = "REG-INACTIVE", status = "DRAFT", registrationDate = "2026-10-18", registeredAmount = "1", currencyId = _currencyId });
+        Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
+        var edited = await Put($"/api/trading/order-registrations/{id}", new {
+            registrationNumber = "REG-SNAPSHOT", registrationDate = "2026-10-19", registeredAmount = "1.000001", currencyId = _currencyId, expectedVersion = 1, reason = "اصلاح بدون تعویض ارز" });
+        Assert.Equal("دلار آمریکا", edited.GetProperty("currencyNameFa").GetString());
+        Assert.Equal("USD", edited.GetProperty("currencyCode").GetString());
+        Assert.Equal("1.000001", edited.GetProperty("registeredAmount").GetString());
+    }
+
+    private Task<JsonElement> CreateManagedOrder(Guid projectId, string number) => Created("/api/trading/order-registrations", new {
+        projectId, registrationNumber = number, status = "DRAFT", registrationDate = "2026-10-18",
+        registeredAmount = "9007199254740993.123456", currencyId = _currencyId, notes = "توضیحات سفارش" });
+
     private async Task<Guid> CreateProject(string title)
     {
         var body = await Created("/api/trading/projects", new { titleFa = title, titleEn = (string?)null, customerId = (Guid?)null, supplierId = (Guid?)null, priority = "NORMAL", targetDate = (string?)null, notes = (string?)null });

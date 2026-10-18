@@ -320,6 +320,37 @@ const en = {
     anchor: { ORDERED: 'Ordered-date anchor', SUPPLIER_READY: 'Supplier-ready anchor', SHIPPED: 'Shipment anchor', WAREHOUSE_RECEIPT: 'Warehouse-receipt anchor', UNRESOLVED: 'Anchor event not completed' },
   },
   trading: {
+    orders: {
+      noProjects: "No projects found. Adjust the search; a project must first be registered in stage one.",
+      "title": "Register and manage orders",
+      "selectProject": "Select project",
+      "projectHint": "Orders belong to an existing project. Search by project number or subject.",
+      "chooseProjectFirst": "Select a project to view or register its orders.",
+      "noViewPermission": "Trade order registration view permission is required.",
+      "create": "Register new order",
+      "edit": "Edit draft order",
+      "formHint": "Order document in its original currency; lifecycle changes use a separate command.",
+      "managementHint": "Multiple orders per project: search, edit drafts and manage lifecycle with an audit trail.",
+      "scopeHint": "Bank, FX allocation, shipping and customs belong to later stages.",
+      "amountHint": "Positive amount, up to 18 integer and 6 fractional digits; no currency conversion or rounding.",
+      "numberRequired": "Order registration number is required.",
+      "reasonRequired": "An edit reason is required.",
+      "search": "Search registration number",
+      "saved": "Order changes saved to the system.",
+      "readOnly": "Your order access is read-only.",
+      "closedProject": "This project is closed or cancelled; orders are read-only.",
+      "currentStatus": "Current status",
+      "nextStatus": "New status",
+      "fields": {
+            "projectId": "Related project",
+            "registrationNumber": "Order registration number",
+            "registrationDate": "Registration date",
+            "registeredAmount": "Registered amount",
+            "currencyId": "Order currency",
+            "status": "Initial status",
+            "notes": "Order notes"
+      }
+},
     setup: {
   "intro": "Register only the initial project details. Later operations remain separate.",
   "formLabel": "Trading first-step project setup",
