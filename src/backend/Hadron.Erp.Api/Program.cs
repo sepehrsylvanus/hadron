@@ -220,6 +220,7 @@ var profilePhotoStorageOptions = useInMemoryProfilePhotoStore
     ? null
     : ProfilePhotoStorageOptions.From(builder.Configuration);
 builder.Services.AddScoped<IdentityService>();
+builder.Services.AddScoped<IActiveUserDirectory, ActiveUserDirectory>();
 builder.Services.AddSingleton<IProfilePhotoStore>(_ => useInMemoryProfilePhotoStore
     ? new InMemoryProfilePhotoStore()
     : new MinioProfilePhotoStore(profilePhotoStorageOptions!));

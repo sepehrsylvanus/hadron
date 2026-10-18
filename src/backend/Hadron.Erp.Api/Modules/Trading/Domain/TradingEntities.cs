@@ -60,6 +60,24 @@ public sealed class TradeProject
     public ICollection<TradeFxAllocation> FxAllocations { get; private set; } = [];
     public ICollection<TradeProjectShipment> ShipmentLinks { get; private set; } = [];
     public ICollection<TradeCost> Costs { get; private set; } = [];
+    // Additive first-step facts; null for historical projects, never fabricated during migration.
+    public DateOnly? StartDate { get; private set; }
+    public Guid? BusinessCardId { get; private set; }
+    public string? BusinessCardCodeSnapshot { get; private set; }
+    public string? BusinessCardNameFaSnapshot { get; private set; }
+    public string? BusinessCardNameEnSnapshot { get; private set; }
+    public Guid? ResponsibleUserId { get; private set; }
+    public string? ResponsibleUserNameSnapshot { get; private set; }
+
+    public void SetInitialSetup(DateOnly startDate, Guid responsibleUserId, string responsibleUserName,
+        Guid? businessCardId, string? cardCode, string? cardNameFa, string? cardNameEn)
+    {
+        if (StartDate.HasValue || startDate == default || responsibleUserId == Guid.Empty || string.IsNullOrWhiteSpace(responsibleUserName))
+            throw new InvalidOperationException("Initial project setup must be valid and assigned only once.");
+        StartDate = startDate; ResponsibleUserId = responsibleUserId; ResponsibleUserNameSnapshot = responsibleUserName;
+        BusinessCardId = businessCardId; BusinessCardCodeSnapshot = cardCode;
+        BusinessCardNameFaSnapshot = cardNameFa; BusinessCardNameEnSnapshot = cardNameEn;
+    }
     public void Edit(string titleFa, string? titleEn, string priority, DateOnly? targetDate, string? notes)
     { TitleFa = titleFa; TitleEn = titleEn; Priority = priority; TargetDate = targetDate; Notes = notes; Advance(); }
     public void ChangeStatus(string status) { Status = status; Advance(); }

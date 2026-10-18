@@ -131,3 +131,14 @@ No merge, reset, seed or guessed replacement data is allowed.
 - FA/EN and RTL/LTR;
 - forward migration, zero-to-latest and EF pending changes zero;
 - MRP regression remains green.
+
+
+## Scoped first-step form (2026-10-18)
+
+The six-step home layout from reference commit `620c750` is retained; only its first panel is implemented in this slice. `/trading` and `/trading/projects/new` share the same creation form: generated internal number, business start/referral date, subject, optional customer, optional business card, required active follow-up user, read-only canonical DRAFT status, and notes. Project priority is not editable in this form; legacy storage remains NORMAL. No later-stage or eight-digit-code inputs are added.
+
+The additive `20261018120000_AddTradingProjectSetup` migration preserves historical nulls. Existing `trading.reference_values` with CUSTOMER/BUSINESS_CARD roles remain the deployed lookup source; this slice does not silently migrate the full proposed 33-table schema. The Identity-owned `IActiveUserDirectory` exposes active IDs and display names only.
+
+`POST /api/trading/project-setup`, `GET /api/trading/project-setup/lookups` and `POST /api/trading/project-setup/resolve-jalali-date` reuse `trading.project.manage`. The date endpoint reuses the shared calendar implementation without requiring MRP permissions. The old create command is retained for existing consumers. Creation persists the project and append-only CREATE audit atomically, never an automatic order or lifecycle transition. Setup facts and reference-name snapshots are returned on the project object page.
+
+The production view is exported through React SSR as clean and annotated offline HTML under `docs/ui/trading-stage-1/`; annotations distinguish deployed storage from the proposed future Prisma model. See that folder's README for the exact field map, tests, known limitations and migration prerequisites. Backend tests and EF model validation require the .NET-enabled test environment; they were not executable in the coding sandbox.

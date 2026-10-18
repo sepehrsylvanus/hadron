@@ -7349,7 +7349,36 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("BusinessCardId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BusinessCardCodeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("BusinessCardNameFaSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BusinessCardNameEnSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ResponsibleUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResponsibleUserNameSnapshot")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessCardId");
+
+                    b.HasIndex("ResponsibleUserId");
 
                     b.HasIndex("CustomerId");
 
@@ -9554,6 +9583,19 @@ namespace Hadron.Erp.Api.Infrastructure.Migrations
                     b.Navigation("PaymentTerm");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeProject", b =>
+                {
+                    b.HasOne("Hadron.Erp.Api.Modules.Trading.Domain.TradeReferenceValue", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessCardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Hadron.Erp.Api.Modules.Identity.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsibleUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Hadron.Erp.Api.Modules.Trading.Domain.TradeCost", b =>

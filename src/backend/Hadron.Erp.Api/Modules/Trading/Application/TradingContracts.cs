@@ -12,7 +12,10 @@ public sealed record TradingOverviewResponse(int OpenProjects, int? ActiveShipme
     int CriticalProjects, IReadOnlyList<TradeProjectSummary> RecentProjects, IReadOnlyList<TradeShipmentResponse> UpcomingShipments);
 public sealed record TradeProjectSummary(Guid Id, string ProjectNumber, string TitleFa, string? TitleEn,
     string? CustomerNameFa, string? CustomerNameEn, string? SupplierName, string Priority, string Status,
-    DateOnly? TargetDate, long Version, DateTime UpdatedAtUtc);
+    DateOnly? TargetDate, long Version, DateTime UpdatedAtUtc,
+    DateOnly? StartDate = null, Guid? BusinessCardId = null, string? BusinessCardCode = null,
+    string? BusinessCardNameFa = null, string? BusinessCardNameEn = null,
+    Guid? ResponsibleUserId = null, string? ResponsibleUserName = null);
 public sealed record TradeProjectListResponse(IReadOnlyList<TradeProjectSummary> Items, int Page, int PageSize, int TotalCount);
 public sealed record TradeProjectContext(Guid Id, string ProjectNumber, string TitleFa, string? TitleEn);
 public sealed record TradeShipmentWorklistItem(TradeShipmentResponse Shipment,
@@ -114,3 +117,12 @@ public sealed class TradingValidationException(IReadOnlyDictionary<string, strin
     : Exception("Trading validation failed.")
 { public IReadOnlyDictionary<string, string[]> Errors { get; } = errors; }
 public sealed class TradingConflictException(string code, string message) : Exception(message) { public string Code { get; } = code; }
+
+// The scoped first-step command deliberately has no priority, FX, shipment or financial fields.
+public sealed record CreateTradeProjectSetupRequest(string TitleFa, DateOnly StartDate,
+    Guid ResponsibleUserId, Guid? CustomerId, Guid? BusinessCardId, string? Notes);
+public sealed record TradeProjectSetupLookupResponse(IReadOnlyList<TradingLookupItem> Items,
+    int Page, int PageSize, int TotalCount);
+
+public sealed record ResolveTradeProjectSetupDateRequest(string? JalaliDate);
+public sealed record ResolvedTradeProjectSetupDate(string JalaliDate, DateOnly GregorianDate);

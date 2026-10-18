@@ -1,20 +1,21 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CircleDollarSign, Container, FileCheck2, FolderKanban, Plus, RefreshCw, Search } from 'lucide-react'
-import { apiRoot } from './apiClient'
+import { CircleDollarSign, ClipboardList, Container, FileCheck2, Plus, RefreshCw, Search, Truck } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { formatBusinessDate, formatBusinessDateTime } from './i18n/businessDate'
 import { formatOperationalNumber as number } from './i18n/numberFormatting'
-import { normalizeJalaliDateInput, toAsciiDigits } from './mrpRunUiSupport'
+import { toAsciiDigits } from './mrpRunUiSupport'
 import { DataTable, Definition, DefinitionGrid, EmptyState, FilterBar, FormField, MessageStrip, PageHeader, Pagination, Section, StatusBadge } from './ui'
+import { canonicalTradingDate, tradingDateInput, tradingRequest as request } from './tradingApi'
+import { TradingProjectSetupForm } from './TradingProjectSetupForm'
 import { buildTradingPerspectiveQuery, tradingLinearOptions, tradingStatusOptions } from './tradingUiSupport'
 
 type Lookup = { id: string; code: string; nameFa: string; nameEn?: string; isActive: boolean }
 type Reference = Lookup & { referenceType: string; sortOrder: number; version: number }
 type Lookups = { currencies: Lookup[]; suppliers: Lookup[]; references: Reference[]; referenceTypes: string[] }
 type ReferenceList = { items: Reference[]; page: number; pageSize: number; totalCount: number }
-type Project = { id: string; projectNumber: string; titleFa: string; titleEn?: string; customerNameFa?: string; customerNameEn?: string; supplierName?: string; priority: string; status: string; targetDate?: string; version: number; updatedAtUtc: string }
+type Project = { id: string; projectNumber: string; titleFa: string; titleEn?: string; customerNameFa?: string; customerNameEn?: string; supplierName?: string; priority: string; status: string; targetDate?: string; version: number; updatedAtUtc: string; startDate?: string; businessCardId?: string; businessCardCode?: string; businessCardNameFa?: string; businessCardNameEn?: string; responsibleUserId?: string; responsibleUserName?: string }
 type ProjectList = { items: Project[]; page: number; pageSize: number; totalCount: number }
 type OrderRegistration = { id: string; registrationNumber: string; status: string; registrationDate: string; registeredAmount: number; currencyCode: string; notes?: string; version: number }
 type Fx = { id: string; processType: string; dealStatus: string; receiptStatus: string; amount: number; currencyCode: string; bankNameFa?: string; bankNameEn?: string; requestDate: string; allocationDate?: string; referenceNumber?: string; version: number }
@@ -26,7 +27,6 @@ type Cost = { id: string; scopeType: string; scopeId: string; costType: string; 
 type Audit = { id: string; actorUserId: string; action: string; reason?: string; occurredAtUtc: string }
 type ProjectCapabilities = { canViewOrders: boolean; canViewFx: boolean; canViewShipments: boolean; canViewCustoms: boolean; canViewCosts: boolean; canViewAudit: boolean }
 type ProjectDetail = { project: Project; notes?: string; orderRegistrations: OrderRegistration[]; fxAllocations: Fx[]; shipments: ShipmentLink[]; costs: Cost[]; audit: Audit[]; capabilities: ProjectCapabilities }
-type Overview = { openProjects: number; activeShipments?: number; customsInProgress?: number; criticalProjects: number; recentProjects: Project[]; upcomingShipments: Shipment[] }
 type ProjectContext = { id: string; projectNumber: string; titleFa: string; titleEn?: string }
 type ShipmentWorklist = { items: Array<{ shipment: Shipment; projects: ProjectContext[] }>; page: number; pageSize: number; totalCount: number }
 type CustomsWorklist = { items: Array<{ customs: Customs; shipmentNumber: string; projects: ProjectContext[] }>; page: number; pageSize: number; totalCount: number }
@@ -34,48 +34,57 @@ type CostWorklist = { items: Array<{ cost: Cost; project: ProjectContext }>; pag
 type ReportWorklist = { items: Array<{ project: Project; orderRegistrationCount: number; fxAllocationCount: number; shipmentCount: number; customsCount: number; costTotals: Array<{ currencyCode: string; currencyNameFa: string; currencyNameEn?: string; amount: number }> }>; page: number; pageSize: number; totalCount: number }
 type TradingStatusTarget = { kind: 'ORDER'; value: OrderRegistration } | { kind: 'FX'; value: Fx } | { kind: 'LEG'; value: Leg } | { kind: 'CUSTOMS'; value: Customs }
 
-const emptyProject = { titleFa: '', titleEn: '', customerId: '', supplierId: '', priority: 'NORMAL', targetDate: '', notes: '' }
 const statusTone = (status: string) => status.includes('CANCEL') ? 'critical' : status.includes('CLOSED') || status.includes('DELIVERED') || status.includes('COMPLETE') ? 'positive' : status.includes('DRAFT') || status.includes('NOT_') ? 'neutral' : 'information'
 const display = (fa: string | undefined, en: string | undefined, language: string) => language.startsWith('en') ? en || fa || '—' : fa || '—'
 const codeLabel = (translate: ReturnType<typeof useTranslation>['t'], code: string) => translate(`trading.codes.${code}`, { defaultValue: code })
-const tradingDateInput = (value: string | undefined, language: string) => !value || language.startsWith('en')
-  ? value ?? ''
-  : toAsciiDigits(formatBusinessDate(value, 'fa-IR')).replace(/[^0-9]/g, '')
 
-async function canonicalTradingDate(value: string | undefined, language: string, required = false) {
-  if (!value?.trim()) { if (required) throw new Error(language.startsWith('en') ? 'Business date is required.' : 'تاریخ کسب‌وکار الزامی است.'); return null }
-  if (language.startsWith('en')) return value
-  const normalized = normalizeJalaliDateInput(value)
-  if (!normalized) throw new Error('تاریخ شمسی باید ۸ رقم و به‌صورت YYYYMMDD باشد.')
-  const response = await fetch(`${apiRoot}/planning/resolve-jalali-date`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jalaliDate: normalized }) })
-  if (!response.ok) throw new Error('تاریخ شمسی معتبر نیست.')
-  return (await response.json() as { gregorianDate: string }).gregorianDate
-}
-
-async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(`${apiRoot}/trading${path}`, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined })
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null) as { detail?: string; title?: string; errors?: Record<string, string[]> } | null
-    throw new Error(problem?.detail ?? Object.values(problem?.errors ?? {})[0]?.[0] ?? problem?.title ?? `HTTP ${response.status}`)
-  }
-  return response.status === 204 ? undefined as T : response.json() as Promise<T>
-}
+const TRADING_FLOW_STEPS = [
+  { key: 'createProject', icon: Plus },
+  { key: 'orderRegistrations', icon: ClipboardList },
+  { key: 'fxOperations', icon: CircleDollarSign },
+  { key: 'shipments', icon: Container },
+  { key: 'transportStages', icon: Truck },
+  { key: 'customs', icon: FileCheck2 },
+] as const
 
 export function TradingOverviewPage() {
   const { t, i18n } = useTranslation(); const language = i18n.resolvedLanguage ?? i18n.language
-  const [data, setData] = useState<Overview | null>(null); const [error, setError] = useState('')
-  const load = useCallback(() => { request<Overview>('/overview').then(value => { setError(''); setData(value) }).catch(e => setError(e.message)) }, [])
-  useEffect(load, [load])
-  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.title')} subtitle={t('trading.subtitle')} actions={<Link className="button button--primary" to="/trading/projects/new"><Plus />{t('trading.newProject')}</Link>} />
-    {error && <MessageStrip tone="critical">{error}</MessageStrip>}
-    <div className="trading-kpi-grid">
-      <article><FolderKanban /><small>{t('trading.openProjects')}</small><strong>{data?.openProjects ?? '—'}</strong></article>
-      <article><Container /><small>{t('trading.activeShipments')}</small><strong>{data?.activeShipments ?? '—'}</strong></article>
-      <article><FileCheck2 /><small>{t('trading.customsInProgress')}</small><strong>{data?.customsInProgress ?? '—'}</strong></article>
-      <article className="critical"><CircleDollarSign /><small>{t('trading.criticalProjects')}</small><strong>{data?.criticalProjects ?? '—'}</strong></article>
-    </div>
-    <Section title={t('trading.recentProjects')} description={t('trading.singleContextHint')}>
-      <ProjectTable projects={data?.recentProjects ?? []} language={language} loading={!data && !error} />
+  const [activeStep, setActiveStep] = useState(0)
+  const ActiveStepIcon = TRADING_FLOW_STEPS[activeStep].icon
+  const navigate = useNavigate()
+  const { has } = useAuth()
+  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.title')} subtitle={t('trading.subtitle')} />
+    <Section title={t('trading.flow.title')} description={t('trading.flow.description')}>
+      <ol className="trading-flow-steps" aria-label={t('trading.flow.stepsLabel')}>
+        {TRADING_FLOW_STEPS.map((step, index) => {
+          const StepIcon = step.icon
+          return <li key={step.key}>
+            <button type="button" className={`trading-flow-step${index === activeStep ? ' is-active' : ''}`} aria-current={index === activeStep ? 'step' : undefined} onClick={() => setActiveStep(index)}>
+              <b aria-hidden="true">{number(index + 1, language)}</b>
+              <StepIcon aria-hidden="true" />
+              <span>{t(`trading.flow.steps.${step.key}`)}</span>
+            </button>
+          </li>
+        })}
+      </ol>
+      <div className="trading-flow-panel">
+        <div className="trading-flow-panel__head">
+          <span className="trading-flow-panel__icon"><ActiveStepIcon aria-hidden="true" /></span>
+          <div>
+            <strong>{t(`trading.flow.steps.${TRADING_FLOW_STEPS[activeStep].key}`)}</strong>
+            <small>{t('trading.flow.stepOf', { current: number(activeStep + 1, language), total: number(TRADING_FLOW_STEPS.length, language) })}</small>
+          </div>
+        </div>
+        <div hidden={activeStep !== 0}>
+          {has('trading.project.manage') ? <TradingProjectSetupForm onCreated={id => navigate(`/trading/projects/${id}`)} onCancel={() => navigate('/trading/projects')} />
+            : <MessageStrip>{t('trading.setup.noManagePermission')}</MessageStrip>}
+        </div>
+        {activeStep !== 0 && <p className="trading-flow-panel__placeholder">{t('trading.flow.contentPlaceholder')}</p>}
+        <div className="trading-flow-nav">
+          <button type="button" className="button" disabled={activeStep === 0} onClick={() => setActiveStep(step => step - 1)}>{t('common.previous')}</button>
+          <button type="button" className="button button--primary" disabled={activeStep === TRADING_FLOW_STEPS.length - 1} onClick={() => setActiveStep(step => step + 1)}>{t('common.next')}</button>
+        </div>
+      </div>
     </Section>
   </main>
 }
@@ -100,13 +109,11 @@ function ProjectTable({ projects, language, loading, filtered = false }: { proje
 }
 
 export function TradeProjectCreatePage() {
-  const { t, i18n } = useTranslation(); const navigate = useNavigate(); const language = i18n.resolvedLanguage ?? i18n.language
-  const [form, setForm] = useState(emptyProject); const [lookups, setLookups] = useState<Lookups | null>(null); const [error, setError] = useState(''); const [saving, setSaving] = useState(false)
-  const dirty = useFormDirty(form); const safeCancel = useSafeCancel(dirty, () => navigate('/trading/projects'))
-  useEffect(() => { request<Lookups>('/lookups').then(setLookups).catch(e => setError(e.message)) }, [])
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { const data = await request<ProjectDetail>('/projects', 'POST', { ...form, customerId: form.customerId || null, supplierId: form.supplierId || null, targetDate: await canonicalTradingDate(form.targetDate, language) }); navigate(`/trading/projects/${data.project.id}`) } catch (e) { setError((e as Error).message) } finally { setSaving(false) } }
-  const customers = lookups?.references.filter(x => x.referenceType === 'CUSTOMER') ?? []
-  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.newProject')} subtitle={t('trading.generatedNumber')} backTo="/trading/projects" backLabel={t('common.backToList')} />{error && <MessageStrip tone="critical">{error}</MessageStrip>}<Section title={t('trading.projectIdentity')}><form className="ui-object-form" onSubmit={submit}><div className="ui-form-grid ui-form-grid--3"><FormField label={t('common.nameFa')} required><input required value={form.titleFa} onChange={e => setForm({ ...form, titleFa: e.target.value })} /></FormField><FormField label={t('common.nameEn')}><input dir="ltr" value={form.titleEn} onChange={e => setForm({ ...form, titleEn: e.target.value })} /></FormField><FormField label={t('trading.priority')}><select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>{['LOW','NORMAL','HIGH','CRITICAL'].map(x => <option key={x} value={x}>{codeLabel(t, x)}</option>)}</select></FormField><FormField label={t('trading.customer')}><select value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><option value="">—</option>{customers.map(x => <option key={x.id} value={x.id}>{display(x.nameFa, x.nameEn, language)}</option>)}</select></FormField><FormField label={t('trading.supplier')}><select value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}><option value="">—</option>{lookups?.suppliers.map(x => <option key={x.id} value={x.id}>{x.code} — {display(x.nameFa, x.nameEn, language)}</option>)}</select></FormField><TradingDateField label={t('trading.targetDate')} value={form.targetDate} language={language} onChange={targetDate => setForm({ ...form, targetDate })} /><FormField className="span-2" label={t('common.notes')}><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></FormField></div><div className="ui-form-actions"><button className="button button--primary" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</button><button className="button" type="button" onClick={safeCancel}>{t('common.cancel')}</button></div></form></Section></main>
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  return <main><PageHeader eyebrow={t('trading.eyebrow')} title={t('trading.newProject')} subtitle={t('trading.setup.intro')} backTo="/trading" backLabel={t('common.backToList')} />
+    <TradingProjectSetupForm onCreated={id => navigate(`/trading/projects/${id}`)} onCancel={() => navigate('/trading')} />
+  </main>
 }
 
 export function TradeProjectObjectPage() {
@@ -126,7 +133,7 @@ export function TradeProjectObjectPage() {
   return <main><PageHeader eyebrow={project.projectNumber} title={display(project.titleFa, project.titleEn, language)} subtitle={t('trading.objectHint')} status={<StatusBadge text={codeLabel(t, project.status)} tone={statusTone(project.status)} />} backTo="/trading/projects" backLabel={t('common.backToList')} actions={<div className="ui-inline-actions">{canManageProject && operational && <button className="button" onClick={() => setProjectAction('EDIT')}>{t('common.edit')}</button>}{has('trading.project.close') && operational && <button className="button" onClick={() => setProjectAction('STATUS')}>{t('trading.changeStatus')}</button>}{has('trading.project.reopen') && project.status === 'CLOSED' && <button className="button" onClick={() => setProjectAction('REOPEN')}>{t('trading.reopenProject')}</button>}<button className="button" onClick={load}><RefreshCw />{t('common.refresh')}</button></div>} />
     {error && <MessageStrip tone="critical">{error}</MessageStrip>}
     <section className="trading-process-rail" aria-label={t('trading.lifecycle')}>{['PROJECT','ORDER','FX','SHIPMENT','CUSTOMS','COST'].map((step, index) => <span className={(index === 0 || data.orderRegistrations.length && index === 1 || data.fxAllocations.length && index === 2 || data.shipments.length && index === 3 || data.shipments.some(x => x.customs.length) && index === 4 || data.costs.length && index === 5) ? 'complete' : ''} key={step}><b>{index + 1}</b>{t(`trading.steps.${step}`)}</span>)}</section>
-    <Section title={t('trading.projectContext')} actions={operational && <div className="ui-inline-actions">{canManageOrder && <button className="button" onClick={() => setOperation('ORDER')}>{t('trading.addOrder')}</button>}{canManageFx && <button className="button" onClick={() => setOperation('FX')}>{t('trading.addFx')}</button>}{canManageShipment && <><button className="button" onClick={() => setOperation('SHIPMENT')}>{t('trading.addShipment')}</button><button className="button" onClick={() => setLinkShipment(true)}>{t('trading.linkShipment')}</button></>}{canManageCost && <button className="button" onClick={() => setOperation('COST')}>{t('trading.addCost')}</button>}</div>}><DefinitionGrid><Definition label={t('trading.customer')}>{display(project.customerNameFa, project.customerNameEn, language)}</Definition><Definition label={t('trading.supplier')}>{project.supplierName ?? '—'}</Definition><Definition label={t('trading.priority')}>{codeLabel(t, project.priority)}</Definition><Definition label={t('trading.targetDate')}>{formatBusinessDate(project.targetDate, language)}</Definition></DefinitionGrid>{data.notes && <p className="trading-note">{data.notes}</p>}</Section>
+    <Section title={t('trading.projectContext')} actions={operational && <div className="ui-inline-actions">{canManageOrder && <button className="button" onClick={() => setOperation('ORDER')}>{t('trading.addOrder')}</button>}{canManageFx && <button className="button" onClick={() => setOperation('FX')}>{t('trading.addFx')}</button>}{canManageShipment && <><button className="button" onClick={() => setOperation('SHIPMENT')}>{t('trading.addShipment')}</button><button className="button" onClick={() => setLinkShipment(true)}>{t('trading.linkShipment')}</button></>}{canManageCost && <button className="button" onClick={() => setOperation('COST')}>{t('trading.addCost')}</button>}</div>}><DefinitionGrid><Definition label={t('trading.customer')}>{display(project.customerNameFa, project.customerNameEn, language)}</Definition><Definition label={t('trading.supplier')}>{project.supplierName ?? '—'}</Definition><Definition label={t('trading.priority')}>{codeLabel(t, project.priority)}</Definition><Definition label={t('trading.targetDate')}>{formatBusinessDate(project.targetDate, language)}</Definition><Definition label={t('trading.setup.fields.startDate')}>{formatBusinessDate(project.startDate, language)}</Definition><Definition label={t('trading.setup.fields.businessCardId')}>{display(project.businessCardNameFa, project.businessCardNameEn, language)}</Definition><Definition label={t('trading.setup.fields.responsibleUserId')}>{project.responsibleUserName ?? '—'}</Definition></DefinitionGrid>{data.notes && <p className="trading-note">{data.notes}</p>}</Section>
     {projectAction && <TradingProjectActionForm action={projectAction} project={project} notes={data.notes} language={language} onDone={() => { setProjectAction(null); load() }} onCancel={() => setProjectAction(null)} onError={setError} />}
     {operation && lookups && <TradingOperationForm operation={operation} project={project} data={data} lookups={lookups} language={language} onDone={() => { setOperation(null); load() }} onCancel={() => setOperation(null)} onError={setError} />}
     {shipmentAction && lookups && <TradingShipmentActionForm action={shipmentAction.type} shipment={shipmentAction.shipment} lookups={lookups} language={language} onDone={() => { setShipmentAction(null); load() }} onCancel={() => setShipmentAction(null)} onError={setError} />}

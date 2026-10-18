@@ -13,6 +13,15 @@ public static class TradingEndpoints
             .RequirePermission(Permissions.TradingProjectView);
         group.MapGet("/lookups", (bool? includeInactive, string? search, int? limit, TradingService service, CancellationToken ct) => Run(() => service.Lookups(includeInactive ?? false, search, limit ?? 100, ct)))
             .RequirePermission(Permissions.TradingProjectView);
+        group.MapPost("/project-setup/resolve-jalali-date", (ResolveTradeProjectSetupDateRequest request, TradingService service) =>
+                Run(() => Task.FromResult(service.ResolveSetupDate(request))))
+            .RequirePermission(Permissions.TradingProjectManage);
+        group.MapGet("/project-setup/lookups", (string kind, string? search, int? page, int? pageSize, TradingService service, CancellationToken ct) =>
+                Run(() => service.ProjectSetupLookups(kind, search, page ?? 1, pageSize ?? 25, ct)))
+            .RequirePermission(Permissions.TradingProjectManage);
+        group.MapPost("/project-setup", (CreateTradeProjectSetupRequest request, HttpContext context, TradingService service, CancellationToken ct) =>
+                Created(() => service.CreateProjectSetup(request, ReadAccess(context), ct), x => $"/api/trading/projects/{x.Project.Id}"))
+            .RequirePermission(Permissions.TradingProjectManage);
         group.MapGet("/references", (string? search, string? referenceType, bool? includeInactive, int? page, int? pageSize, TradingService service, CancellationToken ct) => Run(() => service.ListReferences(search, referenceType, includeInactive ?? false, page ?? 1, pageSize ?? 25, ct)))
             .RequirePermission(Permissions.TradingReferenceManage);
         group.MapGet("/projects", (string? search, string? status, string? priority, string? sortBy, string? sortDirection, int? page, int? pageSize, TradingService service, CancellationToken ct) => Run(() => service.ListProjects(search, status, priority, sortBy, sortDirection, page ?? 1, pageSize ?? 25, ct)))

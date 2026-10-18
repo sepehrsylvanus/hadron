@@ -1,4 +1,7 @@
 using System.Security.Claims;
+using System.Globalization;
+using Hadron.Erp.Api.Modules.Planning.Application;
+using Hadron.Erp.Api.Modules.Identity.Application;
 using System.Text.Json;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.Trading.Domain;
@@ -9,7 +12,7 @@ using Hadron.Erp.Api.Platform.Security;
 
 namespace Hadron.Erp.Api.Modules.Trading.Application;
 
-public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, IHttpContextAccessor accessor)
+public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, IHttpContextAccessor accessor, IActiveUserDirectory userDirectory, IPlanningCalendar calendar)
 {
     private static readonly string[] ReferenceTypes = ["CUSTOMER", "BUSINESS_CARD", "BANK", "FORWARDER", "CARRIER", "DESTINATION", "INSURANCE_COMPANY", "INSPECTION_COMPANY", "CUSTOMS_OFFICE", "CUSTOMS_BROKER"];
     private static readonly string[] Priorities = ["LOW", "NORMAL", "HIGH", "CRITICAL"];
@@ -339,6 +342,74 @@ public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, I
         var before = Json(ReferenceOf(entity)); entity.ChangeState(request.IsActive); AddAudit(db, "TradeReferenceValue", id, request.IsActive ? "REACTIVATE" : "DEACTIVATE", before, ReferenceOf(entity), request.Reason); await Save(db, ct); return ReferenceOf(entity);
     }
 
+    public ResolvedTradeProjectSetupDate ResolveSetupDate(ResolveTradeProjectSetupDateRequest request)
+    {
+        var normalized = string.Concat((request.JalaliDate ?? "").Select(c => c switch
+        {
+            >= '\u06f0' and <= '\u06f9' => (char)('0' + c - '\u06f0'),
+            >= '\u0660' and <= '\u0669' => (char)('0' + c - '\u0660'),
+            _ => c
+        })).Trim();
+        if (normalized.Length != 8 || normalized.Any(c => !char.IsAsciiDigit(c)) ||
+            !int.TryParse(normalized.AsSpan(0, 4), NumberStyles.None, CultureInfo.InvariantCulture, out var year) ||
+            !int.TryParse(normalized.AsSpan(4, 2), NumberStyles.None, CultureInfo.InvariantCulture, out var month) ||
+            !int.TryParse(normalized.AsSpan(6, 2), NumberStyles.None, CultureInfo.InvariantCulture, out var day))
+            throw Validation("jalaliDate", "تاریخ شمسی باید هشت رقم و با قالب YYYYMMDD باشد.");
+        try { return new(normalized, calendar.GetGregorianDate(year, month, day)); }
+        catch (PlanningValidationException) { throw Validation("jalaliDate", "تاریخ شمسی معتبر نیست."); }
+    }
+
+    public async Task<TradeProjectSetupLookupResponse> ProjectSetupLookups(string kind, string? search,
+        int page, int pageSize, CancellationToken ct)
+    {
+        Page(page, pageSize);
+        if ((long)(page - 1) * pageSize > int.MaxValue) throw Validation("page", "شمارهٔ صفحه خارج از محدوده است.");
+        var category = Code(kind, ["CUSTOMER", "BUSINESS_CARD", "ASSIGNEE"], "kind");
+        if (category == "ASSIGNEE")
+        {
+            var result = await userDirectory.Search(search, page, pageSize, ct);
+            return new(result.Items.Select(x => new TradingLookupItem(x.Id, "", x.FullName, null, true)).ToList(),
+                page, pageSize, result.TotalCount);
+        }
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var query = db.TradeReferenceValues.AsNoTracking().Where(x => x.IsActive && x.ReferenceType == category);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => x.Code.Contains(term) || x.NameFa.Contains(term) || (x.NameEn != null && x.NameEn.Contains(term)));
+        }
+        var count = await query.CountAsync(ct);
+        var rows = await query.OrderBy(x => x.SortOrder).ThenBy(x => x.Code).ThenBy(x => x.Id)
+            .Skip(checked((page - 1) * pageSize)).Take(pageSize)
+            .Select(x => new TradingLookupItem(x.Id, x.Code, x.NameFa, x.NameEn, x.IsActive)).ToListAsync(ct);
+        return new(rows, page, pageSize, count);
+    }
+
+    public async Task<TradeProjectDetailResponse> CreateProjectSetup(CreateTradeProjectSetupRequest request,
+        TradingProjectReadAccess access, CancellationToken ct)
+    {
+        Text(request.TitleFa, "titleFa", 250);
+        if (request.StartDate == default) throw Validation("startDate", "تاریخ شروع / ارجاع الزامی است.");
+        if (request.ResponsibleUserId == Guid.Empty) throw Validation("responsibleUserId", "مسئول پیگیری الزامی است.");
+        if (request.Notes?.Length > 4000) throw Validation("notes", "توضیحات حداکثر ۴۰۰۰ کاراکتر است.");
+        var responsible = await userDirectory.Find(request.ResponsibleUserId, ct)
+            ?? throw Validation("responsibleUserId", "کاربر فعال برای مسئول پیگیری یافت نشد.");
+        if (string.IsNullOrWhiteSpace(responsible.FullName)) throw Validation("responsibleUserId", "پروفایل مسئول پیگیری نام معتبر ندارد.");
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var customer = request.CustomerId.HasValue ? await ActiveReference(db, request.CustomerId.Value, "CUSTOMER", ct) : null;
+        var card = request.BusinessCardId.HasValue ? await ActiveReference(db, request.BusinessCardId.Value, "BUSINESS_CARD", ct) : null;
+        // Preserve canonical DRAFT lifecycle and legacy NORMAL storage; neither is user-editable here.
+        var project = new TradeProject(await Next(db, "trade_project_number_seq", "TRD", ct),
+            request.TitleFa.Trim(), null, customer?.Id, customer?.Code, customer?.NameFa, customer?.NameEn,
+            null, null, null, "NORMAL", null, UserId(), Clean(request.Notes));
+        project.SetInitialSetup(request.StartDate, responsible.Id, responsible.FullName,
+            card?.Id, card?.Code, card?.NameFa, card?.NameEn);
+        db.TradeProjects.Add(project);
+        AddAudit(db, "TradeProject", project.Id, "CREATE", null, new { Project = ProjectSummary().Compile()(project), project.Notes }, null);
+        await Save(db, ct); // One SaveChanges: the project and its immutable audit are atomic.
+        return (await GetProject(project.Id, access, ct))!;
+    }
+
     public Task<TradeProjectDetailResponse> CreateProject(CreateTradeProjectRequest request, CancellationToken ct) =>
         CreateProject(request, TradingProjectReadAccess.Full, ct);
 
@@ -511,7 +582,7 @@ public sealed class TradingService(IDbContextFactory<HadronDbContext> factory, I
         Text(request.Note, "note", 4000); await using var db = await factory.CreateDbContextAsync(ct); await Project(db, request.ProjectId, ct); var entity = new TradeReportNote(request.ProjectId, UserId(), request.Note.Trim()); db.TradeReportNotes.Add(entity); AddAudit(db, "TradeProject", request.ProjectId, "REPORT_NOTE_CREATE", null, new { entity.Id, entity.ProjectId, entity.AuthorUserId, entity.Note }, null); await Save(db, ct);
     }
 
-    private static System.Linq.Expressions.Expression<Func<TradeProject, TradeProjectSummary>> ProjectSummary() => x => new(x.Id, x.ProjectNumber, x.TitleFa, x.TitleEn, x.CustomerNameFaSnapshot, x.CustomerNameEnSnapshot, x.SupplierNameSnapshot, x.Priority, x.Status, x.TargetDate, x.Version, x.UpdatedAtUtc);
+    private static System.Linq.Expressions.Expression<Func<TradeProject, TradeProjectSummary>> ProjectSummary() => x => new(x.Id, x.ProjectNumber, x.TitleFa, x.TitleEn, x.CustomerNameFaSnapshot, x.CustomerNameEnSnapshot, x.SupplierNameSnapshot, x.Priority, x.Status, x.TargetDate, x.Version, x.UpdatedAtUtc, x.StartDate, x.BusinessCardId, x.BusinessCardCodeSnapshot, x.BusinessCardNameFaSnapshot, x.BusinessCardNameEnSnapshot, x.ResponsibleUserId, x.ResponsibleUserNameSnapshot);
     private static TradeReferenceResponse ReferenceOf(TradeReferenceValue x) => new(x.Id, x.ReferenceType, x.Code, x.NameFa, x.NameEn, x.SortOrder, x.IsActive, x.Version);
     private static TradeProjectContext ProjectContextOf(TradeProject x) => new(x.Id, x.ProjectNumber, x.TitleFa, x.TitleEn);
     private static TradeOrderRegistrationResponse OrderOf(TradeOrderRegistration x) => new(x.Id, x.ProjectId, x.RegistrationNumber, x.Status, x.RegistrationDate, x.RegisteredAmount, x.CurrencyId, x.CurrencyCodeSnapshot, x.CurrencyNameFaSnapshot, x.CurrencyNameEnSnapshot, x.Notes, x.Version);

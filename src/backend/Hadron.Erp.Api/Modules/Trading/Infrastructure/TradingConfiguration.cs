@@ -1,4 +1,5 @@
 using Hadron.Erp.Api.Modules.Trading.Domain;
+using Hadron.Erp.Api.Modules.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -33,6 +34,13 @@ internal sealed class TradeProjectConfiguration : IEntityTypeConfiguration<Trade
         b.HasKey(x => x.Id); b.Property(x => x.ProjectNumber).HasMaxLength(32).IsRequired(); b.Property(x => x.TitleFa).HasMaxLength(250).IsRequired(); b.Property(x => x.TitleEn).HasMaxLength(250);
         b.Property(x => x.CustomerCodeSnapshot).HasMaxLength(40); b.Property(x => x.CustomerNameFaSnapshot).HasMaxLength(200); b.Property(x => x.CustomerNameEnSnapshot).HasMaxLength(200);
         b.Property(x => x.SupplierNumberSnapshot).HasMaxLength(40); b.Property(x => x.SupplierNameSnapshot).HasMaxLength(200); b.Property(x => x.Priority).HasMaxLength(16).IsRequired(); b.Property(x => x.Status).HasMaxLength(32).IsRequired(); b.Property(x => x.Notes).HasMaxLength(4000);
+        b.Property(x => x.StartDate).HasColumnType("date");
+        b.Property(x => x.BusinessCardCodeSnapshot).HasMaxLength(40);
+        b.Property(x => x.BusinessCardNameFaSnapshot).HasMaxLength(200);
+        b.Property(x => x.BusinessCardNameEnSnapshot).HasMaxLength(200);
+        b.Property(x => x.ResponsibleUserNameSnapshot).HasMaxLength(500);
+        b.HasOne<TradeReferenceValue>().WithMany().HasForeignKey(x => x.BusinessCardId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ResponsibleUserId).OnDelete(DeleteBehavior.Restrict);
         TradingConfigurationSupport.Audit(b); b.HasIndex(x => x.ProjectNumber).IsUnique(); b.HasIndex(x => new { x.Status, x.Priority, x.TargetDate }); b.HasIndex(x => x.CustomerId); b.HasIndex(x => x.SupplierId);
     }
 }

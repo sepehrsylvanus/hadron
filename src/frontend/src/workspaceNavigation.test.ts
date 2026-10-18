@@ -189,3 +189,14 @@ test('ten representative access profiles expose only their permitted menus and k
     if (profile.viewOnly) assert.equal(canManageRoute(profile.viewOnly, has), false, `${profile.name} should be view-only at ${profile.viewOnly}`)
   }
 })
+
+
+test('Trading first-step users can enter the workspace without reporting or reference-admin permissions', () => {
+  const trading = workspaces.find(w => w.id === 'trading')!
+  const has = (permission: string) => ['trading.project.view', 'trading.project.manage'].includes(permission)
+  assert.equal(trading.entryPermission, 'trading.project.view')
+  assert.equal(canViewWorkspaceOverview(trading, has), true)
+  assert.equal(canNavigate('/trading', has), true)
+  assert.equal(canManageRoute('/trading/projects/new', has), true)
+  assert.equal(canNavigate('/trading/references', has), false)
+})

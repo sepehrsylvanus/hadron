@@ -4,6 +4,7 @@ using System.Text.Json;
 using Hadron.Erp.Api.Infrastructure;
 using Hadron.Erp.Api.Modules.ReferenceData.Domain;
 using Hadron.Erp.Api.Modules.Trading.Domain;
+using Hadron.Erp.Api.Modules.Identity.Domain;
 using Hadron.Erp.Api.Platform.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,6 +52,135 @@ public sealed class TradingTests : IClassFixture<FoundationApiFactory>, IAsyncLi
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
+
+    [Fact]
+    public async Task First_step_saves_only_initial_facts_with_real_references_and_audit()
+    {
+        var owner = await SetupUser();
+        var customer = await Created("/api/trading/references", new { referenceType = "CUSTOMER", nameFa = "مشتری مرحله اول", nameEn = (string?)null, sortOrder = 0 });
+        var card = await Created("/api/trading/references", new { referenceType = "BUSINESS_CARD", nameFa = "کارت مرحله اول", nameEn = (string?)null, sortOrder = 0 });
+        var result = await Created("/api/trading/project-setup", new
+        {
+            titleFa = "  موضوع مرحله اول  ", startDate = "2026-10-18", responsibleUserId = owner.Id,
+            customerId = customer.GetProperty("id").GetGuid(), businessCardId = card.GetProperty("id").GetGuid(),
+            notes = "توضیحات مرحله اول", status = "WAITING_ORDER", priority = "CRITICAL"
+        });
+        var project = result.GetProperty("project");
+        var id = project.GetProperty("id").GetGuid();
+        Assert.Equal("موضوع مرحله اول", project.GetProperty("titleFa").GetString());
+        Assert.Equal("2026-10-18", project.GetProperty("startDate").GetString());
+        Assert.Equal(owner.Id, project.GetProperty("responsibleUserId").GetGuid());
+        Assert.Equal(owner.FullName, project.GetProperty("responsibleUserName").GetString());
+        Assert.Equal("کارت مرحله اول", project.GetProperty("businessCardNameFa").GetString());
+        Assert.Equal("DRAFT", project.GetProperty("status").GetString());
+        Assert.Equal("NORMAL", project.GetProperty("priority").GetString());
+        Assert.Matches("^TRD-[0-9]{6}$", project.GetProperty("projectNumber").GetString()!);
+        Assert.Empty(result.GetProperty("orderRegistrations").EnumerateArray());
+        Assert.Empty(result.GetProperty("fxAllocations").EnumerateArray());
+        Assert.Empty(result.GetProperty("shipments").EnumerateArray());
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var stored = await db.TradeProjects.SingleAsync(x => x.Id == id);
+        Assert.Equal(new DateOnly(2026, 10, 18), stored.StartDate);
+        Assert.Equal("توضیحات مرحله اول", stored.Notes);
+        Assert.NotEqual(default, stored.CreatedAtUtc);
+        var audit = await db.TradeAuditEvents.SingleAsync(x => x.EntityId == id && x.Action == "CREATE");
+        Assert.Contains("responsibleUserId", audit.CurrentJson!);
+        var cardEntity = await db.TradeReferenceValues.SingleAsync(x => x.Id == stored.BusinessCardId);
+        cardEntity.Edit("نام جدید کارت", null, 0);
+        await db.SaveChangesAsync();
+        var reloaded = await _client.GetFromJsonAsync<JsonElement>($"/api/trading/projects/{id}");
+        Assert.Equal("کارت مرحله اول", reloaded.GetProperty("project").GetProperty("businessCardNameFa").GetString());
+    }
+
+    [Fact]
+    public async Task First_step_rejects_missing_dates_inactive_assignees_and_wrong_reference_roles()
+    {
+        var owner = await SetupUser();
+        var inactive = await SetupUser(false);
+        var customer = await Created("/api/trading/references", new { referenceType = "CUSTOMER", nameFa = "مشتری نه کارت", nameEn = (string?)null, sortOrder = 0 });
+        foreach (var body in new object[]
+        {
+            new { titleFa = "موضوع", responsibleUserId = owner.Id },
+            new { titleFa = "موضوع", startDate = "2026-10-18", responsibleUserId = Guid.Empty },
+            new { titleFa = "موضوع", startDate = "2026-10-18", responsibleUserId = inactive.Id },
+            new { titleFa = "موضوع", startDate = "2026-10-18", responsibleUserId = owner.Id, businessCardId = customer.GetProperty("id").GetGuid() },
+            new { titleFa = "موضوع", startDate = "2026-10-18", responsibleUserId = owner.Id, notes = new string('x', 4001) }
+        })
+        {
+            using var response = await _client.PostAsJsonAsync("/api/trading/project-setup", body);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        Assert.Equal(0, await db.TradeProjects.CountAsync());
+    }
+
+    [Fact]
+    public async Task First_step_lookups_are_paged_filtered_and_do_not_expose_admin_profile_fields()
+    {
+        var owner = await SetupUser();
+        var inactive = await SetupUser(false);
+        for (var i = 0; i < 26; i++)
+            await Created("/api/trading/references", new { referenceType = "BUSINESS_CARD", nameFa = $"کارت صفحه {i:D2}", nameEn = (string?)null, sortOrder = i });
+        var first = await _client.GetFromJsonAsync<JsonElement>("/api/trading/project-setup/lookups?kind=BUSINESS_CARD&page=1&pageSize=25");
+        var second = await _client.GetFromJsonAsync<JsonElement>("/api/trading/project-setup/lookups?kind=BUSINESS_CARD&page=2&pageSize=25");
+        Assert.Equal(26, first.GetProperty("totalCount").GetInt32());
+        Assert.Equal(25, first.GetProperty("items").GetArrayLength());
+        Assert.Equal(1, second.GetProperty("items").GetArrayLength());
+        var users = await _client.GetFromJsonAsync<JsonElement>("/api/trading/project-setup/lookups?kind=ASSIGNEE&page=1&pageSize=100");
+        Assert.Contains(users.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == owner.Id);
+        Assert.DoesNotContain(users.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == inactive.Id);
+        Assert.DoesNotContain("email", users.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", users.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        using var invalid = await _client.GetAsync("/api/trading/project-setup/lookups?kind=BANK");
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
+    public async Task First_step_requires_manage_permission_for_both_lookup_and_create()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", Permissions.TradingProjectView);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/trading/project-setup/lookups?kind=ASSIGNEE")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/trading/project-setup", new { titleFa = "موضوع" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/trading/project-setup/resolve-jalali-date", new { jalaliDate = "14050726" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task First_step_jalali_conversion_uses_shared_calendar_without_granting_mrp_permissions()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Hadron-Test-Permissions", Permissions.TradingProjectManage);
+        using var response = await client.PostAsJsonAsync("/api/trading/project-setup/resolve-jalali-date", new { jalaliDate = "۱۴۰۵۰۷۲۶" });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resolved = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("2026-10-18", resolved.GetProperty("gregorianDate").GetString());
+        using var invalid = await client.PostAsJsonAsync("/api/trading/project-setup/resolve-jalali-date", new { jalaliDate = "14051301" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var denied = await client.PostAsJsonAsync("/api/planning/resolve-jalali-date", new { jalaliDate = "14050726" });
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+    }
+
+    private async Task<ApplicationUser> SetupUser(bool active = true)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HadronDbContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var unit = new OrganizationalUnit("واحد تست بازرگانی", null);
+        var token = Guid.NewGuid().ToString("N");
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(), UserName = token, NormalizedUserName = token.ToUpperInvariant(),
+            Email = token + "@test.invalid", NormalizedEmail = token.ToUpperInvariant() + "@TEST.INVALID", PhoneNumber = "09000000000",
+            FirstName = "کارشناس", LastName = "تست " + token, OrganizationalUnitId = unit.Id,
+            IsActive = active, ProfilePhotoObjectKey = "test/photo", ProfilePhotoContentType = "image/png", ProfilePhotoSize = 1
+        };
+        db.OrganizationalUnits.Add(unit); db.Users.Add(user); await db.SaveChangesAsync();
+        return user;
+    }
 
     [Fact]
     public async Task Project_object_preserves_complete_operational_lineage_and_snapshots()
