@@ -1,0 +1,20 @@
+import { positiveAmount,assertVersion,explodeBom,netMaterial,assertOrderEditable,assertOrderTransition } from './domain.logic';
+describe('Scoped domain examples; not database integration tests',()=>{
+  it('keeps monetary decimals exact',()=>expect(positiveAmount('999999999999999999.123456')).toBe('999999999999999999.123456'));
+  it.each(['0','-1','1e3','1.1234567','01','1000000000000000000'])('rejects invalid amount %s',v=>expect(()=>positiveAmount(v)).toThrow('INVALID_AMOUNT'));
+  it('rejects stale versions',()=>expect(()=>assertVersion('2','3')).toThrow('VERSION_CONFLICT'));
+  it('accepts current versions',()=>expect(()=>assertVersion('3','3')).not.toThrow());
+  it('aggregates shared children',()=>expect(explodeBom('P','2',{P:{baseOutputQty:'1',lines:[{childId:'A',usageQty:'2',scrapPercent:'0'},{childId:'C',usageQty:'1',scrapPercent:'0'}]},A:{baseOutputQty:'1',lines:[{childId:'C',usageQty:'3',scrapPercent:'0'}]}})).toEqual({A:'4',C:'14'}));
+  it('uses additive scrap',()=>expect(explodeBom('P','10',{P:{baseOutputQty:'1',lines:[{childId:'C',usageQty:'2',scrapPercent:'5'}]}})).toEqual({C:'21'}));
+  it('rejects indirect cycles',()=>expect(()=>explodeBom('P','1',{P:{baseOutputQty:'1',lines:[{childId:'A',usageQty:'1',scrapPercent:'0'}]},A:{baseOutputQty:'1',lines:[{childId:'P',usageQty:'1',scrapPercent:'0'}]}})).toThrow('BOM_CYCLE'));
+  it('rejects zero output',()=>expect(()=>explodeBom('P','1',{P:{baseOutputQty:'0',lines:[]}})).toThrow('INVALID_BASE_OUTPUT'));
+  it('nets material exactly',()=>expect(netMaterial('100.25','20','10.1','5')).toBe('75.15'));
+  it('never produces negative net demand',()=>expect(netMaterial('1','10','0','0')).toBe('0'));
+  it('blocks closed projects',()=>expect(()=>assertOrderEditable('CLOSED','DRAFT',false)).toThrow('PROJECT_CLOSED'));
+  it('blocks non-draft edits',()=>expect(()=>assertOrderEditable('ACTIVE','SUBMITTED',false)).toThrow('ORDER_NOT_DRAFT'));
+  it('blocks linked FX without implementing FX',()=>expect(()=>assertOrderEditable('ACTIVE','DRAFT',true)).toThrow('ORDER_HAS_LINKED_FX'));
+  it('allows normal submit',()=>expect(()=>assertOrderTransition('DRAFT','SUBMITTED','send')).not.toThrow());
+  it('requires a reason',()=>expect(()=>assertOrderTransition('DRAFT','SUBMITTED',' ')).toThrow('REASON_REQUIRED'));
+  it('never reopens cancelled orders',()=>expect(()=>assertOrderTransition('CANCELLED','DRAFT','fix',true)).toThrow('INVALID_TRANSITION'));
+  it('requires an explicit correction flag',()=>{expect(()=>assertOrderTransition('SUBMITTED','DRAFT','fix')).toThrow();expect(()=>assertOrderTransition('SUBMITTED','DRAFT','fix',true)).not.toThrow();});
+});

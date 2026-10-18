@@ -1,0 +1,2382 @@
+[
+  {
+    "path": ".config/dotnet-tools.json",
+    "sha256": "91ec0e4c1522c83ee20cc40a677f75cf107c408f99aab30975a2bc81d4f91e6c"
+  },
+  {
+    "path": ".dockerignore",
+    "sha256": "3f7e736bed7ae02e6fa8698fd217dad97353404a3b74d8ab6fbd5bcadb92e965"
+  },
+  {
+    "path": ".env.example",
+    "sha256": "a515236d69450dcd56c633a34c0f360d38952196dbe400d4531b6e3ee5c7d163"
+  },
+  {
+    "path": ".gitignore",
+    "sha256": "d8d284ccc5201051de0f8f3bc9e353ac1d3c2150847efefd1cc2d093adb02b4c"
+  },
+  {
+    "path": "AGENTS.md",
+    "sha256": "128742fa96110154327cf1115e8f32aea8edb868f541c427040237f036340355"
+  },
+  {
+    "path": "Directory.Build.props",
+    "sha256": "24ed2c3b81c7f73d3199024a0a394d856322f241259c5f1e9ecef95072dfd8ef"
+  },
+  {
+    "path": "Hadron.Erp.slnx",
+    "sha256": "ae0a74e632cc5354782fc792017abb3ebb44c6dd2a2371a2d84c84f52e86db9b"
+  },
+  {
+    "path": "README.md",
+    "sha256": "a756cd83ce96164fd790d92ad70d6b501850d665e1da3b945be207ac09792b9e"
+  },
+  {
+    "path": "compose.production.yml",
+    "sha256": "67369ca3f0d50e216809a2acb3185c7475b0d86af73282f3912a5133ff73b4f8"
+  },
+  {
+    "path": "deploy/caddy/Caddyfile",
+    "sha256": "fdbadffd37c0ec905b7806c48167ece4dba2f7e42bf21441bea49945b429e6f5"
+  },
+  {
+    "path": "deploy/nginx/frontend.conf",
+    "sha256": "cb5ec2457abcb3daea834a93ff9629446c5d0855c27d34be33e1a4c591fea5d3"
+  },
+  {
+    "path": "deploy/production.env.example",
+    "sha256": "33ac8c9127e2da1b9e4229f0712a4749461cce96efc59f680942dd07fe287a4f"
+  },
+  {
+    "path": "docker-compose.yml",
+    "sha256": "40a80335249de3ec7d836c759f9a3e8525c753344a28d325ac7a3271cf0e9aec"
+  },
+  {
+    "path": "docs/ADR/ADR-001-IDENTITY-PERMISSION-PROFILE.md",
+    "sha256": "df0adbfe00ab5d9d159c3daf2e09c9fc6042d52439980316f6c04fe4b9c0c986"
+  },
+  {
+    "path": "docs/ARCHITECTURE.md",
+    "sha256": "00e9b365165f499c6f51c3870abe350658c9efee9dec120e0d4d29affa01d1ab"
+  },
+  {
+    "path": "docs/DEPLOYMENT.md",
+    "sha256": "6915c2a3465dc7739d06c5311d3f5e1bc468b000842b56a244591139f299abc8"
+  },
+  {
+    "path": "docs/MIGRATION.md",
+    "sha256": "c400827b827149a6befdd987fd35f1be64e1fb3f509c8958fd90f805eb991a78"
+  },
+  {
+    "path": "docs/PERMISSIONS.md",
+    "sha256": "68b6231f823fd4b859c3a8de9cfa170d2aae3b8b816284ca5f963c05c8fbd747"
+  },
+  {
+    "path": "docs/TESTING.md",
+    "sha256": "56b05b6553989ea4b22fb39bf233b5255c15cafac4d7912a502d29ec71fe1685"
+  },
+  {
+    "path": "docs/audits/2026-09-06-ERP-REMEDIATION-AUDIT.md",
+    "sha256": "f80122eb916475ec06611f3038578cb73b07c3060fab4274fa1172f6786336d7"
+  },
+  {
+    "path": "docs/brand/HADRON-CHARACTER-UI-GUIDELINES.md",
+    "sha256": "3897ab5ea42fd733d680999cca9f7ecf2ff0ccbee5cf6fbc4a396c88bf10203b"
+  },
+  {
+    "path": "docs/brand/HADRON-DIGITAL-DESIGN-SYSTEM-v1.0.pdf",
+    "sha256": "569fdd07179c5cab6d5bad6a8836132e046bb2044041c9de6daf95243e1939db"
+  },
+  {
+    "path": "docs/brand/Hadron Logo new-01.png",
+    "sha256": "778bb421a7b3ed49aac55e02d12774fbb1a98917c846d5e5298997be3bb9a7b1"
+  },
+  {
+    "path": "docs/brand/Hadron-Brand-Guidelines.pdf",
+    "sha256": "0502893abb8cb633b0e28564eaef5738af8942064057348cd4849f266e5e69d7"
+  },
+  {
+    "path": "docs/brand/Hadron-Character-Model-Sheet.jpeg",
+    "sha256": "1bd59ebbd8710a2a22b3db9adc5130319b46f8f7e040ff4f37e70ebc95cbdbbe"
+  },
+  {
+    "path": "docs/brand/UI-BRAND-RULES.md",
+    "sha256": "95057f728b872dbef065fc9aae0d9f2b6f4f8c1fc28ab6b7f8159faf18ade372"
+  },
+  {
+    "path": "docs/modules/cash-flow/CASH-FLOW-USD-REPORTING.md",
+    "sha256": "d4d091c34ca7e22c0fa4b4687ecac298acd0aca56ec67e378140c724e4c7ea6e"
+  },
+  {
+    "path": "docs/modules/cash-flow/CASH-FLOW-V1.md",
+    "sha256": "51b9b64e9ea3bf428f70a03fbeff003626f28377dad6eb04b7e3b55db83b6a2b"
+  },
+  {
+    "path": "docs/modules/cash-flow/DECISIONS.md",
+    "sha256": "3b268e342a1ffeabd4559a968eedd7eb7f09b1c76a805bb0a5df1198fb79baeb"
+  },
+  {
+    "path": "docs/modules/cash-flow/MATERIAL-COST-BOOK.md",
+    "sha256": "12a0f99bf00946c4e6b1d924554e91a6d36417a16fb5dedbec7d96c16091a614"
+  },
+  {
+    "path": "docs/modules/cash-flow/TESTING.md",
+    "sha256": "0340ac3d565923fd6d743a7b3547b9898cdbe048bf002c81fde0fa6a9dd94b55"
+  },
+  {
+    "path": "docs/modules/collaboration/COLLABORATION-V1-AUDIT.md",
+    "sha256": "8046d23e45c8558e5333f7c36c89bcc29dd883990a6315071930b9d961622519"
+  },
+  {
+    "path": "docs/modules/collaboration/COLLABORATION-V1.md",
+    "sha256": "d1e1c906804fda0b69a3cbf7d9efd981d69c34b9b7b77b7aaa02cf97779a1155"
+  },
+  {
+    "path": "docs/modules/collaboration/MEETING-SCALE-UX-QUALIFICATION-2026-09-08.md",
+    "sha256": "6f3d7dc1838e2c9ad47b3c25a55bef9bbb6b2a9b28439ad8da46a2a339018f8f"
+  },
+  {
+    "path": "docs/modules/collaboration/MEETINGS-V1-AUDIT.md",
+    "sha256": "d487478e9122cd21b25b5a47de6b5ea2fa4be6df77d7e8ff993290ca95c614e3"
+  },
+  {
+    "path": "docs/modules/collaboration/MEETINGS-V1.md",
+    "sha256": "090fa3f105cec5a12145cb6273c8fbdddaba75aa480e66964a7c3bf46e69c136"
+  },
+  {
+    "path": "docs/modules/mrp/DECISIONS.md",
+    "sha256": "b946ed2ad263d75c15970167935af6da7480af42ec696bba1e4872764fc7b1a4"
+  },
+  {
+    "path": "docs/modules/mrp/MRP-BUSINESS-SCENARIO.md",
+    "sha256": "33efa7e6a4754b1dbf208fcb752ac33210cebd1e8d9e820a2f826edb62ece53c"
+  },
+  {
+    "path": "docs/modules/mrp/MRP-SYSTEM-SPEC.md",
+    "sha256": "6be6b90b418057a13b51807b46c9aef1c23358c78a3d8acbe05939f0d36faadc"
+  },
+  {
+    "path": "docs/modules/mrp/OPEN-QUESTIONS.md",
+    "sha256": "d3e6e0b09e01dc9f8c97afc5be694554304f90010f5d782d987abaabe3a2b878"
+  },
+  {
+    "path": "docs/modules/mrp/README.md",
+    "sha256": "8c66ca2d262021e9c8db21177601e5211d1dffc586b8cd7f167baae3c62f2adb"
+  },
+  {
+    "path": "docs/modules/mrp/SHEET-ANALYSIS-TEMPLATE.md",
+    "sha256": "5494968a3db1a10f4475af209d42cf36c6411f0a805e105542d7902619ec9599"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-01-REFERENCE-DATA-PACKAGE-FINAL.md",
+    "sha256": "1300db46edb7cf9124c2a5bbd6b5ecb8287bbb749296d85e72d93e553cbf126a"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-02-PRODUCT-MASTER-PACKAGE-FINAL.md",
+    "sha256": "2e7639b659c36f0cc8f53f6cebc2cec7b4431cdf7593dff65a5820b506961cb2"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-03-SUPPLIER-MASTER-PACKAGE-FINAL.md",
+    "sha256": "3a08a06790ce8e949d6a0c329c4758182e4c0084c2720eae56c34b3b6f2ee9a3"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-04-PART-COMPONENT-MASTER-PACKAGE-FINAL.md",
+    "sha256": "d1dc6c52951c8ed38a4b76f912e07b7ab27e721521e106983832044b6abf68cd"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-05-SOURCING-COMMERCIAL-TERMS-PACKAGE-FINAL.md",
+    "sha256": "974ca40723667a3594b67af12e858ad4dd356a6fd1e7bb36414d4abaa4e7fa34"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-06-MULTI-LEVEL-BOM-PACKAGE-FINAL.md",
+    "sha256": "1045dde079b0d734c436efeb6db42a10de80b15676dd6ae212a6352c33596d22"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-07-FORECAST-ACTUAL-PACKAGE-FINAL.md",
+    "sha256": "53c131accbea6c65690e23f4ac7e23a616a3e015929e7d1189483dc65ef44f2f"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-08-INVENTORY-FOUNDATION-PACKAGE-FINAL.md",
+    "sha256": "4751b1463c42768913cbf9df222f2bbb76d06da67798775d1f045197bcd349f3"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-09-PURCHASE-SUPPLY-FOUNDATION-PACKAGE-FINAL.md",
+    "sha256": "01811081bb617b52e7dc0ded60241a6fab03cb3dc5838eefc2b1c5628f22f8a1"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-10-MRP-CALCULATION-ENGINE-PACKAGE-FINAL.md",
+    "sha256": "8319e06053517665e5f04ce7b7925e10ac647c13c06e4eae6249aed2003b14fd"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-11-MATERIAL-PLANNING-UI-PACKAGE-FINAL.md",
+    "sha256": "7ea8b1b03d674fefab2fe2a5190f2441f81a2f363c80f890a569187fda92fe37"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-12-ORDER-PLANNING-PACKAGE-FINAL.md",
+    "sha256": "2aa008d57550e9439298ec0a823f01a33824e418f85fc081df139300dd261847"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-13-PURCHASE-ORDER-OPERATIONS-PACKAGE-FINAL.md",
+    "sha256": "46aa7643c58aab67ef3757a990102043cbea2a7e8aac0b585507ac29645cc98a"
+  },
+  {
+    "path": "docs/modules/mrp/features/MRP-14-ANALYTICS-REPORTING-INTEGRATION-PACKAGE-FINAL.md",
+    "sha256": "3c917bed7da3035e1c5f3e16f0b5750ceee363cb7f000a4397ba1c397f6c30fc"
+  },
+  {
+    "path": "docs/modules/mrp/golden/MRP-GOLDEN-DATASET-V1-FINAL.md",
+    "sha256": "80ce92e79a30bf29bf6af0b49de027fac645862c56f3ceb216bdd336e7ec1f9b"
+  },
+  {
+    "path": "docs/modules/trading/TRADING-OPERATIONS-PACKAGE.md",
+    "sha256": "414cc0d62bac85ac314749c93ad5f3d3fb05cd4799462600e6507aee276a16e3"
+  },
+  {
+    "path": "docs/modules/trading/data-map/DAILY-REPORT-1405-07-25.md",
+    "sha256": "0dc223abc1d2993a3dffeaeac8f4e86406c20a60c7953da71b793fd202342984"
+  },
+  {
+    "path": "docs/modules/trading/data-map/README.md",
+    "sha256": "c18e04355c44607e1aeb5357e09171b08083fdc5f860ff2dee03ec8f9bbd55ac"
+  },
+  {
+    "path": "docs/modules/trading/data-map/hadron-data-map-v2.html",
+    "sha256": "fd670fc1e49b9beff3d5b03061f84af716355a9e3c93185fdd7e8e03cd555ae2"
+  },
+  {
+    "path": "docs/modules/trading/data-map/trading.prisma",
+    "sha256": "52230d484bc9b6203b91c3bb571457a25f92eb07729c0fe02c6390456852bc21"
+  },
+  {
+    "path": "docs/ui/HADRON-ERP-UX-ARCHITECTURE.md",
+    "sha256": "7a1d51e574455b5e908ec26efbf2780627ff6bbf32b6c7222778b9da743193f8"
+  },
+  {
+    "path": "docs/ui/trading-prototype/01-project.html",
+    "sha256": "5ec9fee26b2ce8a9a9e9fd7ec6390f4b4c5e3eebfe9fc4c16b13f332eaa49910"
+  },
+  {
+    "path": "docs/ui/trading-prototype/02-orders.html",
+    "sha256": "cb1653d3ea6010201bf4af52c21b2326e164ce022b832eb7244dafad86ac7e17"
+  },
+  {
+    "path": "docs/ui/trading-prototype/03-fx.html",
+    "sha256": "700ade5a9e81c6522b111389b34b16e69d48d8c9586394c5b2ea697d8c3e494e"
+  },
+  {
+    "path": "docs/ui/trading-prototype/04-shipments.html",
+    "sha256": "95f70dad51094a52a5b8078632c6fb24317f7104cbcbe3f284bfec83a6711321"
+  },
+  {
+    "path": "docs/ui/trading-prototype/05-transport.html",
+    "sha256": "96800c97d865efc1158cef4f6d92d217e14c3ed83b48abaf143878d16af150df"
+  },
+  {
+    "path": "docs/ui/trading-prototype/06-customs.html",
+    "sha256": "e02a9443678af8ec6f721f7a254def59bdb4175f4d0a0e379afe5140bf8e43c6"
+  },
+  {
+    "path": "docs/ui/trading-prototype/07-insurance.html",
+    "sha256": "1ab78254b1fb38d176bed72c23da9297e90d253bc270a67a3cedf58f55246b26"
+  },
+  {
+    "path": "docs/ui/trading-prototype/08-commitments.html",
+    "sha256": "f169a2932c13a84ae353ffe6e9e2e9c02b88447900df9397de732cc6c3a00e62"
+  },
+  {
+    "path": "docs/ui/trading-prototype/09-costs.html",
+    "sha256": "135237ee3d0e18e2327b2ad7f89a789417640fc52d250a7efa16caaa9ebe747a"
+  },
+  {
+    "path": "docs/ui/trading-prototype/README.md",
+    "sha256": "2ea9c7b377049d89e4e5fb6c5c14168138378eeed3a3eceb809ba295211f041f"
+  },
+  {
+    "path": "docs/ui/trading-prototype/assets/app.js",
+    "sha256": "abb2e8e9c91062dc3436cf8e259e49730ff4d97fd87b1f294597c2f2138486e1"
+  },
+  {
+    "path": "docs/ui/trading-prototype/assets/data.js",
+    "sha256": "e1456ee24ea996a82ea0eeb181823cdd982bc6e5c222d181b0d132f1c5c734ce"
+  },
+  {
+    "path": "docs/ui/trading-prototype/assets/hadron-logo-red.svg",
+    "sha256": "9de51fe17567d6d4f92ed6634832b84a48a23344b9790f30ae902a641de62019"
+  },
+  {
+    "path": "docs/ui/trading-prototype/assets/style.css",
+    "sha256": "b5ed95bc36f476d22b58004ba7dd44878a2cdfb512f24df9b559cfaa6035a527"
+  },
+  {
+    "path": "docs/ui/trading-prototype/data-sources.html",
+    "sha256": "b906568471425e7d37abbd9d12038e6028c81cf8901fe3ab078dce95a07f071b"
+  },
+  {
+    "path": "docs/ui/trading-prototype/field-map.json",
+    "sha256": "a029e84b9a42a3cd15cd7bd5b873e91c39d036f91c626a4c37ca60f06fadfc14"
+  },
+  {
+    "path": "docs/ui/trading-prototype/index.html",
+    "sha256": "b57282cc21d6d5af7e6e08137b867b48975ad5f903a93621974ef0f50a2444b7"
+  },
+  {
+    "path": "docs/ui/trading-stage-1/README.md",
+    "sha256": "d0138b3a07b39d4bcaea5136a1e1be29214a4b71f5c05f59b1979df85aa90429"
+  },
+  {
+    "path": "docs/ui/trading-stage-1/hadron-logo-red.svg",
+    "sha256": "9de51fe17567d6d4f92ed6634832b84a48a23344b9790f30ae902a641de62019"
+  },
+  {
+    "path": "docs/ui/trading-stage-1/stage-1-annotated.html",
+    "sha256": "2d895a7c0c17b8ff94dc28a81264325f7b26fdec27ed7510e1511443c75adb91"
+  },
+  {
+    "path": "docs/ui/trading-stage-1/stage-1.html",
+    "sha256": "c01c6644655bfdf8957ebec23870a931c3414644a57d7ae2b288b8244ff335bb"
+  },
+  {
+    "path": "docs/ui/trading-stage-2/README.md",
+    "sha256": "d44324354d0345537abbffc6b505d774806fd43cd2bb8434420158a6d5733780"
+  },
+  {
+    "path": "docs/ui/trading-stage-2/hadron-logo-red.svg",
+    "sha256": "9de51fe17567d6d4f92ed6634832b84a48a23344b9790f30ae902a641de62019"
+  },
+  {
+    "path": "docs/ui/trading-stage-2/stage-2-annotated.html",
+    "sha256": "f3c56955b93bfe3d899b13e88e8ef4a674885fa37f75ddddc6c8b24f670ab3b2"
+  },
+  {
+    "path": "docs/ui/trading-stage-2/stage-2.html",
+    "sha256": "513e4aa00f4ee336f6979afba3f3b8fb210998e1d01ba31bba05385312707790"
+  },
+  {
+    "path": "global.json",
+    "sha256": "b132d105648c7dbe49f2c391fe0b9898027e470ddc7cfd4d7239af5df63401fa"
+  },
+  {
+    "path": "output/pdf/Hadron-ERP-System-User-Handbook-FA.pdf",
+    "sha256": "9e0c1cd43675648bee736de992827fa74446b7601d24d7eec67f3c94e078fa0f"
+  },
+  {
+    "path": "output/trading-prototype.zip",
+    "sha256": "c4349fe07732f8bacfb6b07b0ae3375fce00d6682b155785ff7b0143edc8bd03"
+  },
+  {
+    "path": "output/trading-stage-1.zip",
+    "sha256": "a8c95d35e551fa8f2055c06ce46608d8cae8b5397b1d8f89a9a0d80997e72752"
+  },
+  {
+    "path": "output/trading-stage-2.zip",
+    "sha256": "dcb89b658c2496157bafa4ba48fe35eb6dd36d324c0b02ce069933da9b4f65c2"
+  },
+  {
+    "path": "run-hadron.bat",
+    "sha256": "5cc39e246b8c51492288d5cd2d6ea24a8a51fe20ef5bc3b18a9c5dc80a5c4a11"
+  },
+  {
+    "path": "scripts/__pycache__/generate_erp_user_handbook.cpython-312.pyc",
+    "sha256": "c1227cfe41fa076f7d75b6a69b139e3e2bca30b6b2b7350ae9fd7e45cfff0ae7"
+  },
+  {
+    "path": "scripts/backup-production.sh",
+    "sha256": "b24525f8223ab293f592213b9b8a38fc55dcc9343fbb2b0f86d4fe2978046161"
+  },
+  {
+    "path": "scripts/generate_erp_user_handbook.py",
+    "sha256": "1a8d5ad2652a7955e810027e10805700ffe949dee4874a0669d22a00c658fdb3"
+  },
+  {
+    "path": "scripts/render_pdf_audit.py",
+    "sha256": "3280850694a870e20dd95c859d2f94e0f9769429e45b883ecb2f72dd3651ef41"
+  },
+  {
+    "path": "scripts/restore-production.sh",
+    "sha256": "30db6f2e64aae89aea57e09972894e2fae4b1710f49ba1433484e1ccf4202436"
+  },
+  {
+    "path": "scripts/trading-prototype/build.py",
+    "sha256": "74c1fade19b2212d36e270f7d522e281c4ce78053386d3df57902779da319e52"
+  },
+  {
+    "path": "scripts/trading-prototype/package-lock.json",
+    "sha256": "1e161657fa91746c192c98c7ec4e29e720ea0c34f6f83446a0fa9f84620fcddb"
+  },
+  {
+    "path": "scripts/trading-prototype/package.json",
+    "sha256": "841ff3ca5e35e175aecf23625ea5197a4947419ac78ca7970f2e10164e5d9620"
+  },
+  {
+    "path": "scripts/trading-prototype/test-app-stage1.mjs",
+    "sha256": "6e5be9879d964f021344767ad79961f800fdbbdc4daf5441f177328888f2f022"
+  },
+  {
+    "path": "scripts/trading-prototype/test-app-stage2.mjs",
+    "sha256": "24363885b32da63f9a762981b8ef17fcf166bb192c9a25818f3792cf371bcbaa"
+  },
+  {
+    "path": "scripts/trading-prototype/test.mjs",
+    "sha256": "a5ae1e25760d78872c8ea865684c3b9a83fb8965f3e1dd0f84222fd10a234570"
+  },
+  {
+    "path": "scripts/windows/Configure-HadronErpCompanyLan.ps1",
+    "sha256": "36ceb2930d1f79822201a853601079a638cca9a46e693504207794a263bb23d7"
+  },
+  {
+    "path": "scripts/windows/Manage-HadronErpLocalHost.ps1",
+    "sha256": "843b2508ea5ab5f474bdd970b8af888f25d91f761cef52704d85b194ff81898d"
+  },
+  {
+    "path": "scripts/windows/New-HadronErpMigrationBundle.ps1",
+    "sha256": "0f2b78f35136374b89a02b9c8e4c48d2f3881be1952ba2c51c185740d39538c7"
+  },
+  {
+    "path": "scripts/windows/Restore-HadronErpMigrationBundle.ps1",
+    "sha256": "ad282f0ff78be4c919eca23fa8ca5d6008bba4f9c83d9f0d7f0b656fa66dc5a6"
+  },
+  {
+    "path": "scripts/windows/Run-HadronErpLocalApi.ps1",
+    "sha256": "a2184bb5ef6311c8cc587addc4036b31aca4c490845e2465d4200313eba1a6d4"
+  },
+  {
+    "path": "scripts/windows/Run-HadronErpLocalFrontend.ps1",
+    "sha256": "3c2db8a1a05b2f1cabebb92d05d32c3f556e476479495a31a18e7cc3cf19c6a3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Dockerfile",
+    "sha256": "36192259539556687bfc6c83ba92a3c9bd01f56a86fbbd68a95e3782879d8d52"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Hadron.Erp.Api.csproj",
+    "sha256": "ae4bb46659bed092d27f714b523ebac2105f5129053ca7f2183380f87b5023a2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/DatabaseConnectionString.cs",
+    "sha256": "151d48a4136ff8c021b1b3ce0fa29a9015ac32d28dc70aec4f24dd7578f387a2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/HadronDbContext.cs",
+    "sha256": "b9c9a46266fca3c5f7d81b45c29bb474b98848d2dc21450639129f77b09014b1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822101854_InitialReferenceData.Designer.cs",
+    "sha256": "ce90e5485785e8ac7406f3f4cd50bbd8658d7ea5c265623a625180ce919ec042"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822101854_InitialReferenceData.cs",
+    "sha256": "6c587362b6bc411f887ab184f0c5aea1dbac16152753002a082da3f01cd7d48b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822114156_EnforceCurrencyIsoAlpha3.Designer.cs",
+    "sha256": "6ead36245ce9d42f9f266bd916f2047d0e8c394da39922d9a705021e2e8baf9d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822114156_EnforceCurrencyIsoAlpha3.cs",
+    "sha256": "27453366bd111e6bc23ac438badf141cffcc49ddd8bd05e38f3563a1bc6bc79f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822125622_AddProductMaster.Designer.cs",
+    "sha256": "570899c4a5faeebd9d1c0089d4f4018ab453aacb9c4eeb2b790acd62a2619bd0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822125622_AddProductMaster.cs",
+    "sha256": "ec51c94574231049cd5c08c387c9e42c6edf89310c3850121620b0dd265dae9f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822140404_AddSupplierMaster.Designer.cs",
+    "sha256": "37a10770a25b40e9d50f840a27ce9d29e690a845f027b6817698bb97ecb521eb"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260822140404_AddSupplierMaster.cs",
+    "sha256": "0973a4bc60823e7d8525502cd89f573fc087b8edf7977b4b9218907001451f86"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823101935_AddPartComponentMaster.Designer.cs",
+    "sha256": "def5316f16e1595110128203c50cece619e39ecc81d1b1d2620b656ab1a80126"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823101935_AddPartComponentMaster.cs",
+    "sha256": "9e69e0a91b064ff4c60af29e14a00fd48e563675d7be28bfa83c358710c38947"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823110437_AddSourcingCommercialTerms.Designer.cs",
+    "sha256": "f7ce37afe5613d76c4af7c886625f40fee6ee7ce67107f2505d0cadf3739cd49"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823110437_AddSourcingCommercialTerms.cs",
+    "sha256": "ad465436f17a09ce3f985a7b3458cbd54992616f75ce3221059af99193aa90e0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823121632_AddMultiLevelBom.Designer.cs",
+    "sha256": "93aac87e3d3cfc96897779136e6f78d5e034c696d35acd6ab813b0673222f09a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823121632_AddMultiLevelBom.cs",
+    "sha256": "0f10ab0eb2222fd93482960be50a4f4dd5bfa494306df5a53a47d6be0c73913a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823181805_CorrectItemIdentity.Designer.cs",
+    "sha256": "72451bf1a19d3176fc5272ef88685e234f4a4bc999cc1dacf7e8d169667283e7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823181805_CorrectItemIdentity.cs",
+    "sha256": "68f9bad1ea4f6c27957bb07bcb717622f0e467570ff648d9d4d5cc1f0b0d975b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823184642_SynchronizeItemNumberSequencesSafely.Designer.cs",
+    "sha256": "828dfd2f595ec034313df1c0bb6b133f8b5bbe98a360d931ad87fd2489d14a4f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260823184642_SynchronizeItemNumberSequencesSafely.cs",
+    "sha256": "3283c5fec3e854a1c7da7d24de0fb64a166cbd20fb994b8eaa2f8bb2931d8220"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824074355_AddForecastActual.Designer.cs",
+    "sha256": "2bee82a87a817586c1f72b9c9291152ec427899b2712f5f6f3982d8ee1df389e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824074355_AddForecastActual.cs",
+    "sha256": "821048ade85399338c45e81166c1bd569e90a835ddb4de59ee340820cd1790fb"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824120500_EnforceDailyActualPeriodDate.cs",
+    "sha256": "74099f68533aaf5a8598bf6b66b3b731eb06da744f18a74106e14086746fdcd7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824133000_AddInventoryFoundation.Designer.cs",
+    "sha256": "db203368e44e8142553e26da95af84655eaca2b49c6d08d4578a6b152d47acd1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824133000_AddInventoryFoundation.cs",
+    "sha256": "7daa37fe10d1cfc32690348f615720340f9a068626e446b19d16abb16580d675"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824140000_SynchronizeInventoryConcurrencyLocks.Designer.cs",
+    "sha256": "aee32c967d262e0bab82ec92d57a9f81e0c98918ce68752dff521a08d659a430"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824140000_SynchronizeInventoryConcurrencyLocks.cs",
+    "sha256": "c26fdad2fd4ad43f0e1d716fda54ef7a7740f8e2bb894b97c3f86470e847f04a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824143547_AddMrpCalculationEngine.Designer.cs",
+    "sha256": "05004aa40a41a30cba413a8e47023cda3864299133c869a37abd0b69939e4ce3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824143547_AddMrpCalculationEngine.cs",
+    "sha256": "a3b774f24370c0ac6c4d2573f5c504b5da1e1717eda008dacb35d9789aa14b04"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824144957_HardenMrpRunImmutabilityGuards.Designer.cs",
+    "sha256": "ab5c3ebd09863878cc8f4aa38d185ede92659607d0fbd8351b7ab26fd7e4e568"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824144957_HardenMrpRunImmutabilityGuards.cs",
+    "sha256": "7e3a2b6c2839f166ce51e9f033b5f280797db5f6d97700add86609898a1ae5dd"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824150000_AddPurchaseSupplyFoundation.Designer.cs",
+    "sha256": "1ecb996516cfab3b362883c7233c3b2e9f112ffb41259bcfe3ea6b21130057cc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824150000_AddPurchaseSupplyFoundation.cs",
+    "sha256": "be08303946e9129462d5d88d545bb744c7c833378105213f077848009997d94f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824160000_EnforcePurchaseOriginalPlanIntegrity.Designer.cs",
+    "sha256": "4fe2ad24eb61ea56d50a57b711e85a745f89110f85798bf52066bad4ad0ecfe3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824160000_EnforcePurchaseOriginalPlanIntegrity.cs",
+    "sha256": "d68bcf1889f13458d04f7611f45cdf5c44dafa35af5daf1b736672663caee777"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824165030_AddMaterialPlanningSnapshotContext.Designer.cs",
+    "sha256": "80ba0e70f840860fbaf7c1c55eb9de97b0be1bae64f6a441bd71c32be29ec0cf"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824165030_AddMaterialPlanningSnapshotContext.cs",
+    "sha256": "f862b99c71ed2430274451daaefc3bbb58633ce0f4dda87e9547c38247876524"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824170000_RemediateMrpCalculationAuditFindings.Designer.cs",
+    "sha256": "0eb2a3721a7ec7ff7e25a787de909c576e8dbce97e447da0f20dc1cc0d606a6b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260824170000_RemediateMrpCalculationAuditFindings.cs",
+    "sha256": "99bb28627ec59d87688eb9de4ff9c303e5e686d841df4a17dd04a3c57e4b9973"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825063451_AddOrderPlanning.Designer.cs",
+    "sha256": "65f2a92a5bc199c527a077f55815ba853c1572ed2a8e1da5519d2b58717bfb48"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825063451_AddOrderPlanning.cs",
+    "sha256": "d2b9f7434992f4b1f3ed64e3eeec834ec0e5c8e75ed801c0047c9927d34aa370"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825075714_RemediateOrderPlanningAuditFindings.Designer.cs",
+    "sha256": "c379e540b3fcb6c364b1cd79da913315d013e9889f6c71ba4c0a231d6ab1d363"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825075714_RemediateOrderPlanningAuditFindings.cs",
+    "sha256": "7303be49089acdf3e74abe1d575d53f6e7693ccf0fff3a55850cee5c02f841b4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825101259_AddPurchaseOrderOperations.Designer.cs",
+    "sha256": "aeb69ff779395e9edd2fdf4b8750c9b813de46f2ce3ed0162ed31ec87b28cdfc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825101259_AddPurchaseOrderOperations.cs",
+    "sha256": "97498a01f2861307d61211ed4428ec38eb995839eb9bc092b27aa74d5c3b6a37"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825123754_AddAnalyticsLeadTimeApplicationHistory.Designer.cs",
+    "sha256": "a97a48bb956a00d213c33eafc75dfe112182c6ea09ce0f3e3baa9cd2565a3d71"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825123754_AddAnalyticsLeadTimeApplicationHistory.cs",
+    "sha256": "e37e3f9dfdf6772483758daf72263af78449eea91b2ffc763cce3188f4d49a44"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825130000_HardenPurchaseOrderOperations.cs",
+    "sha256": "90d6e56c00f1bba2b5c885dfdbc195fd60db079d85ef4ceb3e09b6a12fae50d2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825150000_HardenAnalyticsHistory.cs",
+    "sha256": "6d51a4e120d9d0d489a15c0e74c25c25d1e4f4ffd656094a8956e0795d2cac77"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260825163000_EnsureAnalyticsCutoffHistory.cs",
+    "sha256": "af568bc920207570a981e421e81bdbcd929ce55bf83ad7a148cde29084f793e6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826062351_GenerateReferenceValueCodes.Designer.cs",
+    "sha256": "d1a609c59cc2235494f4b2ec8ba346136417dc0d1ab3c9d8466144b937793753"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826062351_GenerateReferenceValueCodes.cs",
+    "sha256": "69ff4dc27f21b98f16fa97f221d4756a8dee36a2d0dac62d6115aa28fe4a0140"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826151418_AddIdentityPermissionFoundation.Designer.cs",
+    "sha256": "3a2212f9a25c7b39803e3b9ae84c9f44c49a7a8e3637b3f2ed12d69f1f84e4a4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826151418_AddIdentityPermissionFoundation.cs",
+    "sha256": "ec58c125e2aadebaf3335213f11b41619ef2c24c61ec17d7e12632bee711c7b1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826153136_AddIdentityDataScopeFoundation.Designer.cs",
+    "sha256": "696123390aec2e4828c22d1a9c402abaf6f8997b89afb47a5e0187229ea64bec"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826153136_AddIdentityDataScopeFoundation.cs",
+    "sha256": "024bb4f042ab0503952b9ac91b44e2b6937268e9f54c9933850079507477b420"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826153516_HardenIdentitySecurityInvariants.Designer.cs",
+    "sha256": "e4b7dcc1ee68c0aa50c00df23cf90f4f8d03a9d52e3f24479190dbd44cfadb9c"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260826153516_HardenIdentitySecurityInvariants.cs",
+    "sha256": "ef80167a03759cf938373afdf9f9e30b051011116cea7c4a1ac148b7422b89b8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260829132101_AddNamedForecastPlans.Designer.cs",
+    "sha256": "00c83a96c845ea56cfa2e485b37540a6205c8f4d0975ceff37272dce60bbeb49"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260829132101_AddNamedForecastPlans.cs",
+    "sha256": "83629057e648cb052079e757a01ec8f730d00d5e978de69deaf0d7f194ab1193"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260829141000_AddForecastPlanEntryCorrections.Designer.cs",
+    "sha256": "562fe3e2d00bb64f67cde3802fd99376eb853bacbf08caacf4e7708f9dc87b23"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260829141000_AddForecastPlanEntryCorrections.cs",
+    "sha256": "f7bef596a88bcf9e5a6692b98797f73066d539cb16455e2b9cb872b7cf15f026"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830065321_AddBomItemApplicability.Designer.cs",
+    "sha256": "bb8dc4f0d9c604f74d72896941a995535700838f45dd3f3bee4cf56b56c595c9"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830065321_AddBomItemApplicability.cs",
+    "sha256": "2cbe511ff1ccb56634f2da64f41404bbd00c597cdf5dbbdee5ffa7fdbed2ece7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830083529_MakeBomRevisionCurrent.Designer.cs",
+    "sha256": "46356f15e6f6e7cd6bddee83235a32512b5771e49ee4e00b91497b363551c89a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830083529_MakeBomRevisionCurrent.cs",
+    "sha256": "df24b8f085c82ead0e6318efaee0eb4c520d999e4694b486d71603fe5e47f043"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830105109_AddAutomaticMrpRefreshOutbox.Designer.cs",
+    "sha256": "4ac227173d19e80ff9175df31d233ec09ef334addf0d80a5418b16671b874ab7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830105109_AddAutomaticMrpRefreshOutbox.cs",
+    "sha256": "e7c173af5db751b57fcd9dccda615721060a58aed40a7c692ad33e7625543ae3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830160620_AddPlanningCollaborationScenarios.Designer.cs",
+    "sha256": "cebafb9228debfce1d56de310c4e3a38678881bec7492d1012d87e9933d538c4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260830160620_AddPlanningCollaborationScenarios.cs",
+    "sha256": "f5e0bf5c6b016eb952249991efb11cc85a37cbac4e4fb480b72c339dbe51532b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831081910_AddMrpCurrentCertifiedPlanSlots.Designer.cs",
+    "sha256": "f70f610f9ec839478128ffedad0d6f6aeae65945c70f6d95a43f17add0ad503a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831081910_AddMrpCurrentCertifiedPlanSlots.cs",
+    "sha256": "85efd974e3dda3b0dc36440705d5190900f5d98a09858444d88b37651d3b4da4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831083620_AllowTransientMrpRunPruning.Designer.cs",
+    "sha256": "e1e94088a117d0a0774206e0f78bcd8ba830296756e7a3f92c14777aaa3c1da5"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831083620_AllowTransientMrpRunPruning.cs",
+    "sha256": "4719111f9ad9bbcbe14995b85d383278e25043e31ad4ed2c017709ee309a7ca0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831113706_AddInventoryWorkspaceAndTwoStepTransfers.Designer.cs",
+    "sha256": "4f7929fb211fc8560aae61f096fe6e7f8e12def367efa342b30972d9796e4d95"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831113706_AddInventoryWorkspaceAndTwoStepTransfers.cs",
+    "sha256": "a0dd19f02a8b95b3c2dce37414042d2f3b7106df58768fa820436c9bd5648adc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831133227_AddProductionExecutionAndInventoryUom.Designer.cs",
+    "sha256": "f80cae239483c1c92f2aed03d3332234fc6d4d5ba96d14a43ad61346b6f4e5b1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831133227_AddProductionExecutionAndInventoryUom.cs",
+    "sha256": "36ef8202c5ee769f66745462fcac1e0c33de5a20f4a4a59fb24eba208af53929"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831155348_DetachSourcingPriceFromActiveProcurement.Designer.cs",
+    "sha256": "388d3047f12ccd95103e317dad257d26337057cfa30591cfd79d335d51acdf92"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831155348_DetachSourcingPriceFromActiveProcurement.cs",
+    "sha256": "4b399105105f10c02bd7d8bb2cdf22f23b847bf6e771de24b1d7d0c65184bdc1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831162851_HardenArchivedSourcingPriceBoundary.Designer.cs",
+    "sha256": "f2c6790336d6c2c397c07886c99e88a07992358190aca7378370c3783aa809a0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831162851_HardenArchivedSourcingPriceBoundary.cs",
+    "sha256": "7352ffc1dd6b87c9c78858737799e0a37e01beaeb5994504f11575b5665fe9d5"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831171737_NormalizeExpertDecisionPurchasePrecision.Designer.cs",
+    "sha256": "b87f4ed6d013b2fee068fa25f41f1b14fb01e0510617d0d437a3602e1886c12b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260831171737_NormalizeExpertDecisionPurchasePrecision.cs",
+    "sha256": "9227ba0c316d36cfd70c29cdda83192b139e3935d1aecba537e900bf1c4337e6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260901090315_AddTradingOperations.Designer.cs",
+    "sha256": "aaee47d50922caa1e061dd45f98221e398126cd87eb1ee193206df4ec7e19cbf"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260901090315_AddTradingOperations.cs",
+    "sha256": "2778b28b9bdc384672cd064a68a2a5639c4b4ab881ef48c94cf25dc759b80656"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260901110613_HardenTradingOperations.Designer.cs",
+    "sha256": "cea58d5d2e59906556734519cd1194c9c8521678e28384fc1016598de31eae28"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260901110613_HardenTradingOperations.cs",
+    "sha256": "3fc3746e398ec5356049ca99968898be1d9f7c4fb7855ebf4d5b6bcece8d6e29"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905095032_AddSourcingRouteScopeAndManufacturingRouting.Designer.cs",
+    "sha256": "3e86d8c3ac5360d76268179dcffe07b37aacf5bb4bacbc2f3dbb12417e78a28a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905095032_AddSourcingRouteScopeAndManufacturingRouting.cs",
+    "sha256": "96e4bc43345e20c90994c905872882a065d5964cdc919448e7cab6c47d9529d1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905095926_AddMrpManufacturingRouteSnapshot.Designer.cs",
+    "sha256": "309972252dbe66c83024814e6caa2623caaa9099b7f35f95f501334d1b5f0965"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905095926_AddMrpManufacturingRouteSnapshot.cs",
+    "sha256": "7edfaf525aa726985dd2c2408d90ed72b4d2e7d654bc6c1c7b38e6eb4f76188f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905100505_AddMrpDemandTraceParentDate.Designer.cs",
+    "sha256": "e67ad200ff86e5660c351b79811274d0f47b6dfa997b7bed3f88d34e47cb2c38"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905100505_AddMrpDemandTraceParentDate.cs",
+    "sha256": "c32f6a94f7d478ff9fd159607ebf5e6b854ea9061ed699c1e68e8840232626a7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260905120000_AllowControlledDraftBomDiscard.cs",
+    "sha256": "625954e7cc6a8f7fe13841a5f15415b8da4969ee4dd36005196ed8501337053f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260906090340_AddOperationalAuditStore.Designer.cs",
+    "sha256": "4032ebd4087dd57bc7056df523de9b7cc93f0b2403ca590e3b55363a79fb66a2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260906090340_AddOperationalAuditStore.cs",
+    "sha256": "b28b5f7ec124eb2801a0d450c1b6dcb51ceb47959c72da127522c786bc01f02e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260907150000_AddCashFlowReportingFxRates.cs",
+    "sha256": "16914ac75cd4df476f12d92c179af4bd5e2c29efede1942d4febc5e91e466833"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260907151409_AddMaterialCostBooks.Designer.cs",
+    "sha256": "2be11b2cff673022403e433f537a92cf15fb164ab306670da5898ddecce5d99d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260907151409_AddMaterialCostBooks.cs",
+    "sha256": "ddbb638a09991832a05c363847b076c22328e28765fdc3ae71962634667ffe7b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260907180446_AddCollaborationWorkspace.Designer.cs",
+    "sha256": "93c7d69ebffa903c4ac103961d153f15b35c78f0d14abbfecb96a358030520e2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260907180446_AddCollaborationWorkspace.cs",
+    "sha256": "51722a52b07bbb59adcfc5a2379e3abd444ac76fef298f6e7906d60b24c4bf01"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260908144456_EnforceSingleActiveCollaborationCall.Designer.cs",
+    "sha256": "0c250422096ad9aac06cdcc234ffac4c25fb7e360000eea7ff4c6ea57897c11f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260908144456_EnforceSingleActiveCollaborationCall.cs",
+    "sha256": "a03f68f4f0206bb2607ec5bbafc4a283b9f4d715afbce4816f20c3c305d1a52b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260908171830_AddCollaborationMeetingsV1.Designer.cs",
+    "sha256": "88efda4efc7ff4ac458975d7dad380877b402cf249e06531053a71da072cfdc4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20260908171830_AddCollaborationMeetingsV1.cs",
+    "sha256": "b9ec1159be828a218937d543bc14d94746ee0b86febf8315d11c1e6fbd686a1e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20261011120000_AddSourcingOptionImageUrl.Designer.cs",
+    "sha256": "6a3deb48a38a8fd652ea0232ad63815efb7e8aba5fed63f9d95a6cf5f3f3697e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20261011120000_AddSourcingOptionImageUrl.cs",
+    "sha256": "9a75e76c7ff2edeb8857df5ef980a47a0315c8c93ab04e841af5cd61e473558a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20261018120000_AddTradingProjectSetup.Designer.cs",
+    "sha256": "dd89141d8a1556ae1d774c61a973e685b3fe5928488dccc2f559f64bf8cf4eb7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/20261018120000_AddTradingProjectSetup.cs",
+    "sha256": "2a0dfee4b19001d274ce464309112ac8bf0b1d681c4f5d2c23b7e7bce9611933"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/Migrations/HadronDbContextModelSnapshot.cs",
+    "sha256": "e587dea02edb2fc89d190f6090e8f8e5c7e3e5b3e88589a0b1886b9aee017389"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/PostgresHealthCheck.cs",
+    "sha256": "4234008914cf08e70dd5deb9d5146ea6891e09452b1c62a0cb5b9999f31c66a0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Infrastructure/ProfilePhotoStoreHealthCheck.cs",
+    "sha256": "52eadc194f8424d1f0784847bdce762a401296db52ad203a4e2a9c7025edbbbb"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Api/AnalyticsEndpoints.cs",
+    "sha256": "107eb5eabed7efa8a8f6c6b12040360f3e9a706ac3acbb9ae266f6f603ac8219"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Application/AnalyticsContracts.cs",
+    "sha256": "2a35756be1d9c6e29b31d40ad5d98a8f96f5e8b27a147ce69ad0715435c0a66f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Application/AnalyticsCutoffContext.cs",
+    "sha256": "b0070e1bed50417dcf53e71083e4f5ca4c33ef4d4623bf9ffb3534926c9cae0e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Application/AnalyticsExportService.cs",
+    "sha256": "3602d55415e74c71f2b51a5f475422ad14242217150c238d7ed984f9e57f9fb0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Application/AnalyticsMath.cs",
+    "sha256": "7d9b13aea5ae34a5520b15ebcdf188570b7befdaa8edc118efd6d598ad6de669"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Analytics/Application/AnalyticsService.cs",
+    "sha256": "02408da35ac834a83025f84673ecc2db6303244d4cd37a81722a603a51202acf"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Api/BomEndpoints.cs",
+    "sha256": "104257103b94512334398cf0cfc420f5a47c5e67437fee754c63ac0439bded06"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Application/BomApplicabilityService.cs",
+    "sha256": "7ef2eaf5d898b752e363d1fa8e00ebc374a5be1577384d3007d454e53cab4ffc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Application/BomContracts.cs",
+    "sha256": "bd4b34bf52d03921b543a4812fa5ee97875db844b4cb78e3801ec8517610c9b2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Application/BomOperationalReadinessQuery.cs",
+    "sha256": "1739b1ff254f121720d5f1d4f6e51ee98eebd2edf57871e980017e41a0e9adb5"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Application/BomService.cs",
+    "sha256": "ed470d2a38c8cc3c3aa2950734bf8ef4e571aaa8eba0665b6cd0582df0916010"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Application/BomStructureService.cs",
+    "sha256": "09c3803476e93f6a912f5afa25e686fd95e19f4f264fdd161b1c5da18e6231d2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Domain/BomEntities.cs",
+    "sha256": "332da44b326bab49edd06b8988d48b4ef9786828298b440f84be083a5be7406f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Bom/Infrastructure/BomConfiguration.cs",
+    "sha256": "6f60388889b768536cba5913f45257a076d43662cc6bec7951d99ae739404e3e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Api/CashFlowEndpoints.cs",
+    "sha256": "470f6d4ee9761c58d43adabc73f491015d26287bfe064a1f874d97ca0a605b6c"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Api/CashFlowJalaliDateResolver.cs",
+    "sha256": "5550356e9f429e0ae6b8f05e952f8074c190ca49f3d66e5813da54233b457fa3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Api/MaterialCostBookEndpoints.cs",
+    "sha256": "feba6163e485adb67ad88a1b63b07232b0ace98ced89d784ab9e73e514466b15"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Api/PurchasePriceHistoryEndpoints.cs",
+    "sha256": "982f36f1b938af8f70fe1c0d2134e199570c5608c68dba743234b7cd677d7e21"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Api/ReportingFxEndpoints.cs",
+    "sha256": "3390ea63bdc5bc974614c6c0e819255501e2e9f909fa9ffb74c0c51c4780db37"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/CashFlowContracts.cs",
+    "sha256": "10acedc3b8d2b14e8380106d7738f9e7f1e7082ed7261d927959a51f7e8a0c8f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/CashFlowQueryService.cs",
+    "sha256": "ac47768cde95fd4724173274cbb8e8d0e2eb66dbd5c05336e74ba1a74b2a751c"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/MaterialCostBookContracts.cs",
+    "sha256": "e64762d0986ee01eabf661caebecb722bf5b8b39e57815bd4f8f297702a35629"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/MaterialCostBookService.cs",
+    "sha256": "769582904bf6cc56213425c670389acef376e0839d9b01e5a3f0f5f8a8950543"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/PurchasePriceHistoryContracts.cs",
+    "sha256": "d82c2c82bc0bd8560ae0b244b901781a4ffaea88235f9c68e569c757f03b317f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/PurchasePriceHistoryService.cs",
+    "sha256": "a5c484b1bc0aaf1a91fa930e30ffbde663e81686cec932d8014b28048994c5d5"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/ReportingFxContracts.cs",
+    "sha256": "7c4359cb325c4cbdd0169d31344ea4bd3dd493764b1b8a08bba22a78fde066d6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Application/ReportingFxRateService.cs",
+    "sha256": "46f8536728a77b26fe3b9754e9df69348b7bea33d22c4bb7bf90d3c6abc04461"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Domain/MaterialCostBookEntities.cs",
+    "sha256": "6b43fd7748f4427a2843917d25152b116f4e45e4feae3e0d5376a81a94beae0e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Domain/ReportingFxEntities.cs",
+    "sha256": "b4313343af51950b2f079373a9411a7eae527149686c575ea6105d4c4a48098c"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Infrastructure/MaterialCostBookConfiguration.cs",
+    "sha256": "60ac2d0b60a6e01fe6d94b34c1a8f8bfc7921c362b8b82ad77ad1750407e309d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/CashFlow/Infrastructure/ReportingFxConfiguration.cs",
+    "sha256": "339ae52f330dd17faf73658bedd661bb7a49f5080e4019af8a654750a14eb644"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Api/MaterialItemEndpoints.cs",
+    "sha256": "aec7a6a86b87856954fa37fb48037c468e8f8678ea956b50b8a3450e0bedb833"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Application/ItemBaseUnitChangeGuard.cs",
+    "sha256": "77e3bd5e92b073534bb6c093fc703d402a5f45073af87345bf2c2b9bf47d0b53"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Application/MaterialItemContracts.cs",
+    "sha256": "b9b45bed710113971b096363bbd22886b1fa8f662b69b26f8b6b04613ffcac9a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Application/MaterialItemService.cs",
+    "sha256": "39474576febcadb1b0dfb198aa29181bd11dcd06faa9834278affb48b2c0c9d6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Domain/Item.cs",
+    "sha256": "7f2b077d138b9cceb1ef0bd74a3603e70734f9582acdb0530ef635d1faff76ef"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Domain/MaterialItemProfile.cs",
+    "sha256": "efe2bc6438979375772d2225ac919054e9955aedf4562cd3c499bbef98adea9b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Catalog/Infrastructure/CatalogConfiguration.cs",
+    "sha256": "02afb5f825ccf96acf3e093905ca78fe489912a4670e31e59dfc6df81c75113d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Api/CollaborationEndpoints.cs",
+    "sha256": "3de13966cdb4fa11d1f40a2de6ca55e24dc6575a310573309de85815d995ef93"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Api/CollaborationHub.cs",
+    "sha256": "94b18a48bdaa2f93184d2b07a21c085774ac0856ae737ac9301359b4862e155b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Api/MeetingEndpoints.cs",
+    "sha256": "caed5c6762b460e89bb4b277f7767970c46a6eb4522540e85ae405de09d29053"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/CollaborationContracts.cs",
+    "sha256": "dfe7c8315217ee03f3216a129d7caa078b7dffe72196efdd645e979d23463a2f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/CollaborationService.cs",
+    "sha256": "98d6ad765b65887921d414835ce225cd93b462d063f5e1b364c9d0a8a82c70a7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/LiveKitTokenService.cs",
+    "sha256": "bf0c7e3da91b82e72e4377f169afe2a4b1d0f652e43fd06e2919b1f12f52385b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingContracts.cs",
+    "sha256": "66e3eb301cf8b6438ca286996d9766c2987023a381ba20bc208ed1c9c8c7f825"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingDateTimeResolver.cs",
+    "sha256": "cb123fe1321651c84782f57684363278352762bc85e1c86eeb58c397243e2561"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingGuestService.cs",
+    "sha256": "a20cdc184960619c8388f0dfe110a382423253213ed5dcd224bb76a8c5e19428"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingMediaGateway.cs",
+    "sha256": "95328c4f907a06f226a31ec4382c60c5f64b724a89a1859aca26686717f8c02e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingService.cs",
+    "sha256": "270b72cb22b2ec0be766aab31ffd86faa91e5dc15038c5a488420f0efa3138cd"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Application/MeetingSupport.cs",
+    "sha256": "a0ee5353fc8f2d3a8f6ecaae5b1cb307c8a62aa3045de6a2438d75812b2e14b8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Domain/CollaborationEntities.cs",
+    "sha256": "63b31e588dc23e876ee24aa9cdf5bd6173fe3cf6374a05705085bdaf509b839b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Domain/MeetingEntities.cs",
+    "sha256": "cef98258aa30075398c0340a4d2c567ee403ff3d9207cb64cd42cdadb4d7d3dd"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Infrastructure/CollaborationConfiguration.cs",
+    "sha256": "d0abf3ddc4126d48a600aef3d955ed3e0106d9954ae2685cfe7d62a8fcade8e7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Infrastructure/CollaborationFileStore.cs",
+    "sha256": "ddfdb28544dbe0ffcf798bc66797e64da33fa82c3bcbbd1f838d47d5e6034d2b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Collaboration/Infrastructure/MeetingConfiguration.cs",
+    "sha256": "3e2719516f23a3b858ee2ee18f9b637522e2931f7b8095e2daae2adf98fa1f49"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Api/IdentityEndpoints.cs",
+    "sha256": "c0d32cc126b797746d7964fe763318ed5d5b6ae113d19d27cbb49c76a4869f62"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/ActiveUserDirectory.cs",
+    "sha256": "97df7ab2cd22f8541131c0ccf184088b597dcd86cc291e725ecfb88f21f428f7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/ApiAntiforgeryMiddleware.cs",
+    "sha256": "79eaf39656573d40750a105ed0191a0da85d6b948a3c5f393f7d7f4e61701f6d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/HadronClaimsPrincipalFactory.cs",
+    "sha256": "16644f4a6b4ddc58bf311be0bd604f3820776257f65a017c8b4c07a19beac729"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/IdentityContracts.cs",
+    "sha256": "d70be439f1e89dc87418a8f802a4ea2dcaf62d1e652ee65b4dad2a81a7be71b1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/IdentityService.cs",
+    "sha256": "d543635b7d797ca4af4999c09e3d094cfb0e8f4e4edb9a03cb6b4a60452665af"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/IdentitySessionMiddleware.cs",
+    "sha256": "2eb020181a84647b1c708e213883820240c9b4c0e5a494534c95c6a0fbad29d8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Application/TestingAuthenticationHandler.cs",
+    "sha256": "124b25497686e33f83a60a6724835f2878a931dc6537d6f0b45b8a32a88c1c74"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Domain/IdentityEntities.cs",
+    "sha256": "2b067a887b37cf86a7efa33abe01bfb4f00dc27e2daa2483275df13878cf3c27"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Identity/Infrastructure/IdentityConfiguration.cs",
+    "sha256": "61a867bfdccbb04cd5e4a6a92dd0cc258d7b7811131cea58d316402efe641ba8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Api/InventoryEndpoints.cs",
+    "sha256": "5f87d32c44eb7b1fa9a38d6ae198aea517d95df3232c34a677d82f718f53e148"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Application/InventoryContracts.cs",
+    "sha256": "8a3b43f3565b5d70fd90a15dc87d3af24a8de04769f49933a2b8b217412339b9"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Application/InventoryService.cs",
+    "sha256": "3c6e70bae9c7302725e306ec049f70fef500f6325f1586c039617f4dc864f55a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Application/PurchaseReceiptInventoryCoordinator.cs",
+    "sha256": "ae3982cef9d6340acf2dfccaabc47169fe5079e9a78df81413bab7c4f6f755aa"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Domain/InventoryEntities.cs",
+    "sha256": "ab3e381ca7a769c0ae3d36adc0c83f3ba254b8c42589eb5da1833a344f2c707b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Inventory/Infrastructure/InventoryConfiguration.cs",
+    "sha256": "73ee3c144d935f384bc73c0f2d81cb3933b28d0fab29ea82b68f2c6eac94a10f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Api/MaterialPlanningEndpoints.cs",
+    "sha256": "58b1b20a4c154072c574a28681593d4d430aecd3ef3e0e864e0e7422b37dc7c2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Api/MrpEndpoints.cs",
+    "sha256": "dde8426a4696ea0114e1adeb016ca800888b49a5824c4352fb24b565c3e1dc73"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/AutomaticMrpRefresh.cs",
+    "sha256": "046c1183e22a3dd94678fc2a3326438d53704d690ee915ec34cc5122842965cc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MaterialPlanningContracts.cs",
+    "sha256": "e70c6a2cabf01bf0fa5871508261a587c4127c473dd94eb16c78432a7e9638a2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MaterialPlanningService.cs",
+    "sha256": "104e48a204034e6d2c38b591e06581e29498e659993f6c92493cdc11b1167ea9"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MrpCalculator.cs",
+    "sha256": "9dd54cf8abe0b079cc3f148ec2fec03d0d917c315df3a6ed6b42f79a2639c461"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MrpContracts.cs",
+    "sha256": "b40978a02633780accf2348fcbc53407c7dfd3126a7258c4962f44e58d1a5001"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MrpInputChangeInterceptor.cs",
+    "sha256": "351abb29aaf09d8e949b166b6ed58f81d1941059e5e4838e71b26245a04e3d8a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MrpPlanLifecycleService.cs",
+    "sha256": "e1ed63c0fb7e49e9e49879ca8a9a63ca0e4263c5f7e2ad06e3d47eadcf2f5aeb"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/MrpService.cs",
+    "sha256": "184630f333bc7349a0a976e3c7780278eb4bee524864873693565f64e348ebc6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/PlanningCollaborationContracts.cs",
+    "sha256": "173a0aa4616d743b82442bbe8ac7f175a672d5942d1b5ec41d97a788085cc3d2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Application/PlanningCollaborationService.cs",
+    "sha256": "978ed97110d910de809180103b2820895a2e08421b815568746cf9a0cfd04b16"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Domain/MrpEntities.cs",
+    "sha256": "69ba429674e0f62b1bc588571dd401b5a8a61a5c03a3228e7ae5b93725a935aa"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Domain/MrpRefreshOutboxMessage.cs",
+    "sha256": "f63fe14e0b0b81991cd081cc2edfc6b2d81d06478d443a4f08d39944e752fc24"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Domain/PlanningCollaborationEntities.cs",
+    "sha256": "a9dbb9d73f090cec8664880c94f9d821ee0dfdb152c3d4771ec222719c17fdd0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Infrastructure/MrpConfiguration.cs",
+    "sha256": "4ae862bd69fa152dab5e339745e006f7f30d8530e6998b2fa75af8348e3805f9"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Infrastructure/MrpRefreshOutboxConfiguration.cs",
+    "sha256": "f4f9f923a3d133912e8654fc7a84f0557c477dc94171d82ea418384f2edf0ab4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Mrp/Infrastructure/PlanningCollaborationConfiguration.cs",
+    "sha256": "fed4e32587fd8a08767a2695fa6b6a826c49b13762daba17334691af2a52c9a7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Api/OrderPlanningEndpoints.cs",
+    "sha256": "0692914118ab25b5c235df223c88d360dde6503e464914c8561515281bada7ca"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Application/OrderPlanningCalculator.cs",
+    "sha256": "216e6c4efe4a5fd0d46006be21f3030f490940df687e3462f0d9f0d6d5635ada"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Application/OrderPlanningContracts.cs",
+    "sha256": "55fa16cdcb054c2249e671c508f253e29a915996dca2478dffad06dd5d518ddc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Application/OrderPlanningGenerationFaultInjector.cs",
+    "sha256": "a0dbfa8dac6196274d216351e710605c54d881fe99c277a7180dc2738f5b410b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Application/OrderPlanningService.cs",
+    "sha256": "be292de14b66679bbc086474b510bf9ab5c2cca74bfd73c0e7e26fbf6c45df79"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Domain/OrderPlanningEntities.cs",
+    "sha256": "990fc9cb6a52195b99951e23514f641da3c40425f0370d10f30c5ecdfb534453"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/OrderPlanning/Infrastructure/OrderPlanningConfiguration.cs",
+    "sha256": "13ec22639f9ce4d9e3393d2a12cc11bb8c909274e6b02300cb7132e1cf73f75f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Api/PlanningEndpoints.cs",
+    "sha256": "a3decc3b67148cf2a49691af1438ac588fbfe31d57a9b1d74089caced04841bd"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Application/PlanningCalendar.cs",
+    "sha256": "64c8ca6f73b1b32b2e610a14a69c2948b47221a5248e9b76bc492a0ed06f7f3c"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Application/PlanningContracts.cs",
+    "sha256": "a2a2ee1f406581af974772040628b5be24778fb027a1c54aab034bad242388b1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Application/PlanningService.cs",
+    "sha256": "109b90173b585ec2695f1ab8e099b9ad155bb175184fc3952c2457f79d4164f3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Domain/PlanningEntities.cs",
+    "sha256": "38399296d502029ec86db6655712ea2b06da4c9a13535a6d7ff773ad42487457"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Planning/Infrastructure/PlanningConfiguration.cs",
+    "sha256": "7a98c45120db1966687d356c3dc0fb34e59aa91c085b3ec1419e49885ca3a960"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Api/ProductionEndpoints.cs",
+    "sha256": "beabb353addaf2b4f33798f854abd1c1f31a20e25f992dad1fedc22e8aa27833"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Api/ProductionRoutingEndpoints.cs",
+    "sha256": "e3c8492c2fc34bcec49e467d928a7db77c055b767d5fe304561aa12b0aa0cc0b"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Application/ProductionContracts.cs",
+    "sha256": "d173cfb2933ebbf54c086bfec988c4ce8b8bd01001f5fba38d579426ba0ddfaf"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Application/ProductionRoutingService.cs",
+    "sha256": "4f48146e75f84c8ef08fbeef93b26931631f1dcfbd96f05891c7b81028ee4b2f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Application/ProductionService.cs",
+    "sha256": "62f9582678cdeb3e9e4bf88ae005c0dba08456d576a16f9cc367c430a5ec0321"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Domain/ProductionEntities.cs",
+    "sha256": "209043569c03104a6e84b0dfe60789427b92958f5e8c87c7d80dfc4ec9d18aff"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Domain/ProductionRoutingEntities.cs",
+    "sha256": "2ae1eb19734b0d55aa5737c651f817b87ceb9e4f5325a5e58bd098194ebf92f7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Infrastructure/ProductionConfiguration.cs",
+    "sha256": "9c9296c80969c4276d244725b9fd1537544e197ed7c6882a0f0b935c25eca434"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Production/Infrastructure/ProductionRoutingConfiguration.cs",
+    "sha256": "be5ace2ae5ebae6fd61294d957140392689d6bdf2ffdf507bf73fab48587cfcb"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Products/Api/ProductEndpoints.cs",
+    "sha256": "f3fbb2214cd97c0ee5aa0537abbcb6fc68a6594d1108ae09a2c9f9d0db605b39"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Products/Application/ProductContracts.cs",
+    "sha256": "d4e202e4c8b1f70b37143cfb9caa8690f0da42ecfc699501879e40d7405988fe"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Products/Application/ProductService.cs",
+    "sha256": "31564d7d5e397aeae262332a3fccd1a4637dffe690505b8de6806d6a05f98aec"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Products/Domain/ProductEntities.cs",
+    "sha256": "cb9d8ca616e7d77e41c47cf9b572ecdc6d8f7caf3a05a1060d9ed65c47074999"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Products/Infrastructure/ProductConfiguration.cs",
+    "sha256": "c8bb0f01033e54642ef9b1f71cf58e8800fdacee445b4e3ac75e41edbd1c0719"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Api/PurchaseSupplyEndpoints.cs",
+    "sha256": "ef471d82d84888623126551a98ebc6bd6b50e69ad417f215c2c0accaa1538f2f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Application/PurchaseOrderOperationsService.cs",
+    "sha256": "32906d7a7b4aa6a83b2e341bd005061bfb895777856fa8b60bdf0326df6e44e0"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Application/PurchaseSupplyContracts.cs",
+    "sha256": "95c86412b7da7210ffe96d29c6ecb5aef94d6c30867f8686f8ba5eeb904e6b27"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Application/PurchaseSupplyService.cs",
+    "sha256": "da654895a200b24969dabaae40d7befb0303ab85b41c1604d48eb59741183721"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Domain/PurchaseSupplyEntities.cs",
+    "sha256": "73e1fbf1810274c7acd96ffe575a8ffbb5dec97695310644c0c22f83f5d9486f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/PurchaseSupply/Infrastructure/PurchaseSupplyConfiguration.cs",
+    "sha256": "9463e50c0689e4b6f7172801a12d8000d0cf0b956f10e00bcc128eb26548b9a5"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/ReferenceData/Api/ReferenceDataEndpoints.cs",
+    "sha256": "5b8b6eaf066de89b7693d7c64fca45077598893594f4c396a66f1843321a6198"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/ReferenceData/Application/ReferenceDataContracts.cs",
+    "sha256": "8cd816fd4a0a5e384b8212c2f6904e41c1bd12f988c01a2ff54a93c109913b98"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/ReferenceData/Application/ReferenceDataService.cs",
+    "sha256": "c40094f997101775d228c124dcfa2fdc7020b36547b2e633490a1810d844b662"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/ReferenceData/Domain/ReferenceDataEntities.cs",
+    "sha256": "de0462523b4080610a934e0419b0ba24b092a7b9d91a525711cb236aa1daea43"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/ReferenceData/Infrastructure/ReferenceDataConfiguration.cs",
+    "sha256": "5ad8935f8e2ef423283b2eb3b1e891648f2780f2189008fe314a04a64d0473d6"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Api/SourcingEndpoints.cs",
+    "sha256": "59e7f533d39fa763e589703208e725187a390dc4caf63159b0839542723415b3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Application/SourcingContracts.cs",
+    "sha256": "28c493a41d4be38273aa27586f3e249756bcb5d8439db36cb975aab368ebf532"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Application/SourcingReadinessEvaluator.cs",
+    "sha256": "ceefd9ab6e31b4bb4be1b293578f040ddfbaa68cb98628c6430d600726513318"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Application/SourcingService.cs",
+    "sha256": "cfde105fa282ed243cf4eb492866190e25e34ff4088b1d0cf51bf17c327ca479"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Domain/SourcingEntities.cs",
+    "sha256": "a12842568306435d96867e8b20086c012c4c08c678d8bfe367b7045b9ab7867a"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Sourcing/Infrastructure/SourcingConfiguration.cs",
+    "sha256": "ef0508cdf5aad4f314a5b18ab6756ab96caac15f25fdb5637eb40129c27e6153"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Suppliers/Api/SupplierEndpoints.cs",
+    "sha256": "f403f560ae71a16bb3f397d7875b14bce9f45ad0d80d700a3dd6b172009fb309"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Suppliers/Application/SupplierContracts.cs",
+    "sha256": "7899355892e17d4832ad4ce3bd050a4b7dee429cfa1c957c3efb1e398e6d66b2"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Suppliers/Application/SupplierService.cs",
+    "sha256": "ac26729f226501d1f20df9bcdaecde87024dfad2f60faf1ed3f616d393625bb1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Suppliers/Domain/SupplierEntities.cs",
+    "sha256": "611d2bdf92b9df9282617336e04593a770d38b966b11487874b256b7a05293ab"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Suppliers/Infrastructure/SupplierConfiguration.cs",
+    "sha256": "7bcf8bc5cd0059ac3fb8f91e91467f024b92cd91f023edbecdfcc0cfeef462e8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Api/TradingEndpoints.cs",
+    "sha256": "2a6b55397cd0b62829613e6b95a780be0f7e8b8b86b0d489bf4ce65db7c44fcc"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Application/TradingContracts.cs",
+    "sha256": "7675c9d6539a125b5736acd09ddef72157521f4391017ab906ee5bbea7cfb2cf"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Application/TradingOrderManagement.cs",
+    "sha256": "d206b8ba3992465e1016f2416aeb1d271d688a915126f42704dab0b143df6ac8"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Application/TradingService.cs",
+    "sha256": "67354982f3bd5137bb5d072d2d0af52489ca1a089ab681ceb82372c996047cef"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Domain/TradingEntities.cs",
+    "sha256": "b3aaedfeb8193b82bb53a37412c42456f7ba338d87fcacb0fcaa10026d37b4ab"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Modules/Trading/Infrastructure/TradingConfiguration.cs",
+    "sha256": "f87810ac100312eb0bd65bffcd70f7eb6f6c4602d28353734f36fd938df63cc3"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Audit/AuditIntegration.cs",
+    "sha256": "eccda23bd53d3993ca9c3017b6ba48944999e96cb3c34fa0faee46a43c5e0df1"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Audit/OperationalAuditEventConfiguration.cs",
+    "sha256": "179855f98154c8bf07cf8ea84ec9b97a47e053f5432cc2fa5de9a02082748675"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Audit/OperationalAuditQuery.cs",
+    "sha256": "8b1e869a1d37ae34ce52d9fc08ecaa5dc7cbfa5e935cce41473d96b81abea039"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Errors/HadronExceptionHandler.cs",
+    "sha256": "725b45439f2d23fa10ac926ae1421b8bec09925fd31910bed21c229bb318c26e"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Security/ApiPermissionRegistry.cs",
+    "sha256": "f1a18bad5b0b37e0d4853160ee0f1cdc80d662521d990363c027b41e4c9db95d"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Security/DataProtectionPersistence.cs",
+    "sha256": "2e30552426bae10ed725aa0a56f6e32d95686c45d55f7587010ad76823313d67"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Security/PermissionCatalog.cs",
+    "sha256": "5c73581e1439a155f992add0190abacb96833cbb9b2135d6d08b64d7ff5cd015"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Platform/Storage/ProfilePhotoStore.cs",
+    "sha256": "22453b46236686e2b3dcc42ace86d977911e0b66fa8abc3dc107fc40520e6cf7"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Program.cs",
+    "sha256": "25185cf07d90998c149ae65f3c99b9098d97dbcace4b9f9cec3dac8974afe21f"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Properties/AssemblyInfo.cs",
+    "sha256": "21e3438d13ee93c9ed3498bb6e0faf2bf3962a98c51936aff057ecb8ff94aca4"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/Properties/launchSettings.json",
+    "sha256": "44be66e6f09892581dd19357bf4bcf19f2e2938375902f951711e806da4f9a45"
+  },
+  {
+    "path": "src/backend/Hadron.Erp.Api/appsettings.json",
+    "sha256": "a242ff60dff38a3b7e6efacc5e22201fa496f341d82633d9754f3a60331ba130"
+  },
+  {
+    "path": "src/frontend/Dockerfile",
+    "sha256": "d649f56eaf3d86ee6d0d3e05bb503d3403902cc008ce1cacecf4bbf816ca1ca5"
+  },
+  {
+    "path": "src/frontend/eslint.config.js",
+    "sha256": "613ee96e4d1bc1cd83853aef48f578f75d9bcb16f8ae943c5c89ebf3cdf9ed75"
+  },
+  {
+    "path": "src/frontend/index.html",
+    "sha256": "4b0e83ce4faec287defda49a3cff3687705a4d8b96f6a2c8584f9108f3214a08"
+  },
+  {
+    "path": "src/frontend/package-lock.json",
+    "sha256": "aed40d8827281549d8117272cca6207bcf7e38f9e33b71f5f8874d07e3f12cd8"
+  },
+  {
+    "path": "src/frontend/package.json",
+    "sha256": "a20d65917ee5d24f0110a5eacdebc0ae893c46b2675eb5a63a4b956a93121c41"
+  },
+  {
+    "path": "src/frontend/scripts/exportTradingOrders.mjs",
+    "sha256": "1a18a9307db8ad7936f70b9d0207970f51ec13486eb93db83ee3b5d0ef060868"
+  },
+  {
+    "path": "src/frontend/scripts/exportTradingSetup.mjs",
+    "sha256": "c38da1912c182b5fb3a4a14803194decb81d6af64a6fa1b441f4464c30bfc1fd"
+  },
+  {
+    "path": "src/frontend/src/Analytics.test.ts",
+    "sha256": "f74aac519618a2f15766f452af7ae84f8fe4748e239ef5d48e7dbd217b267661"
+  },
+  {
+    "path": "src/frontend/src/AnalyticsPage.tsx",
+    "sha256": "8fde8983026eb29c771b74927e3bdabf1d12d2be5f163fc7805c11a28063fe09"
+  },
+  {
+    "path": "src/frontend/src/App.tsx",
+    "sha256": "9ed45c464c0df14222b0857e3ce5fdc381ab898e47e17047466c486ca2a17475"
+  },
+  {
+    "path": "src/frontend/src/ApplicationErrorBoundary.tsx",
+    "sha256": "590962b3ebb62ac4ac8847336401466be739ac4e15bfbf3bdbb1ed504a3c7b50"
+  },
+  {
+    "path": "src/frontend/src/AuthContext.tsx",
+    "sha256": "0c93d50f183339924c83ecff5c4ecb98f3a1dde7b7f19057bf05537b06fb0184"
+  },
+  {
+    "path": "src/frontend/src/BomMaster.test.ts",
+    "sha256": "ec03f1aaef4b996c9dfdc112310cb029fd94dfd75aab7f2ed1448fb1c9a584ed"
+  },
+  {
+    "path": "src/frontend/src/BomMaster.tsx",
+    "sha256": "04b1ebafbff71393e12402a99446bfdd24e326f81a417b92288364b82894ec9d"
+  },
+  {
+    "path": "src/frontend/src/BomVersionActivation.test.ts",
+    "sha256": "df29e6a3b0163975e3a1aeac131074870986b72f4c10e52453b43c255adbb13f"
+  },
+  {
+    "path": "src/frontend/src/BomVersionActivation.tsx",
+    "sha256": "85313fc051b8daea894df368ba351a17ac917dee8eddd16adefcbe7f84143348"
+  },
+  {
+    "path": "src/frontend/src/CashFlowMaterialCostBooksPage.tsx",
+    "sha256": "1a01f7282e175e56273bd8cdeae4620f0792fdf51b60a0c2cd4ce19b942282fd"
+  },
+  {
+    "path": "src/frontend/src/CashFlowPage.test.ts",
+    "sha256": "dcd558d704c4fdc568f206befcda16ad71480995d99ac36738d0bb1a3c2d1a64"
+  },
+  {
+    "path": "src/frontend/src/CashFlowPage.tsx",
+    "sha256": "4dd1254e2399bdf9ec7664c2677faa399413bc7c385144b764948e9d6307d734"
+  },
+  {
+    "path": "src/frontend/src/CashFlowPurchasePriceHistoryPage.tsx",
+    "sha256": "6210e224316f4b74e64daae9fd75490da870b3ba74641e991429216c0b7ae7dd"
+  },
+  {
+    "path": "src/frontend/src/CashFlowReportingRatesPage.tsx",
+    "sha256": "17c2565f59cf91c39529fa3d44a6589f5a1914908c39c80506db0d478b47be99"
+  },
+  {
+    "path": "src/frontend/src/CollaborationCallPanel.tsx",
+    "sha256": "706c1ebdbf54eca3aba427a751fd1049606644235ba4a9048b711387b6fd6b8c"
+  },
+  {
+    "path": "src/frontend/src/CollaborationMeetingRoom.tsx",
+    "sha256": "982ce8ac5ee7de1faf976a81fea87a3b974c03fa0c2b07cd20d9e201100fa72e"
+  },
+  {
+    "path": "src/frontend/src/CollaborationMeetingsPage.tsx",
+    "sha256": "704f5cb41dc2ca346279ef7a0fdd0ff090778522b909ac8327d9033276e67421"
+  },
+  {
+    "path": "src/frontend/src/CollaborationNotificationCenter.tsx",
+    "sha256": "24447dfeb1f7f91d71a471a4426ce5b12d0dbcbb65d4a980074ec275f78e3bd2"
+  },
+  {
+    "path": "src/frontend/src/CollaborationPage.tsx",
+    "sha256": "2917d44cffbfca5e71ec4f303d333015973429352f688bbdd13cd81be1a37c70"
+  },
+  {
+    "path": "src/frontend/src/DailyProduction.test.ts",
+    "sha256": "92aab2901ed0bb796eb4172aebce7497f4fab5b9a99ce3a2d5f5533dbc0e1a50"
+  },
+  {
+    "path": "src/frontend/src/ForecastActualPage.tsx",
+    "sha256": "8f82436b67ed577be25a18ae09d732bb7da4c5dfd57c1a98661ac5ad1bf6d41e"
+  },
+  {
+    "path": "src/frontend/src/ForecastBatchEntryPage.tsx",
+    "sha256": "4b4c7c517db48cfbd74e84ca0c375456b8d5942d868f95d22f955a87e2406450"
+  },
+  {
+    "path": "src/frontend/src/ForecastPlan.test.ts",
+    "sha256": "0c1523ca5a70020ddee928e5b023c5ec1f4adc10e0603dd92602cef9237e8c99"
+  },
+  {
+    "path": "src/frontend/src/ForecastPlanPages.tsx",
+    "sha256": "b0a40af0e8b323641eb46333b2ef4155d0721f0148093d31a78fb1379fc0a9c2"
+  },
+  {
+    "path": "src/frontend/src/IdentityAdminPage.tsx",
+    "sha256": "a0cf15448cb3896e4f9a9137f42c5014b82031deb2249ac1761068e28770c7d2"
+  },
+  {
+    "path": "src/frontend/src/IdentityWorkspacePages.test.ts",
+    "sha256": "93a0ec57a4eb55ad6b228e9bb03d332d38b99ceab8096a530cbccdb8a24c9af3"
+  },
+  {
+    "path": "src/frontend/src/IdentityWorkspacePages.tsx",
+    "sha256": "08588f8f649e3f3c9aca9aafcd3ba7a0e9203c3310e1ca651c1dde4bf6f2a8fa"
+  },
+  {
+    "path": "src/frontend/src/InventoryPage.test.ts",
+    "sha256": "2f42021baf795feff677b31d385fbcbb066c351a2324c010e2bcc3138c1490b6"
+  },
+  {
+    "path": "src/frontend/src/InventoryPage.tsx",
+    "sha256": "ea0de56a47a7a4c2125ce621c6cd3eae2676eff7b25003146e007b7aeeb2d757"
+  },
+  {
+    "path": "src/frontend/src/MaterialItemMaster.test.ts",
+    "sha256": "1634e6e6dd7ba24adf8dc7f70f261ab3a468d0f5dcf910537cdddc099caa4327"
+  },
+  {
+    "path": "src/frontend/src/MaterialItemMaster.tsx",
+    "sha256": "a3f723140bc0aa20567fd87013bc779d47cd9e730dc4ace08827dc613f34dca8"
+  },
+  {
+    "path": "src/frontend/src/MaterialPlanning.test.ts",
+    "sha256": "af2d0de41159e2ec542c06898b58ed1cf2390c15470fe68cc8ca9f125f4fcbe7"
+  },
+  {
+    "path": "src/frontend/src/MaterialPlanningCollaboration.tsx",
+    "sha256": "804c4d2840d6c5fddb885f62c6830bb8c3e0563cef447eb8124dd99519a39247"
+  },
+  {
+    "path": "src/frontend/src/MaterialPlanningPage.tsx",
+    "sha256": "e8cf9687d750050cc06d6de3592c1ac6161c1d2670cc167c71fafb0e57577b1c"
+  },
+  {
+    "path": "src/frontend/src/MaterialRelationships.test.ts",
+    "sha256": "788ddb662343711950ca8e9c84aa94c99e7880c8e77e6ecc39f230eac8836a22"
+  },
+  {
+    "path": "src/frontend/src/MaterialRelationships.tsx",
+    "sha256": "b05b306abc2ab0694500a619f13ea5bf60f6ff7c6f9ac4cf1d0aea467c05a61a"
+  },
+  {
+    "path": "src/frontend/src/MeetingCallContext.tsx",
+    "sha256": "bd009d6daf48d8672db576c3e772c8174c80e8d3f2f33564b06d857e5ae9f64b"
+  },
+  {
+    "path": "src/frontend/src/MeetingPreJoin.tsx",
+    "sha256": "1a96b93334251e593a7e7828cd3713a1f507a887543f95a656af2d7b540e9e4a"
+  },
+  {
+    "path": "src/frontend/src/MrpRunsPage.test.ts",
+    "sha256": "5b65dfae3cc05fc6b5f2b90f01dc95f7314820cdeda0a38cb0b0fed62952ceee"
+  },
+  {
+    "path": "src/frontend/src/MrpRunsPage.tsx",
+    "sha256": "4234929aff0be6faf23da5b0e4b0636d7117b726ab344f9f9c5990085c70943b"
+  },
+  {
+    "path": "src/frontend/src/OrderPlanning.test.ts",
+    "sha256": "40f2755901337bab930ca4cf7578e7fb96d83f66f84276e0630e8fc87037ee3e"
+  },
+  {
+    "path": "src/frontend/src/OrderPlanningPage.tsx",
+    "sha256": "33c35bfd9f85ff82f6636e5f5b2f921add0a53cfa69428c132928c6cf048a390"
+  },
+  {
+    "path": "src/frontend/src/ProductMaster.test.ts",
+    "sha256": "7af47743659be7d9fe6afa9783adfd5f8ef7d11e4135ff7e3dffc12b3252e47f"
+  },
+  {
+    "path": "src/frontend/src/ProductMaster.tsx",
+    "sha256": "a27f6523ec307a382605af3dc58574c17e47b23b8c7a1cc7b13f78bca2717829"
+  },
+  {
+    "path": "src/frontend/src/ProductStructure.tsx",
+    "sha256": "190d9b345916eeb967340fa95df2eed4a9308e0d9622d4dd2e8eba6a3ff2c30e"
+  },
+  {
+    "path": "src/frontend/src/ProductionOrdersPage.tsx",
+    "sha256": "a60452e960621bd6df5115801f734340e902f4535d40bc83f39a2fe4b4f488b9"
+  },
+  {
+    "path": "src/frontend/src/ProductionRoutingPage.tsx",
+    "sha256": "ef939e670f0c9a2402e2778a3e00feb92b4e6d69008212422beb236a7ed96259"
+  },
+  {
+    "path": "src/frontend/src/PublicMeetingGuestPage.tsx",
+    "sha256": "2a7577e4de71924644335d2f183a6f88630d29a77f93419fea5f0a77924655b1"
+  },
+  {
+    "path": "src/frontend/src/PurchaseOrderPage.tsx",
+    "sha256": "075b8da15589b73a2a199464c274422a00c18e42f8a2d1a5be43f1b3aa8c6153"
+  },
+  {
+    "path": "src/frontend/src/ReferenceData.test.ts",
+    "sha256": "89caf157adec41e2fbd2a3a35c6ab2a6cd91e868fad35b1cf2175139f2b17132"
+  },
+  {
+    "path": "src/frontend/src/ReferenceDataPage.tsx",
+    "sha256": "18e5313e71cf516919f0422fb4269a2440ca55db6fcea64ac97cd35bd81932bb"
+  },
+  {
+    "path": "src/frontend/src/SourcingMaster.test.ts",
+    "sha256": "6f116d59b9305c27625148a830091965a82ca55125628519c1c9f29bf102eae2"
+  },
+  {
+    "path": "src/frontend/src/SourcingMaster.tsx",
+    "sha256": "11812d5929cb3bad4b8cd12fbd1eb6548a3b847d8cab8b316a44d774dd06405e"
+  },
+  {
+    "path": "src/frontend/src/SupplierFinancialBalancesPage.test.ts",
+    "sha256": "9a8852ec86b15fc8cd9d8419bade883afccb7c6507d8acae6f258cdfa5bbc844"
+  },
+  {
+    "path": "src/frontend/src/SupplierFinancialBalancesPage.tsx",
+    "sha256": "907bb409b4cb9b55602604661ab3bb01175bebdd413c1e1eb4849f774e0a7e15"
+  },
+  {
+    "path": "src/frontend/src/SupplierFinancialLedgerDrawer.tsx",
+    "sha256": "bcfc68b217962861d87153268e608eb084a76229454aae87b10b5513eca24af2"
+  },
+  {
+    "path": "src/frontend/src/SupplierMaster.test.ts",
+    "sha256": "4ba3c1cdf27d46336fe156db73913d8133f00320751e4590275a8fa58666ec37"
+  },
+  {
+    "path": "src/frontend/src/SupplierMaster.tsx",
+    "sha256": "b3fbf10707c61a80fe7f298cdeb590e92e298109d935d67f3a3e62253b96030f"
+  },
+  {
+    "path": "src/frontend/src/SupplierProvidedItems.tsx",
+    "sha256": "ec53e707aa96afa7a74eb682dfdbe5abe9cdda82f052b4a0079716c5c2bdd392"
+  },
+  {
+    "path": "src/frontend/src/TradingOrderForm.tsx",
+    "sha256": "1d91f9bc37afe82fae16014753a15bb9f8e88470d8866aba307424a6eb716801"
+  },
+  {
+    "path": "src/frontend/src/TradingOrderPicker.tsx",
+    "sha256": "b9c238bb3010679e27937a72d0cd6424d21cc953a545e6cf7751250a6e5480d6"
+  },
+  {
+    "path": "src/frontend/src/TradingOrderPickerView.tsx",
+    "sha256": "2d31ffcb56d4864f933833f8ecf1d3763b44b2ff4ee60488acdb27405ece3014"
+  },
+  {
+    "path": "src/frontend/src/TradingOrderView.tsx",
+    "sha256": "f436932bf49786eef9f90195980f759d1983ec83327da19ed82c9ac7306710a2"
+  },
+  {
+    "path": "src/frontend/src/TradingOrdersListView.tsx",
+    "sha256": "605a2470595af302f2930c9319647bc68cb6670a7ce5eb514e3f8e51c2c7b636"
+  },
+  {
+    "path": "src/frontend/src/TradingOrdersWorkspace.tsx",
+    "sha256": "63015b9d65c71119163201d91aacc7016cf28f3b3ccb773094f17e9c8f8aa55e"
+  },
+  {
+    "path": "src/frontend/src/TradingPage.test.ts",
+    "sha256": "06abc33f88d8c4d6628e1aa839f8c1f0be0ee8a1201679b5854bc5326a3a8230"
+  },
+  {
+    "path": "src/frontend/src/TradingPage.tsx",
+    "sha256": "6c247581476d921dcb530c88bcfe2c37e8c593554aa5655d16275c15063974d7"
+  },
+  {
+    "path": "src/frontend/src/TradingProjectSetupForm.tsx",
+    "sha256": "6750d05915aab59b14078ea142c0cda09074f7c307533a41462d303ad7353af2"
+  },
+  {
+    "path": "src/frontend/src/TradingProjectSetupView.tsx",
+    "sha256": "4b039f3acaa935b4108037cac72b705f2a87b3c3fba5c868db41ddb7885f9f3f"
+  },
+  {
+    "path": "src/frontend/src/analyticsUi.ts",
+    "sha256": "e9bd59a538e7e75922840e46906a159fd2095466d470fd72f2a92ee4412e7eeb"
+  },
+  {
+    "path": "src/frontend/src/apiClient.ts",
+    "sha256": "513eb6d2d21e3ea87c8904f674c84404ee0358517118f3f78b3deca10b0108a2"
+  },
+  {
+    "path": "src/frontend/src/apiUrlSupport.test.ts",
+    "sha256": "34e81fa4881a50868128eb377dbac2a21e34d3eed512e7a72344defd59b81295"
+  },
+  {
+    "path": "src/frontend/src/apiUrlSupport.ts",
+    "sha256": "dfea73ab1cf134a03fe95bccc1b06eabd1c088f1fb97cc88400adf9b9977af79"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/character/hadron-companion-thinking.webp",
+    "sha256": "2875f3f6825ac3323efef2055b00ccec57b3535f9eae9db55f52adb806cf8703"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/character/hadron-companion-welcome.webp",
+    "sha256": "369340b9cecc059e98b4f640c1c830e5fd46054fe363d1cdf566b8fe96837595"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/hadron-logo-red.svg",
+    "sha256": "9de51fe17567d6d4f92ed6634832b84a48a23344b9790f30ae902a641de62019"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-checking.webp",
+    "sha256": "a699d7bcbeef22acbb46d5a6a6a10cb6f7e861d9a44470802484fcd7e18aebfb"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-done.webp",
+    "sha256": "95ba06ef2a8dea9a8f6faccd931de0c46580da52c459d1ef84bf53b7cc40e6fc"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-great.webp",
+    "sha256": "4832cd890ec67bddbc83118ac61420833659b27ba1d8eeeeadffb198ab03cb46"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-hello.webp",
+    "sha256": "e8dd75301b97ba1b634970f4dc327b63091a3affe836d3ae3d84a54748a486f2"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-sending.webp",
+    "sha256": "f18057ddbec0f14d63778a6ad55b195d2821dd657e76248795be10bf3c7aec2f"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-sorry.webp",
+    "sha256": "e6a484dddbf981c3a2182506553135eee76b839157be89058a41c5d90b67421b"
+  },
+  {
+    "path": "src/frontend/src/assets/brand/stickers/hadron-wait.webp",
+    "sha256": "8f8adc97046835112627dc8db2eb9260d1fbecec01badc9559c70c166f93c23a"
+  },
+  {
+    "path": "src/frontend/src/authSessionSupport.test.ts",
+    "sha256": "30f0e38cb1a79d0fe197a2e9e4340eb9fde8728d4dce70d4f997ec858d81410f"
+  },
+  {
+    "path": "src/frontend/src/authSessionSupport.ts",
+    "sha256": "c33123dde9125c2b65e4fe97f8805a5437956efca4bfb63821968993ca60d020"
+  },
+  {
+    "path": "src/frontend/src/bomBuilderSupport.test.ts",
+    "sha256": "76a8b262d5b9aab17c62a1d010b43fbde58ce5f32cb41864db725573b9b8696b"
+  },
+  {
+    "path": "src/frontend/src/bomBuilderSupport.ts",
+    "sha256": "d5504e195b5cd8217a5f49906a15ad76ceb238e79ac5ff74b4313febe67b3ee4"
+  },
+  {
+    "path": "src/frontend/src/bomVersionSession.test.ts",
+    "sha256": "238391e79b0426b2e269fd74f2f46da16f9caef48a1f7bcee234635d099f8122"
+  },
+  {
+    "path": "src/frontend/src/bomVersionSession.ts",
+    "sha256": "d239c962730164a44a55d4e551df8852d10e04bee5f87de01a50c50c07f39684"
+  },
+  {
+    "path": "src/frontend/src/cashFlowMaterialCostingUi.test.ts",
+    "sha256": "c9e250ed5a277612164385d9a7a4b5ccfaf21e99e6716cb119f79c6fc17a6596"
+  },
+  {
+    "path": "src/frontend/src/cashFlowMaterialCostingUi.ts",
+    "sha256": "805edcf0eb49671e1f5dfb889002e1156a546a193f0021811e021fc5e4cdc57a"
+  },
+  {
+    "path": "src/frontend/src/cashFlowUi.ts",
+    "sha256": "e4b6898b74f7a989a853a67cb38a7303545bcfe4d1dd2153bdf7e81e6a9fbe08"
+  },
+  {
+    "path": "src/frontend/src/collaborationCallSupport.test.ts",
+    "sha256": "8236fb70c501828f13ef21a8247488d27f3da639fb89b84c37282c5378e84565"
+  },
+  {
+    "path": "src/frontend/src/collaborationCallSupport.ts",
+    "sha256": "a720b13ebd0f6e247bcc8e185b48bba3a54fce6015ffc9a6ea67653c4d339047"
+  },
+  {
+    "path": "src/frontend/src/collaborationMeetingApi.ts",
+    "sha256": "8dab906d087e4e2bdafdf265da4800ab645676b518ebd781426b2c542196e08e"
+  },
+  {
+    "path": "src/frontend/src/collaborationMeetingSupport.test.ts",
+    "sha256": "529d4f1777fab9adfbadf3ab7bff8d22ed8e4f41c5a1298fb8b43b72a83661c4"
+  },
+  {
+    "path": "src/frontend/src/collaborationMeetingSupport.ts",
+    "sha256": "4845c6cc7a7f624414b3f42552f8e951560d64d7c9643001cc17798d5afae60c"
+  },
+  {
+    "path": "src/frontend/src/collaborationNotificationCenterSupport.test.ts",
+    "sha256": "6c6326b9bf4f14abd64db97f864751b79d571620df7c529dd081a7da13cc3262"
+  },
+  {
+    "path": "src/frontend/src/collaborationNotificationCenterSupport.ts",
+    "sha256": "c0498b06718a596f8fa36265e9726559ebe014f5a42404b5ab9947579b48c78e"
+  },
+  {
+    "path": "src/frontend/src/collaborationSupport.test.ts",
+    "sha256": "5169897153ecc25ef0c5e5b88e5b918a2383bbc9406b7620939bdddc849c462b"
+  },
+  {
+    "path": "src/frontend/src/collaborationSupport.ts",
+    "sha256": "95f0460fb55daacac064bfe27372a0757c61c2ade653fa99bf5d47e9422e627a"
+  },
+  {
+    "path": "src/frontend/src/forecastBatchSupport.test.ts",
+    "sha256": "188b5de311b7767eca2d6bc60dbddb47407a895603f2a6bcc630cdf9fdda3196"
+  },
+  {
+    "path": "src/frontend/src/forecastBatchSupport.ts",
+    "sha256": "859254f2f2486bb8bde9be7fa56e4c5ad7566d93be9626a4efd406287933ff86"
+  },
+  {
+    "path": "src/frontend/src/guestMeetingFlowSupport.ts",
+    "sha256": "fa2742a37a043802a827f9daacfbc7a05f04f8c3ab914db313e7102561e727ec"
+  },
+  {
+    "path": "src/frontend/src/i18n/businessDate.ts",
+    "sha256": "84101f417aa46381fd459a1124b1a09615c8e3e171e77533362480d3669403f8"
+  },
+  {
+    "path": "src/frontend/src/i18n/index.ts",
+    "sha256": "29d150719cb9ee0b0a2eea4c75ce7b1a0708e8372ee6077eb3b5a5b9a88e2a49"
+  },
+  {
+    "path": "src/frontend/src/i18n/locales/en.ts",
+    "sha256": "126111bac04e32b777a15577531499816c12b9f0ca4b30e168d699f59b835ba2"
+  },
+  {
+    "path": "src/frontend/src/i18n/locales/fa.ts",
+    "sha256": "56cd4e49f04c8d15dc5124fb4bc786f0f3ebc8096be2002d35f32022336fbdae"
+  },
+  {
+    "path": "src/frontend/src/i18n/localizedName.test.ts",
+    "sha256": "23f335c1cc93963e88464ebc18b3f3a262fec448cbe97b7619ebae083a880bfb"
+  },
+  {
+    "path": "src/frontend/src/i18n/localizedName.ts",
+    "sha256": "5754a83072b89841774e5153130d21bc0e706aee5e19b12332295fcc261d7723"
+  },
+  {
+    "path": "src/frontend/src/i18n/numberFormatting.ts",
+    "sha256": "7636742d39211a380fabae8e87d410553f9ff68f321f0a1c4069b949e3a65970"
+  },
+  {
+    "path": "src/frontend/src/i18n/translationCoverage.test.ts",
+    "sha256": "4ceb38278552f30d1eba4606dfd439fdde87d5199414ec1ed3c83d6aa7bea2b8"
+  },
+  {
+    "path": "src/frontend/src/identityAccessSupport.ts",
+    "sha256": "13936b246c5774ef757c06c7e1680f443e08b62e5ebede0edd76aa01fec74691"
+  },
+  {
+    "path": "src/frontend/src/identityProblem.test.ts",
+    "sha256": "8f66f0c2d3136b0b693e895df754f0cf937a62dd2f9487c11ee04011807429f1"
+  },
+  {
+    "path": "src/frontend/src/identityProblem.ts",
+    "sha256": "e18596534c6092b206c98fa34b002e61678a9ed7e21e2351ce5490e485e8d22c"
+  },
+  {
+    "path": "src/frontend/src/inventoryUiSupport.ts",
+    "sha256": "f40141239f80874548d62a12d34642ef6b04d5bc39deaad1797d3ee00519de80"
+  },
+  {
+    "path": "src/frontend/src/main.tsx",
+    "sha256": "67afa684aaeedefdb654615bce06e0e507b02e892e2b88c13e9bf2b49ae4c967"
+  },
+  {
+    "path": "src/frontend/src/materialItemSupport.test.ts",
+    "sha256": "893e66a812a4963c38dfd21667c4a8fbeea6dfbfb72a3faafeda5932179175ab"
+  },
+  {
+    "path": "src/frontend/src/materialItemSupport.ts",
+    "sha256": "877e7a4fb589ed2f393f20efa9a480bc2dc33edc356fecd954758aa366cf577c"
+  },
+  {
+    "path": "src/frontend/src/materialPlanningProblem.test.ts",
+    "sha256": "2a6b681026686a9c223ffd080b8977e6d9495cf73e5ec54cff24918356ffd6d1"
+  },
+  {
+    "path": "src/frontend/src/materialPlanningProblem.ts",
+    "sha256": "d1ed271e5398d5a111a8df304c04a6a1454c019a885d7b6bbe964d3f2931fb53"
+  },
+  {
+    "path": "src/frontend/src/materialPlanningSupport.ts",
+    "sha256": "b65d884aa7e1fa1abb73f072500dcdfedd3f95205179bdb145e7e68feadcd640"
+  },
+  {
+    "path": "src/frontend/src/materialRelationshipSupport.ts",
+    "sha256": "da28ee0d81fa6e71e38ec36723914a16944622a98d2475798fdc9230a3cc828e"
+  },
+  {
+    "path": "src/frontend/src/meetingPreJoinSupport.test.ts",
+    "sha256": "643c53df7e75036cca1682269b8999a46addb3a6d754548afe5844dbc5090a24"
+  },
+  {
+    "path": "src/frontend/src/meetingPreJoinSupport.ts",
+    "sha256": "491ecb0fc15a1dea7c7b7a7ecfec328679ba81f4730e886dc9839fa13b32df07"
+  },
+  {
+    "path": "src/frontend/src/meetingRoomScaleSupport.test.ts",
+    "sha256": "3e1b567dd1de24569bd1bae764b987ab88c8b6f8061051c9f1e5fddaf8b5d2b2"
+  },
+  {
+    "path": "src/frontend/src/meetingRoomScaleSupport.ts",
+    "sha256": "02d86c2b2d44c7acf8913fbd0c10e955a4612155547ebaf41d915759bc655782"
+  },
+  {
+    "path": "src/frontend/src/mrpRunUiSupport.test.ts",
+    "sha256": "39649f992dee1c7ed5eac2c43cb37faf25c12c7fd331749ee4f9b87954d54572"
+  },
+  {
+    "path": "src/frontend/src/mrpRunUiSupport.ts",
+    "sha256": "ffceadaa3f408c0fe5cdfe045046918f5b32af37e636daf8bab472b9eb9569f1"
+  },
+  {
+    "path": "src/frontend/src/permissionContract.test.ts",
+    "sha256": "f85cbd34d005abd3bbc519c3af24758405e27b9c9d9eb0f3a263cc8c966999aa"
+  },
+  {
+    "path": "src/frontend/src/productStructureSupport.test.ts",
+    "sha256": "3bbe91549b65ef8645261c3c3018a89328c1fb981b163d611050ff387f939909"
+  },
+  {
+    "path": "src/frontend/src/productStructureSupport.ts",
+    "sha256": "ac218407c932439ce3c0da74d992afadd5389057b809d61fe695ec8a1431f415"
+  },
+  {
+    "path": "src/frontend/src/productionOrderSupport.test.ts",
+    "sha256": "a1e7d93cf8df9439c62842672686851bbf1a10d644d7106c8f46573a5d3add9c"
+  },
+  {
+    "path": "src/frontend/src/productionOrderSupport.ts",
+    "sha256": "764b88ce8b0007d7cf82b3f20b3b9693a40e1b595ba9c39aacbc221761987f4f"
+  },
+  {
+    "path": "src/frontend/src/referenceDataSupport.ts",
+    "sha256": "9ad32cc78446250c5da3893f3ae167bb71dab84efa8e022e3759a2920054af63"
+  },
+  {
+    "path": "src/frontend/src/sourcingFormSupport.ts",
+    "sha256": "2bf4aa1120d0abc1cbd52abf7d1219335591bdbbf167650805ab1b786c451b3b"
+  },
+  {
+    "path": "src/frontend/src/sourcingTreeSupport.test.ts",
+    "sha256": "a4efb818cc150d8246b569af40ee2920ce8a71cac9b06e42e3031f01509adfb1"
+  },
+  {
+    "path": "src/frontend/src/sourcingTreeSupport.ts",
+    "sha256": "29c250a92d39da3309b82025cdbdaabfd1ee2e81c4e5b1bde32e920df3d40a29"
+  },
+  {
+    "path": "src/frontend/src/styles.css",
+    "sha256": "f17c4526c272ae3ee2980227ebf509ad19352905201e5cf132bb3ebecce396b7"
+  },
+  {
+    "path": "src/frontend/src/styles.test.ts",
+    "sha256": "80c3d79beadd34604a5e91173c4b4e266c3bf633495b747363fcc050695f6880"
+  },
+  {
+    "path": "src/frontend/src/supplierFinancialLedger.test.ts",
+    "sha256": "f4ef2ed2c6fa2ee9cb58bc64b588b39e61cd47e3d02fc4872078259641a99649"
+  },
+  {
+    "path": "src/frontend/src/supplierFinancialLedger.ts",
+    "sha256": "644344bb3bfff9c63f96073ac2bcb78433152896ce3bbd4aa8adac004486f827"
+  },
+  {
+    "path": "src/frontend/src/supplierLedgerExport.test.ts",
+    "sha256": "32f2a465bc353f8229d0752799f90f0d8bb1ec3ee8d46ece3a5dcf7fa4ff613e"
+  },
+  {
+    "path": "src/frontend/src/supplierLedgerExport.ts",
+    "sha256": "44fa9a2d4896c10a1dd34177cb5bb046589349d19c2d93e0883eb7136b29a305"
+  },
+  {
+    "path": "src/frontend/src/supplierProjectsSession.test.ts",
+    "sha256": "10b148b575767052da24cb4e00452a56253e3917a3a4f7c921006205f9a10ddc"
+  },
+  {
+    "path": "src/frontend/src/supplierProjectsSession.ts",
+    "sha256": "20dfe3f37770238e4282de3522abdec4361d3b8c3241449a953ba3632b4b8e60"
+  },
+  {
+    "path": "src/frontend/src/tradingApi.ts",
+    "sha256": "9e10e1353004f5c926335a21aa5a5a135b56015acb7ef13a6c4b326525faf147"
+  },
+  {
+    "path": "src/frontend/src/tradingOrderFields.json",
+    "sha256": "d5f1faafd4d1a8c9593c10ef76fe39a7d9c9b23c52efee7729707bebaec3255d"
+  },
+  {
+    "path": "src/frontend/src/tradingOrderSupport.ts",
+    "sha256": "1540d9d738c2a2429ac80fe98006ed10cec935291e8beb3f593d355976ac3f1b"
+  },
+  {
+    "path": "src/frontend/src/tradingOrders.css",
+    "sha256": "7505d45ffce136b44dbbd0dca6e12fafb84ed539e60db21e24930b2634f53b60"
+  },
+  {
+    "path": "src/frontend/src/tradingProjectSetup.css",
+    "sha256": "fe188060d26a7571e7061b5ab6b9551da311d08af219f0dbc588e4eda6233f60"
+  },
+  {
+    "path": "src/frontend/src/tradingProjectSetupFields.json",
+    "sha256": "0e2b7a766653e49e8f870225abbf19460f76c8d43ba84acc118417202d47501d"
+  },
+  {
+    "path": "src/frontend/src/tradingProjectSetupSupport.ts",
+    "sha256": "fa17f465179d70a693f5721f705801f4142689f459d4352e3a0d989e081b4b53"
+  },
+  {
+    "path": "src/frontend/src/tradingUiSupport.ts",
+    "sha256": "d54a539802e6ab6173cb99d3206de5f22236b25a54e51327588a5a23a250549e"
+  },
+  {
+    "path": "src/frontend/src/ui/ConfirmationDialog.test.ts",
+    "sha256": "3dfe9559977a5e795a5e0041f6ba77ac2423da03aa6d1ada816861646bade4ff"
+  },
+  {
+    "path": "src/frontend/src/ui/UnsavedChangesGuard.test.ts",
+    "sha256": "d0085a0b76be592565a4609331a8826c68ecaab49a2849465239e84facdecbb7"
+  },
+  {
+    "path": "src/frontend/src/ui/UnsavedChangesGuard.tsx",
+    "sha256": "07ea3bea641ab61dce44a0ceab270088679ad83548f3ccb4355b339e3d9cb38c"
+  },
+  {
+    "path": "src/frontend/src/ui/index.tsx",
+    "sha256": "6c7183ec9977b4891dd46ace8ef985015d1f8a16196c0bf7da4b86bc975f545f"
+  },
+  {
+    "path": "src/frontend/src/ui/routeContext.ts",
+    "sha256": "31c0f10535a21663ac0e2ca162128051bbb8ceb54bc0c6178926e529507f87a9"
+  },
+  {
+    "path": "src/frontend/src/vite-env.d.ts",
+    "sha256": "ef864c23215ccc62986f3fb038ce34cbee5422f6ea462dfbfcc98dedba19b84f"
+  },
+  {
+    "path": "src/frontend/src/workspaceNavigation.test.ts",
+    "sha256": "00d7163484e5a997769b13fccc1867a48d12a10ddbae7918f165fc5d8f039394"
+  },
+  {
+    "path": "src/frontend/src/workspaceNavigation.ts",
+    "sha256": "f404461b2a81f68a56287582bbc76667ae7748a3b729f485ef2aff098e872912"
+  },
+  {
+    "path": "src/frontend/tsconfig.app.json",
+    "sha256": "7025c0bfb45508d0ce708a65aa1f086fa75ce4e20ec83e4fab66f0c1d4f37e36"
+  },
+  {
+    "path": "src/frontend/tsconfig.json",
+    "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808"
+  },
+  {
+    "path": "src/frontend/tsconfig.node.json",
+    "sha256": "adb3d10e23876c431a4a28a4ed127e965dd8e4f171eef065820feedc8fe132c1"
+  },
+  {
+    "path": "src/frontend/vite.config.ts",
+    "sha256": "ae094917dd7d5deedf7b64ce2183f3eb4183f4dde2b1e9a43493e408a2f85dae"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/AnalyticsTests.cs",
+    "sha256": "6e8dcd4085f683b93246c9ae103c9c95560b429d5ac765ab5d49eddc3db7797f"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/BomTests.cs",
+    "sha256": "2d69c5f8f80ed2027fb3102568c4d80a3cb1018f3fdaac14c5d69964b55162ac"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/CashFlowTests.cs",
+    "sha256": "7ae92dec7f91e521b5979389fd59a1219054da80d9de47dfc6175338ef9fa35a"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/CollaborationSecurityTests.cs",
+    "sha256": "ddac42052917fbbdd505fa8284cb1f1cc683a0a11117050dcb8d3748814e1352"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/CollaborationTests.cs",
+    "sha256": "b479ba10682abe8f7f080a9a81584100db9aa80575e29d77a7fc47e57197b61b"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/DataProtectionPersistenceTests.cs",
+    "sha256": "783cea702a0104704c2b110722bd52d462fa22ff90f2e2844494ed6a1795ca67"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/FoundationHealthTests.cs",
+    "sha256": "94dfb7c67e1dfd243c36baf3ebe043758fe1825702dcc585c4de4a141ca6ccf1"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/FullGoldenE2ETests.cs",
+    "sha256": "bf588a83f40189ac38276a398a1468fb3a1df8ec239ff3cf91b90e5e19d78f5e"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/Hadron.Erp.IntegrationTests.csproj",
+    "sha256": "ecc0b538f368f011848056591972fc9847dd395b30b8698c17e5570845246b78"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/IdentitySecurityTests.cs",
+    "sha256": "d17469e5ddfe133bb505ab201bcda67d1685059c1d71944db1a774e9f5f9b544"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/InventoryTests.cs",
+    "sha256": "f3327ed420ba2cb00a292ba51935d820bc66597a2138da5a98c67d1f2de5c9bf"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/LiveKitTokenServiceTests.cs",
+    "sha256": "f1a74d1345991ee43e0401b17f6322e705eb429d93e3d2ab8eaecf966469a7c3"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MaterialCostBookTests.cs",
+    "sha256": "ba35e053c1c8f3967c7b2a62a9bc35a1bb896e8bab177b5a42b1999bb32280d7"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MaterialItemTests.cs",
+    "sha256": "c314222c8458c1cf29b441911d614d4d029f7969c28f77c93131eebad06e06d3"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MaterialPlanningTests.cs",
+    "sha256": "a1801013dbc0227fbd14e1783816f99490c9db280117d3547b12b572d645d86b"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MeetingMediaGatewayTests.cs",
+    "sha256": "7d41b7b6cc5067631f1bd476fae921d7cac22f4cdae300c192ee6e03b81bdd1c"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MeetingTests.cs",
+    "sha256": "9b0d9da8c1c37730dc37e2c8fd1c6b29112cda7537b36109e3e851fcb376b691"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MrpCalculatorTests.cs",
+    "sha256": "13862a730aa2ee9d8d7f8d28332ccd70a9921fb5ff2a5f90603b764d47f1c55b"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/MrpRunTests.cs",
+    "sha256": "f2398d601547a8931fa24f3425fb13e60ac25627c959eba02a9f650965de20cc"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/OrderPlanningCalculatorTests.cs",
+    "sha256": "9626d8d5145949ea1bee74888c6b453a419e4148f49cee29dba863308cc8a0a4"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/OrderPlanningTests.cs",
+    "sha256": "51d6210c7c31e95eeea4dfe5bdd8a73181a72dc9d4bf52554a9c57a7df472bee"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PermissionCatalogContractTests.cs",
+    "sha256": "3b13cfc81e94c3ec7a6313531518f2721f012540cb1fd2400c27a6089f6ce521"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PlanningCollaborationTests.cs",
+    "sha256": "9654a8a6ac92c3bbcc9ef7cc569364f13f2e931cb9670aab0d2062ce28541772"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PlanningTests.cs",
+    "sha256": "73eb86175e1f137ff60191e647e739593cc5e812778ef6ad5c5233e7173dee8f"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PlatformReliabilityTests.cs",
+    "sha256": "fc2049281744f95b3ad85fcb842ce679f58aa416f9447d205b84bb04d3d1f15e"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ProductTests.cs",
+    "sha256": "2fcbb04fccf1c902f9964edb65bd2300695fa336bebcc94f2f4a9ce367b4ebe7"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ProductionRoutingTests.cs",
+    "sha256": "449d3cf7620a8bc0e5c265feb1350000f3ae35ed91527829342c0d3e27e673e7"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ProductionTests.cs",
+    "sha256": "ad90049fc920eefce214ed439ff80eb94d81ea4fe25359353c43ff79a8a44334"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ProfilePhotoStoreTests.cs",
+    "sha256": "1e297cad100f754f845c33652fb56966d88b2ca78502747aade3280acd041bf1"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PurchasePriceHistoryTests.cs",
+    "sha256": "f0edc7a807d5bbb1046cac31b2ae236c33386e8e255e0be2b6851295eb35ebd8"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/PurchaseSupplyTests.cs",
+    "sha256": "a1d42f3ef1873e9ff733c946fd8485743261d43efb9937cb4cd2e6e8cfad6763"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ReferenceDataTests.cs",
+    "sha256": "49f07f03fa20de6eb22da80955daf30e926e1dce240e0455e55c3034da531aaf"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/ReportingFxRateTests.cs",
+    "sha256": "559ef1651d6fcb7763ade85dc1071a89caaad087a6117d052e77e0603fdd6b4b"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/SessionRestartContinuityTests.cs",
+    "sha256": "441e72c8b8ce186b102a3b2a4b8f2877df92a4c36825372c857330750e4c5783"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/SourcingTests.cs",
+    "sha256": "71d2e2b6cd7048089f6a8497d3cf6df6cff2d1eb9dc4ba9b663ed5e6ba54f5fe"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/SupplierTests.cs",
+    "sha256": "f008fadfba25ff042998c3c21088907a7362df36db916e00d7391cb4ef2a4933"
+  },
+  {
+    "path": "tests/backend/Hadron.Erp.IntegrationTests/TradingTests.cs",
+    "sha256": "7dcf9637c4d6b11beaedc6f2fca91d50897abae1739ec3d39dc3e98885d5e781"
+  },
+  {
+    "path": "tests/performance/meetings/Invoke-HadronMeetingQualification.ps1",
+    "sha256": "74c7a44f3a68d0772ee2cbc7e090d353a3ad3a3a9dbaaeab86df7756e8d5cdb5"
+  },
+  {
+    "path": "tests/performance/meetings/README.md",
+    "sha256": "a065ce74d099879b085ba329ff84e2f9abbab8c22acb7c58293a3c0cca236d3b"
+  },
+  {
+    "path": "tests/performance/meetings/thresholds.json",
+    "sha256": "242b4a790fe62eebd39784c152e5b4d202d6eb30e827737269ff90e7e34e12d8"
+  }
+]

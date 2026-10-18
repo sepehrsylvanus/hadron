@@ -1,0 +1,25 @@
+[
+  {
+    "title": "identity",
+    "fields": [
+      { "key": "projectNumber", "type": "readonly", "actual": "trading.projects.ProjectNumber", "proposed": "trade_projects.projectNumber", "source": "تولید در سرور؛ جزو بدنهٔ درخواست نیست" },
+      { "key": "startDate", "type": "date", "required": true, "actual": "trading.projects.StartDate", "proposed": "project_stages.startedAt (PROJECT_SETUP)", "source": "تاریخ کاری شروع/ارجاع؛ جدا از CreatedAtUtc سیستمی" },
+      { "key": "titleFa", "type": "text", "required": true, "wide": true, "maxLength": 250, "actual": "trading.projects.TitleFa", "proposed": "trade_projects.titleFa", "source": "متن موضوع پرونده" }
+    ]
+  },
+  {
+    "title": "commercial",
+    "fields": [
+      { "key": "customerId", "type": "lookup", "kind": "CUSTOMER", "actual": "trading.projects.CustomerId", "proposed": "trade_projects.customerPartyId", "source": "فعلی: trading.reference_values.Id با ReferenceType=CUSTOMER؛ پیشنهادی: trade_parties + trade_party_roles" },
+      { "key": "businessCardId", "type": "lookup", "kind": "BUSINESS_CARD", "actual": "trading.projects.BusinessCardId", "proposed": "trade_projects.businessCardId", "source": "فعلی: trading.reference_values.Id با ReferenceType=BUSINESS_CARD؛ پیشنهادی: business_cards.id" },
+      { "key": "responsibleUserId", "type": "lookup", "kind": "ASSIGNEE", "required": true, "actual": "trading.projects.ResponsibleUserId", "proposed": "trade_projects.responsibleUserId", "source": "identity.users.Id؛ فقط کاربر فعال، نام واقعی از قرارداد مرکزی هویت" }
+    ]
+  },
+  {
+    "title": "statusAndNotes",
+    "fields": [
+      { "key": "status", "type": "readonly", "actual": "trading.projects.Status", "proposed": "trade_projects.status", "source": "DRAFT از مدل دامنه؛ درخواست کاربر اجازهٔ تعیین وضعیت اولیه ندارد" },
+      { "key": "notes", "type": "textarea", "wide": true, "maxLength": 4000, "actual": "trading.projects.Notes", "proposed": "trade_projects.notes", "source": "توضیحات کلی پرونده؛ بدون فیلد مربوط به مراحل بعد" }
+    ]
+  }
+]

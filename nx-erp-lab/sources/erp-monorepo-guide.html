@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="طرح اجرایی و راهنمای ساخت ERP MVP با Nx Monorepo، React، NestJS، Prisma و PostgreSQL">
+<title>طرح اجرایی ERP با Nx، React، NestJS و PostgreSQL</title>
+<style>
+:root{
+  color-scheme:light dark;
+  --bg:#fbfbfd; --fg:#20212a; --muted:#626575; --card:#f1f2f7; --border:#dedfea;
+  --accent:#6941c6; --accent2:#167d72; --code-bg:#171923; --code-fg:#e7e8f2; --step-bg:#ece7fa;
+  --warn-bg:#fff7e8; --warn-border:#e9a23b; --good-bg:#eaf7f1; --good-border:#3b9b71;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12131a; --fg:#e9eaf2; --muted:#a3a5b5; --card:#1c1e28; --border:#303341;
+  --accent:#b9a3ff; --accent2:#68c9b7; --code-bg:#0b0c11; --code-fg:#e7e8f2; --step-bg:#29233b;
+  --warn-bg:#302719; --warn-border:#c9892b; --good-bg:#162b23; --good-border:#3e9872;
+}}
+:root[data-theme="dark"]{--bg:#12131a;--fg:#e9eaf2;--muted:#a3a5b5;--card:#1c1e28;--border:#303341;--accent:#b9a3ff;--accent2:#68c9b7;--code-bg:#0b0c11;--code-fg:#e7e8f2;--step-bg:#29233b;--warn-bg:#302719;--warn-border:#c9892b;--good-bg:#162b23;--good-border:#3e9872}
+:root[data-theme="light"]{color-scheme:light}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:18px}
+body{margin:0 auto;max-width:1100px;padding:28px 22px 56px;background:var(--bg);color:var(--fg);font-family:Tahoma,"Segoe UI",sans-serif;line-height:1.95}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+h1{font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.55;margin:0 0 12px;color:var(--accent)}
+h2{font-size:1.32rem;line-height:1.7;margin:2.8rem 0 1rem;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border);padding-bottom:9px}
+h3{font-size:1.08rem;margin:1.7rem 0 .5rem;color:var(--accent2)}
+p{margin:.65rem 0 1rem}
+ul,ol{padding-right:1.5rem}
+li{margin:.35rem 0}
+.hero{padding:25px 26px;background:linear-gradient(135deg,var(--card),transparent);border:1px solid var(--border);border-radius:18px;margin-bottom:20px}
+.subtitle{color:var(--muted);font-size:1.05rem;max-width:900px}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.badge{display:inline-block;background:var(--step-bg);color:var(--accent);padding:3px 11px;border-radius:30px;font-size:.83rem}
+.step-num{background:var(--step-bg);color:var(--accent);border-radius:50%;width:33px;height:33px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;flex:0 0 33px;font-size:.95rem}
+.callout{padding:14px 17px;margin:14px 0 20px;border-radius:10px;background:var(--card);border-inline-start:4px solid var(--accent);color:var(--fg)}
+.callout.warn{background:var(--warn-bg);border-color:var(--warn-border)}
+.callout.good{background:var(--good-bg);border-color:var(--good-border)}
+.toc{background:var(--card);padding:18px 22px;border-radius:14px;border:1px solid var(--border);margin:22px 0}
+.toc ol{columns:2;column-gap:34px;margin:8px 0 0}.toc li{break-inside:avoid;margin:.2rem 0}
+.path{font-family:Consolas,monospace;direction:ltr;display:inline-block;background:var(--card);padding:0 7px;border-radius:4px;color:var(--accent);font-size:.91em}
+pre{background:var(--code-bg);color:var(--code-fg);padding:16px 18px;border-radius:10px;overflow:auto;direction:ltr;text-align:left;font:13px/1.7 Consolas,"Fira Code",monospace;margin:10px 0 20px;tab-size:2;white-space:pre}
+code{font-family:Consolas,"Fira Code",monospace}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin:12px 0 22px}
+table{border-collapse:collapse;width:100%;min-width:620px;background:var(--bg)}
+th,td{padding:10px 12px;text-align:right;vertical-align:top;border-bottom:1px solid var(--border)}
+th{background:var(--card);color:var(--accent);font-weight:700}tr:last-child td{border-bottom:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+.card{border:1px solid var(--border);background:var(--card);padding:14px 16px;border-radius:12px}
+.card b{color:var(--accent)}
+.small{font-size:.9rem;color:var(--muted)}
+footer{border-top:1px solid var(--border);margin-top:50px;padding-top:18px;color:var(--muted);font-size:.9rem}
+@media(max-width:650px){body{padding:16px 13px 40px}.hero{padding:19px 17px}.toc ol{columns:1}pre{font-size:12px;padding:13px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>🧩 طرح اجرایی یک ERP واقعی با Nx Monorepo</h1>
+  <p class="subtitle">نسخه‌ی توسعه‌یافته‌ی راهنما: از ساخت workspace فراتر می‌رود و دامنه‌ی ERP، گردش‌کارهای فروش و خرید، موجودی انبار، مالی، مدل داده، API، صفحات React، امنیت، تست و انتشار را مشخص می‌کند.</p>
+  <div class="badges">
+    <span class="badge">Nx Monorepo</span><span class="badge">React + TypeScript</span><span class="badge">NestJS REST API</span>
+    <span class="badge">PostgreSQL + Prisma</span><span class="badge">ERP MVP end-to-end</span><span class="badge">راست‌چین و فارسی‌پذیر</span>
+  </div>
+</header>
+
+<div class="callout good"><b>تفاوت اصلی با نسخه‌ی قبلی:</b> این سند فقط نمی‌گوید اپ‌ها را چطور بالا بیاورید؛ یک ERP هسته‌ای با کاتالوگ کالا، مشتری و تأمین‌کننده، شعبه و انبار، خرید، فروش، رزرو و گردش موجودی، فاکتور، پرداخت، دفتر روزنامه‌ی دوبل، نقش‌ها، ممیزی و گزارش تعریف می‌کند و برای بخش‌های مهم نمونه‌ی ساختار و کد می‌دهد.</div>
+<div class="callout warn"><b>تعریف واقع‌بینانه‌ی «کامل»:</b> این فایل طرح اجرایی و اسکلت یک ERP MVP قابل توسعه است، نه نرم‌افزار آماده‌ی استفاده‌ی قانونی/مالیاتی بدون تنظیم. قوانین مالیات، حقوق‌ودستمزد، فاکتور الکترونیکی، ارز و حسابداری باید برای کشور و سیاست شرکت پیکربندی و با متخصص همان حوزه تأیید شوند. ماژول‌های HR/Payroll، تولید و بهای تمام‌شده‌ی پیشرفته در نقشه‌ی توسعه آمده‌اند.</div>
+
+<div class="grid">
+  <div class="card"><b>گردش Order-to-Cash</b><br>سفارش فروش ← رزرو ← ارسال ← فاکتور ← دریافت وجه ← ثبت دفتر</div>
+  <div class="card"><b>گردش Procure-to-Pay</b><br>سفارش خرید ← دریافت کالا ← فاکتور تأمین‌کننده ← پرداخت ← ثبت دفتر</div>
+  <div class="card"><b>انبار قابل حسابرسی</b><br>دفتر گردش تغییرناپذیر + مانده‌ی سریع برای هر کالا/انبار</div>
+  <div class="card"><b>امنیت سازمانی پایه</b><br>شرکت/مستأجر، نقش و مجوز، ثبت رویداد حساس و تست جداسازی داده</div>
+</div>
+
+<nav class="toc" aria-label="فهرست مطالب">
+  <b>فهرست</b>
+  <ol>
+    <li><a href="#s1">دامنه‌ی ERP و گردش‌کارها</a></li>
+    <li><a href="#s2">معماری و تصمیم‌های پایه</a></li>
+    <li><a href="#s3">ساختار Nx Monorepo</a></li>
+    <li><a href="#s4">ساخت workspace و اپ‌ها</a></li>
+    <li><a href="#s5">PostgreSQL، Docker و تنظیمات</a></li>
+    <li><a href="#s6">مدل داده‌ی ERP با Prisma</a></li>
+    <li><a href="#s7">Migration و Seed اولیه</a></li>
+    <li><a href="#s8">احراز هویت، شرکت و RBAC</a></li>
+    <li><a href="#s9">راه‌اندازی API در NestJS</a></li>
+    <li><a href="#s10">قرارداد API و ماژول کاتالوگ</a></li>
+    <li><a href="#s11">قواعد و تراکنش‌های انبار</a></li>
+    <li><a href="#s12">فرآیند خرید</a></li>
+    <li><a href="#s13">فرآیند فروش</a></li>
+    <li><a href="#s14">مالی، پرداخت و حسابداری دوبل</a></li>
+    <li><a href="#s15">ساخت اپ ERP در React</a></li>
+    <li><a href="#s16">صفحات، تجربه‌ی کاربری و RTL</a></li>
+    <li><a href="#s17">گزارش، ممیزی و فایل‌ها</a></li>
+    <li><a href="#s18">تست واحد، یکپارچه و E2E</a></li>
+    <li><a href="#s19">CI در GitHub Actions</a></li>
+    <li><a href="#s20">اجرای روزمره‌ی پروژه</a></li>
+    <li><a href="#s21">استقرار، مانیتورینگ و پشتیبان‌گیری</a></li>
+    <li><a href="#s22">نقشه‌ی توسعه‌ی ماژول‌های بعدی</a></li>
+    <li><a href="#s23">معیار تحویل MVP</a></li>
+    <li><a href="#s24">تست واقعی APIها با URL و JSON</a></li>
+    <li><a href="#s25">فرانت‌اند کامل و چشم‌گیر با MUI</a></li>
+  </ol>
+</nav>
+
+<h2 id="s1"><span class="step-num">1</span> دامنه‌ی ERP و گردش‌کارها</h2>
+<p>ERP یک داشبورد با چند فرم نیست؛ چند واحد کاری باید روی داده‌ی مشترک و تراکنش‌های قابل ردیابی کار کنند. دامنه‌ی MVP این سند شامل موارد زیر است:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>حوزه</th><th>قابلیت‌های MVP</th><th>خروجی مهم</th></tr></thead>
+<tbody>
+<tr><td>پایه و دسترسی</td><td>شرکت، شعبه، انبار، کاربر، نقش و مجوز</td><td>داده‌ی هر شرکت از شرکت دیگر جدا بماند</td></tr>
+<tr><td>کاتالوگ و طرف‌حساب</td><td>کالا/خدمت، دسته، واحد، مشتری، تأمین‌کننده</td><td>SKU یکتا در محدوده‌ی شرکت، فعال/غیرفعال‌سازی به‌جای حذف</td></tr>
+<tr><td>انبار</td><td>مانده، رزرو، رسید، حواله، اصلاح و انتقال</td><td>دفتر گردش غیرقابل‌ویرایش و تطبیق با مانده</td></tr>
+<tr><td>خرید</td><td>سفارش خرید، تأیید، دریافت کامل/جزئی، فاکتور تأمین‌کننده</td><td>موجودی بیشتر و بدهی قابل پرداخت</td></tr>
+<tr><td>فروش</td><td>سفارش، رزرو، ارسال کامل/جزئی، فاکتور، دریافت وجه</td><td>موجودی کمتر، طلب مشتری و درآمد ثبت‌شده</td></tr>
+<tr><td>مالی</td><td>حساب‌ها، دریافت/پرداخت، دفتر روزنامه و تراز آزمایشی</td><td>هر سند ثبت‌شده تراز بدهکار/بستانکار داشته باشد</td></tr>
+<tr><td>کنترل و گزارش</td><td>Audit log، داشبورد، مانده‌ی انبار و فروش/خرید</td><td>مشخص باشد چه کسی، چه چیزی و چه زمانی را تغییر داده</td></tr>
+</tbody></table></div>
+<p><b>دو مسیر اصلی کسب‌وکار:</b></p>
+<pre><code>Procure-to-Pay: Purchase Order → Approval → Goods Receipt → Supplier Invoice → Payment → Journal
+Order-to-Cash:  Sales Order → Stock Reservation → Shipment → Customer Invoice → Receipt → Journal</code></pre>
+<div class="callout"><b>مرزبندی مهم:</b> خرید/فروش/انبار در این MVP یک <b>modular monolith</b> است؛ یعنی یک API و یک دیتابیس با ماژول‌های جدا. Micro-frontend و microservice را از روز اول اضافه نکنید؛ پیچیدگی deploy، تراکنش و مشاهده‌پذیری را بالا می‌برند و برای تیم کوچک معمولاً سودی ندارند.</div>
+
+<h2 id="s2"><span class="step-num">2</span> معماری و تصمیم‌های پایه</h2>
+<pre><code>Browser (React SPA, RTL)
+        │ HTTPS / JSON  /api/v1
+        ▼
+NestJS API ── Auth / Permission / Audit / Validation
+        │
+        ├── Catalog ── Customers / Suppliers / Products
+        ├── Inventory ── Balances / Reservations / Movements
+        ├── Purchasing ── Orders / Receipts
+        ├── Sales ── Orders / Shipments
+        └── Finance ── Invoices / Payments / Journal
+        │ Prisma (transaction boundary)
+        ▼
+PostgreSQL  ── migrations, indexes, backups
+</code></pre>
+<ul>
+  <li><b>مرز ماژول‌ها:</b> controller فقط HTTP را ترجمه کند؛ قانون کسب‌وکار در service/use-case بماند؛ هر ماژول API عمومی خودش را داشته باشد.</li>
+  <li><b>منبع حقیقت:</b> PostgreSQL. React هیچ‌وقت مستقیماً به دیتابیس وصل نمی‌شود و مدل‌های Prisma را به مرورگر نمی‌فرستیم.</li>
+  <li><b>تراکنش:</b> تغییر وضعیت سند، تغییر مانده‌ی انبار، ساخت movement، ثبت Journal و audit مرتبط باید در یک تراکنش واحد یا با الگوی outbox کنترل‌شده انجام شود.</li>
+  <li><b>مقدار مالی:</b> از <code>Decimal</code> در DB و رشته‌ی decimal در ورودی/خروجی استفاده کنید؛ عدد اعشاری JavaScript را برای جمع پول به کار نبرید.</li>
+  <li><b>زمان:</b> timestampها در DB به UTC ذخیره شوند؛ timezone و ارز پیش‌فرض در تنظیمات شرکت باشند.</li>
+  <li><b>حذف:</b> سند ثبت‌شده پاک نشود؛ با لغو/برگشت و سند معکوس اصلاح شود. کالا و کاربر استفاده‌شده در سابقه archive شوند، نه hard-delete.</li>
+</ul>
+
+<h2 id="s3"><span class="step-num">3</span> ساختار Nx Monorepo</h2>
+<p>ساختار زیر ماژول‌های بک‌اند را از کد UI و قراردادهای مشترک جدا می‌کند. نام پوشه‌ها را در Nx با tagهای scope محدود کنید.</p>
+<pre><code>erp-platform/
+├── apps/
+│   ├── backend/                 # NestJS REST API
+│   ├── frontend/                # React + Vite ERP console
+│   └── frontend-e2e/            # Playwright scenarios
+├── libs/
+│   ├── shared/
+│   │   ├── api-contracts/       # type/schemaهای عمومی؛ بدون وابستگی به Prisma/Nest
+│   │   └── config/              # تنظیمات مشترک قابل انتشار
+│   ├── backend/
+│   │   ├── database/            # Prisma schema, migrations, PrismaService
+│   │   ├── auth/                # login, session, guards, permissions
+│   │   ├── audit/               # audit log
+│   │   ├── catalog/             # products, categories, customers, suppliers
+│   │   ├── inventory/           # balances, reservations, movements
+│   │   ├── purchasing/          # purchase orders, goods receipts
+│   │   ├── sales/               # sales orders, shipments
+│   │   └── finance/             # invoices, payments, journal, reports
+│   └── frontend/
+│       ├── api-client/          # typed HTTP client
+│       ├── ui/                  # shared controls, tables, dialogs
+│       ├── auth/                # session and permission-aware navigation
+│       └── features/            # feature UI grouped by domain
+├── prisma.config.ts
+├── docker-compose.yml
+├── .env.example
+└── nx.json / package.json / tsconfig.base.json</code></pre>
+<div class="callout"><b>قانون import در Nx:</b> <code>scope:backend</code> فقط به <code>scope:backend</code> و <code>scope:shared</code> وابسته شود؛ <code>scope:frontend</code> فقط به frontend/shared. Frontend نباید هیچ library بک‌اند یا Prisma را import کند. قانون دقیق tagها را مطابق نسخه‌ی Nx و <code>eslint.config.mjs</code> همین repo تنظیم کنید.</div>
+
+<h2 id="s4"><span class="step-num">4</span> ساخت workspace و اپ‌ها</h2>
+<p>از Node LTS پشتیبانی‌شده توسط نسخه‌ی Nx انتخابی استفاده کنید و نسخه‌ی پکیج‌ها را با lockfile ثابت نگه دارید. دستورهای generator بین majorهای Nx ممکن است کمی فرق کنند؛ قبل از اجرا <code>npx nx list @nx/nest</code> و <code>npx nx list @nx/react</code> را ببینید.</p>
+<pre><code>node -v
+npm -v
+docker --version
+docker compose version
+
+npx create-nx-workspace@latest erp-platform --preset=apps --packageManager=npm --nxCloud=skip
+cd erp-platform
+
+npx nx add @nx/nest
+npx nx g @nx/nest:app backend
+
+npx nx add @nx/react
+npx nx g @nx/react:app frontend --bundler=vite --routing=true --style=css
+
+npx nx show projects</code></pre>
+<p>اگر generator نسخه‌ی Nx شما نام اپ را با مسیر می‌خواهد، از راهنمای همان generator استفاده کنید؛ هدف نهایی این است که پروژه‌ها در <code>apps/backend</code> و <code>apps/frontend</code> ساخته شوند. libهای دامنه را با generator Nx بسازید تا project configuration و path alias هم ایجاد شوند، نه با پوشه‌سازی دستی.</p>
+<pre><code>npx nx g @nx/js:lib libs/backend/database --importPath=@erp/backend-database --unitTestRunner=vitest
+npx nx g @nx/js:lib libs/backend/inventory --importPath=@erp/backend-inventory --unitTestRunner=vitest
+npx nx g @nx/js:lib libs/backend/sales --importPath=@erp/backend-sales --unitTestRunner=vitest</code></pre>
+<div class="callout warn">این commandها نقطه‌ی شروع‌اند، نه تضمین نام option برای همه‌ی نسخه‌های Nx. اگر generator شما از positional name مثل <code>backend-inventory</code> استفاده می‌کند، نام را به همان نحو وارد کنید و پوشه‌ی مقصد را با <code>--directory</code> تعیین کنید. بعد از تولید، هر پروژه را با <code>npx nx show project &lt;name&gt;</code> بررسی کنید.</div>
+
+<h2 id="s5"><span class="step-num">5</span> PostgreSQL، Docker و تنظیمات</h2>
+<p>برای توسعه، PostgreSQL را در Docker اجرا کنید؛ API و UI را با Nx روی سیستم اجرا کنید تا hot reload سریع بماند.</p>
+<p>فایل <span class="path">docker-compose.yml</span> در ریشه:</p>
+<pre><code>services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_only_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - erp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  erp_pgdata:</code></pre>
+<p>فایل <span class="path">.env.example</span> را بسازید و آن را به <span class="path">.env</span> کپی کنید. فایل واقعی را commit نکنید:</p>
+<pre><code>NODE_ENV=development
+PORT=3000
+POSTGRES_USER=erp_user
+POSTGRES_PASSWORD=local_only_change_me
+POSTGRES_DB=erp_db
+DATABASE_URL=postgresql://erp_user:local_only_change_me@localhost:5432/erp_db?schema=public
+CORS_ORIGIN=http://localhost:4200
+JWT_ACCESS_SECRET=replace-with-a-long-random-local-secret
+JWT_REFRESH_SECRET=replace-with-a-different-long-random-local-secret
+<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="97c4d2d2d3c8d6d3daded9c8d2dad6dedbaaf6f3fafef9d7f2e5e7b9fbf8f4f6fb">[email&#160;protected]</a>
+SEED_ADMIN_PASSWORD=replace-with-a-long-random-local-test-password
+COMPANY_NAME=شرکت آزمایشی
+DEFAULT_CURRENCY=AZN</code></pre>
+<pre><code>docker compose up -d postgres
+docker compose ps</code></pre>
+<div class="callout warn"><b>فقط برای local:</b> رمز نمونه، پورت عمومی دیتابیس و secretهای بالا برای production نیستند. در محیط واقعی secrets را از secret manager بگیرید، پورت Postgres را عمومی نکنید و TLS/شبکه‌ی خصوصی/backup را فعال کنید.</div>
+
+<h2 id="s6"><span class="step-num">6</span> مدل داده‌ی ERP با Prisma</h2>
+<p>این schema یک هسته‌ی دامنه‌ای قابل توسعه است: شرکت و دسترسی، کاتالوگ، مانده و دفتر حرکت، سفارش و اسناد دریافت/ارسال، فاکتور/پرداخت و دفتر حسابداری. مدل‌ها عمداً همه‌ی قواعد را در constraint دیتابیس جا نمی‌دهند؛ اعتبارسنجی بین‌شرکتی، تراز سند و transitionهای وضعیت باید در service هم کنترل شود.</p>
+<p>در Prisma 7+ فایل schema می‌تواند URL اتصال را از <code>prisma.config.ts</code> بگیرد. اگر major دیگری انتخاب کرده‌اید، generator/provider و محل <code>DATABASE_URL</code> را مطابق مستندات همان major هماهنگ کنید.</p>
+<p>نمونه‌ی فایل <span class="path">libs/backend/database/prisma/schema.prisma</span>:</p>
+<pre><code>generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_SHIPPED
+  SHIPPED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  APPROVED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+
+enum MovementType {
+  OPENING_BALANCE
+  PURCHASE_RECEIPT
+  SALES_SHIPMENT
+  ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+  RETURN_IN
+  RETURN_OUT
+}
+
+enum InvoiceType {
+  SALES
+  PURCHASE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum PaymentDirection {
+  INCOMING
+  OUTGOING
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model Company {
+  id                 String   @id @default(cuid())
+  name               String
+  legalName          String?
+  defaultCurrency    String   @db.VarChar(3)
+  timezone           String   @default("UTC")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  roles              Role[]
+  branches           Branch[]
+  categories         ProductCategory[]
+  products           Product[]
+  customers          Customer[]
+  suppliers          Supplier[]
+  warehouses         Warehouse[]
+  stockBalances      StockBalance[]
+  reservations       StockReservation[]
+  movements          InventoryMovement[]
+  salesOrders        SalesOrder[]
+  shipments          SalesShipment[]
+  purchaseOrders     PurchaseOrder[]
+  goodsReceipts      GoodsReceipt[]
+  invoices           Invoice[]
+  payments           Payment[]
+  accounts           Account[]
+  journalEntries     JournalEntry[]
+  auditLogs          AuditLog[]
+}
+
+model User {
+  id                    String          @id @default(cuid())
+  email                 String          @unique
+  passwordHash          String
+  displayName           String
+  isActive              Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  sessions              RefreshSession[]
+  roleAssignments       UserRole[]
+  createdSalesOrders    SalesOrder[]    @relation("SalesOrderCreator")
+  createdShipments      SalesShipment[] @relation("ShipmentCreator")
+  createdPurchaseOrders PurchaseOrder[] @relation("PurchaseOrderCreator")
+  createdGoodsReceipts  GoodsReceipt[]  @relation("GoodsReceiptCreator")
+  createdMovements      InventoryMovement[] @relation("MovementCreator")
+  createdPayments       Payment[]       @relation("PaymentCreator")
+  auditLogs             AuditLog[]
+}
+
+model RefreshSession {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  companyId   String
+  code        String
+  name        String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       UserRole[]
+  permissions RolePermission[]
+  @@unique([companyId, code])
+}
+
+model Permission {
+  code        String           @id
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId        String
+  permissionCode String
+  role          Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+  @@id([roleId, permissionCode])
+}
+
+model Branch {
+  id          String       @id @default(cuid())
+  companyId   String
+  code        String
+  name        String
+  company     Company      @relation(fields: [companyId], references: [id])
+  warehouses  Warehouse[]
+  salesOrders SalesOrder[]
+  purchaseOrders PurchaseOrder[]
+  @@unique([companyId, code])
+}
+
+model Warehouse {
+  id             String              @id @default(cuid())
+  companyId      String
+  branchId       String
+  code           String
+  name           String
+  isActive       Boolean             @default(true)
+  company        Company             @relation(fields: [companyId], references: [id])
+  branch         Branch              @relation(fields: [branchId], references: [id])
+  balances       StockBalance[]
+  reservations   StockReservation[]
+  movements      InventoryMovement[]
+  salesOrders    SalesOrder[]
+  shipments      SalesShipment[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  @@unique([companyId, code])
+  @@index([companyId, branchId])
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  company   Company   @relation(fields: [companyId], references: [id])
+  products  Product[]
+  @@unique([companyId, code])
+}
+
+model Product {
+  id             String          @id @default(cuid())
+  companyId      String
+  categoryId     String?
+  sku            String
+  name           String
+  description    String?
+  unit           String          @default("pcs")
+  trackStock     Boolean         @default(true)
+  isActive       Boolean         @default(true)
+  purchasePrice  Decimal?        @db.Decimal(18, 2)
+  salePrice      Decimal?        @db.Decimal(18, 2)
+  reorderPoint   Decimal         @default(0) @db.Decimal(18, 3)
+  company        Company         @relation(fields: [companyId], references: [id])
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  balances       StockBalance[]
+  reservations   StockReservation[]
+  movements      InventoryMovement[]
+  salesLines     SalesOrderLine[]
+  shipmentLines  SalesShipmentLine[]
+  purchaseLines  PurchaseOrderLine[]
+  receiptLines   GoodsReceiptLine[]
+  invoiceLines   InvoiceLine[]
+  @@unique([companyId, sku])
+  @@index([companyId, name])
+}
+
+model Customer {
+  id         String    @id @default(cuid())
+  companyId  String
+  code       String
+  name       String
+  email      String?
+  phone      String?
+  taxId      String?
+  isActive   Boolean   @default(true)
+  company    Company   @relation(fields: [companyId], references: [id])
+  salesOrders SalesOrder[]
+  invoices   Invoice[] @relation("CustomerInvoices")
+  payments   Payment[] @relation("CustomerPayments")
+  @@unique([companyId, code])
+  @@index([companyId, name])
+}
+
+model Supplier {
+  id           String    @id @default(cuid())
+  companyId    String
+  code         String
+  name         String
+  email        String?
+  phone        String?
+  taxId        String?
+  isActive     Boolean   @default(true)
+  company      Company   @relation(fields: [companyId], references: [id])
+  purchaseOrders PurchaseOrder[]
+  invoices     Invoice[] @relation("SupplierInvoices")
+  payments     Payment[] @relation("SupplierPayments")
+  @@unique([companyId, code])
+  @@index([companyId, name])
+}
+
+model StockBalance {
+  id          String   @id @default(cuid())
+  companyId   String
+  warehouseId String
+  productId   String
+  onHand      Decimal  @default(0) @db.Decimal(18, 3)
+  reserved    Decimal  @default(0) @db.Decimal(18, 3)
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  @@unique([warehouseId, productId])
+  @@index([companyId, productId])
+}
+
+model StockReservation {
+  id                String            @id @default(cuid())
+  companyId         String
+  warehouseId       String
+  productId         String
+  salesOrderLineId  String
+  quantity          Decimal           @db.Decimal(18, 3)
+  status            ReservationStatus @default(ACTIVE)
+  idempotencyKey    String?           @unique
+  createdAt         DateTime          @default(now())
+  releasedAt        DateTime?
+  company           Company           @relation(fields: [companyId], references: [id])
+  warehouse         Warehouse         @relation(fields: [warehouseId], references: [id])
+  product           Product           @relation(fields: [productId], references: [id])
+  salesOrderLine    SalesOrderLine    @relation(fields: [salesOrderLineId], references: [id])
+  @@index([companyId, warehouseId, productId, status])
+  @@index([salesOrderLineId, status])
+}
+
+model InventoryMovement {
+  id             String       @id @default(cuid())
+  companyId      String
+  warehouseId    String
+  productId      String
+  createdById    String?
+  type           MovementType
+  quantityDelta  Decimal      @db.Decimal(18, 3)
+  unitCost       Decimal?     @db.Decimal(18, 4)
+  sourceType     String
+  sourceId       String
+  idempotencyKey String?      @unique
+  note           String?
+  createdAt      DateTime     @default(now())
+  company        Company      @relation(fields: [companyId], references: [id])
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  product        Product      @relation(fields: [productId], references: [id])
+  createdBy      User?        @relation("MovementCreator", fields: [createdById], references: [id])
+  @@index([companyId, productId, createdAt])
+  @@index([companyId, warehouseId, createdAt])
+}
+
+model SalesOrder {
+  id          String           @id @default(cuid())
+  companyId   String
+  branchId    String
+  warehouseId String
+  customerId  String
+  createdById String
+  number      String
+  status      SalesOrderStatus @default(DRAFT)
+  currency    String           @db.VarChar(3)
+  netAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal          @default(0) @db.Decimal(18, 2)
+  orderDate   DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  company     Company          @relation(fields: [companyId], references: [id])
+  branch      Branch           @relation(fields: [branchId], references: [id])
+  warehouse   Warehouse        @relation(fields: [warehouseId], references: [id])
+  customer    Customer         @relation(fields: [customerId], references: [id])
+  createdBy   User             @relation("SalesOrderCreator", fields: [createdById], references: [id])
+  lines       SalesOrderLine[]
+  shipments   SalesShipment[]
+  invoices    Invoice[]
+  @@unique([companyId, number])
+  @@index([companyId, status, orderDate])
+}
+
+model SalesOrderLine {
+  id               String              @id @default(cuid())
+  salesOrderId     String
+  productId        String
+  description      String
+  quantity         Decimal             @db.Decimal(18, 3)
+  reservedQuantity Decimal             @default(0) @db.Decimal(18, 3)
+  shippedQuantity  Decimal             @default(0) @db.Decimal(18, 3)
+  unitPrice        Decimal             @db.Decimal(18, 2)
+  taxRate          Decimal             @default(0) @db.Decimal(5, 2)
+  netAmount        Decimal             @db.Decimal(18, 2)
+  taxAmount        Decimal             @db.Decimal(18, 2)
+  totalAmount      Decimal             @db.Decimal(18, 2)
+  salesOrder       SalesOrder          @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product          Product             @relation(fields: [productId], references: [id])
+  reservations     StockReservation[]
+  shipmentLines    SalesShipmentLine[]
+  @@index([salesOrderId])
+}
+
+model SalesShipment {
+  id          String             @id @default(cuid())
+  companyId   String
+  salesOrderId String
+  warehouseId String
+  createdById String
+  number      String
+  shippedAt   DateTime           @default(now())
+  company     Company            @relation(fields: [companyId], references: [id])
+  salesOrder  SalesOrder         @relation(fields: [salesOrderId], references: [id])
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
+  createdBy   User               @relation("ShipmentCreator", fields: [createdById], references: [id])
+  lines       SalesShipmentLine[]
+  @@unique([companyId, number])
+  @@index([companyId, shippedAt])
+}
+
+model SalesShipmentLine {
+  id                String         @id @default(cuid())
+  shipmentId        String
+  salesOrderLineId  String
+  productId         String
+  quantity          Decimal        @db.Decimal(18, 3)
+  shipment          SalesShipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  salesOrderLine    SalesOrderLine @relation(fields: [salesOrderLineId], references: [id])
+  product           Product        @relation(fields: [productId], references: [id])
+  @@index([shipmentId])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  companyId   String
+  branchId    String
+  warehouseId String
+  supplierId  String
+  createdById String
+  number      String
+  status      PurchaseOrderStatus @default(DRAFT)
+  currency    String              @db.VarChar(3)
+  netAmount   Decimal             @default(0) @db.Decimal(18, 2)
+  taxAmount   Decimal             @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal             @default(0) @db.Decimal(18, 2)
+  orderDate   DateTime            @default(now())
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  company     Company             @relation(fields: [companyId], references: [id])
+  branch      Branch              @relation(fields: [branchId], references: [id])
+  warehouse   Warehouse           @relation(fields: [warehouseId], references: [id])
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  createdBy   User                @relation("PurchaseOrderCreator", fields: [createdById], references: [id])
+  lines       PurchaseOrderLine[]
+  goodsReceipts GoodsReceipt[]
+  invoices    Invoice[]
+  @@unique([companyId, number])
+  @@index([companyId, status, orderDate])
+}
+
+model PurchaseOrderLine {
+  id               String          @id @default(cuid())
+  purchaseOrderId  String
+  productId        String
+  description      String
+  quantity         Decimal         @db.Decimal(18, 3)
+  receivedQuantity Decimal         @default(0) @db.Decimal(18, 3)
+  unitCost         Decimal         @db.Decimal(18, 2)
+  taxRate          Decimal         @default(0) @db.Decimal(5, 2)
+  netAmount        Decimal         @db.Decimal(18, 2)
+  taxAmount        Decimal         @db.Decimal(18, 2)
+  totalAmount      Decimal         @db.Decimal(18, 2)
+  purchaseOrder    PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product          Product         @relation(fields: [productId], references: [id])
+  receiptLines     GoodsReceiptLine[]
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceipt {
+  id             String            @id @default(cuid())
+  companyId      String
+  purchaseOrderId String
+  warehouseId    String
+  createdById    String
+  number         String
+  receivedAt     DateTime          @default(now())
+  company        Company           @relation(fields: [companyId], references: [id])
+  purchaseOrder  PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id])
+  warehouse      Warehouse         @relation(fields: [warehouseId], references: [id])
+  createdBy      User              @relation("GoodsReceiptCreator", fields: [createdById], references: [id])
+  lines          GoodsReceiptLine[]
+  @@unique([companyId, number])
+  @@index([companyId, receivedAt])
+}
+
+model GoodsReceiptLine {
+  id                  String            @id @default(cuid())
+  goodsReceiptId      String
+  purchaseOrderLineId String
+  productId           String
+  quantity            Decimal           @db.Decimal(18, 3)
+  unitCost            Decimal           @db.Decimal(18, 4)
+  goodsReceipt        GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id])
+  product             Product           @relation(fields: [productId], references: [id])
+  @@index([goodsReceiptId])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  companyId      String
+  salesOrderId   String?
+  purchaseOrderId String?
+  customerId     String?
+  supplierId     String?
+  number         String
+  type           InvoiceType
+  status         InvoiceStatus @default(DRAFT)
+  currency       String        @db.VarChar(3)
+  issueDate      DateTime?
+  dueDate        DateTime?
+  netAmount      Decimal       @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(18, 2)
+  totalAmount    Decimal       @default(0) @db.Decimal(18, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(18, 2)
+  createdAt      DateTime      @default(now())
+  company        Company       @relation(fields: [companyId], references: [id])
+  salesOrder     SalesOrder?   @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  customer       Customer?     @relation("CustomerInvoices", fields: [customerId], references: [id])
+  supplier       Supplier?    @relation("SupplierInvoices", fields: [supplierId], references: [id])
+  lines          InvoiceLine[]
+  allocations    PaymentAllocation[]
+  @@unique([companyId, number])
+  @@index([companyId, type, status, issueDate])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  productId   String?
+  description String
+  quantity    Decimal  @db.Decimal(18, 3)
+  unitPrice   Decimal  @db.Decimal(18, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 2)
+  netAmount   Decimal  @db.Decimal(18, 2)
+  taxAmount   Decimal  @db.Decimal(18, 2)
+  totalAmount Decimal  @db.Decimal(18, 2)
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id])
+  @@index([invoiceId])
+}
+
+model Payment {
+  id          String           @id @default(cuid())
+  companyId   String
+  customerId  String?
+  supplierId  String?
+  createdById String
+  direction   PaymentDirection
+  method      String
+  reference   String?
+  amount      Decimal          @db.Decimal(18, 2)
+  currency    String           @db.VarChar(3)
+  paidAt      DateTime         @default(now())
+  company     Company          @relation(fields: [companyId], references: [id])
+  customer    Customer?        @relation("CustomerPayments", fields: [customerId], references: [id])
+  supplier    Supplier?        @relation("SupplierPayments", fields: [supplierId], references: [id])
+  createdBy   User             @relation("PaymentCreator", fields: [createdById], references: [id])
+  allocations PaymentAllocation[]
+  @@index([companyId, direction, paidAt])
+}
+
+model PaymentAllocation {
+  paymentId String
+  invoiceId String
+  amount    Decimal @db.Decimal(18, 2)
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  @@id([paymentId, invoiceId])
+}
+
+model Account {
+  id           String      @id @default(cuid())
+  companyId    String
+  code         String
+  name         String
+  type         AccountType
+  isActive     Boolean     @default(true)
+  company      Company     @relation(fields: [companyId], references: [id])
+  journalLines JournalLine[]
+  @@unique([companyId, code])
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  companyId   String
+  number      String
+  entryDate   DateTime
+  status      JournalStatus @default(DRAFT)
+  sourceType  String
+  sourceId    String
+  memo        String?
+  postedAt    DateTime?
+  createdAt   DateTime      @default(now())
+  company     Company       @relation(fields: [companyId], references: [id])
+  lines       JournalLine[]
+  @@unique([companyId, number])
+  @@unique([companyId, sourceType, sourceId])
+  @@index([companyId, entryDate, status])
+}
+
+model JournalLine {
+  id             String      @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  lineNumber     Int
+  description    String?
+  debit          Decimal     @default(0) @db.Decimal(18, 2)
+  credit         Decimal     @default(0) @db.Decimal(18, 2)
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account     @relation(fields: [accountId], references: [id])
+  @@unique([journalEntryId, lineNumber])
+  @@index([accountId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  beforeData Json?
+  afterData  Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+  actor      User?    @relation(fields: [actorId], references: [id])
+  @@index([companyId, entityType, entityId, createdAt])
+}</code></pre>
+<div class="callout warn"><b>قبل از migrate:</b> این schema یک هسته‌ی مرجع است و باید با نسخه‌ی Prisma انتخابی validate شود. فرمان <code>npx prisma validate</code> را اجرا کنید؛ سپس relationها و precision مالی را با نیاز واقعی بررسی کنید. برای تضمین اینکه مثلاً <code>companyId</code> سند با <code>companyId</code> انبار یکی باشد، در use-case کنترل صریح بگذارید؛ صرف وجود relation به‌تنهایی کافی نیست.</div>
+
+<h2 id="s7"><span class="step-num">7</span> Migration و Seed اولیه</h2>
+<div class="callout good"><b>نکته‌ی مهم درباره‌ی <code>prisma/config</code>:</b> این یک فایل یا پوشه در پروژه نیست و پکیج جداگانه‌ای هم نیست؛ یک import از package npm به نام <code>prisma</code> است. این الگو مخصوص Prisma 7 است. دستورهای نصب را از <b>ریشه‌ی monorepo</b>، همان‌جایی که <code>package.json</code> و <code>prisma.config.ts</code> قرار می‌گیرند، اجرا کن؛ بعد TypeScript Server ادیتور را restart کن.</div>
+<p>برای نسخه‌ی نمونه‌ی این راهنما، اول Prisma CLI و Client را نصب کن:</p>
+<pre><code># در ریشه‌ی erp-platform
+npm install -D prisma@7 tsx
+npm install @prisma/client@7 @prisma/adapter-pg pg argon2 dotenv
+npm ls prisma @prisma/client</code></pre>
+<p>حالا فایل <span class="path">prisma.config.ts</span> را در <b>ریشه‌ی workspace</b> بساز. خط <code>from "prisma/config"</code> از پکیج نصب‌شده‌ی <code>prisma</code> می‌آید؛ <code>npm install prisma/config</code> نزن و پوشه‌ای به نام <code>prisma/config</code> نساز.</p>
+<pre><code>import "dotenv/config";
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  schema: "libs/backend/database/prisma/schema.prisma",
+  migrations: {
+    path: "libs/backend/database/prisma/migrations",
+    seed: "tsx libs/backend/database/prisma/seed.ts",
+  },
+  datasource: {
+    url: process.env.DATABASE_URL!,
+  },
+});</code></pre>
+<p>سپس اعتبارسنجی، migration و تولید Client:</p>
+<pre><code>npx prisma validate
+npx prisma migrate dev --name erp_core
+npx prisma generate</code></pre>
+<div class="callout warn"><b>اگر هنوز <code>Cannot find module 'prisma/config'</code> می‌بینی:</b> مطمئن شو دستور نصب را در root اجرا کرده‌ای و <code>npm ls prisma</code> نسخه‌ی ۷ را نشان می‌دهد؛ بعد TS Server را restart کن. اگر فقط TypeScript این import را resolve نمی‌کند، <code>moduleResolution</code> در tsconfig باید package exports را پشتیبانی کند (در Nx/TypeScript 5 معمولاً <code>bundler</code> مناسب است). اگر Prisma 6 داری، این فایل/این import را استفاده نکن: الگوی Prisma 6 متفاوت است و <code>url = env("DATABASE_URL")</code> داخل <code>datasource</code> قرار می‌گیرد.</div>
+<p>در Nest، Prisma را در یک library مشترک نگه دارید:</p>
+<pre><code>// libs/backend/database/src/lib/prisma.service.ts
+import { Global, Injectable, Module, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/client/client";
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+    super({ adapter });
+  }
+
+  async onModuleInit() { await this.$connect(); }
+  async onModuleDestroy() { await this.$disconnect(); }
+}
+
+// libs/backend/database/src/lib/prisma.module.ts
+@Global()
+@Module({ providers: [PrismaService], exports: [PrismaService] })
+export class PrismaModule {}
+</code></pre>
+<h3>Seed واقعی: فایل <code>libs/backend/database/prisma/seed.ts</code></h3>
+<div class="callout good"><b>تفاوت دو دستور:</b> <code>npx prisma generate</code> فقط Prisma Client را تولید می‌کند و <b>هیچ داده‌ای به دیتابیس نمی‌نویسد</b>. برای اجرای seed باید جداگانه <code>npx prisma db seed</code> بزنی؛ این دستور فایل زیر را اجرا می‌کند و رکوردهای نمونه را در دیتابیس فعلیِ <code>DATABASE_URL</code> می‌سازد.</div>
+<p>پکیج‌های <code>argon2</code> و <code>dotenv</code> در دستور نصب بالا اضافه شده‌اند. رمز مدیر را فقط در <code>.env</code> محلی قرار دهید و فایل واقعی را commit نکنید:</p>
+<pre><code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8bd8cececfd4cacfc6c2c5d4cec6cac2c7b6eaefe6e2e5cbeef9fba5e7e4e8eae7">[email&#160;protected]</a>
+SEED_ADMIN_PASSWORD=replace-with-a-long-random-local-test-password</code></pre>
+<p>محتوای فایل <span class="path">libs/backend/database/prisma/seed.ts</span>:</p>
+<pre><code>import "dotenv/config";
+import { hash, argon2id } from "argon2";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/client/client";
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required before running the seed");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
+});
+
+const companyId = "company-demo";
+
+const permissions = [
+  { code: "catalog.products.read", description: "خواندن کالاها" },
+  { code: "catalog.products.write", description: "ساخت و ویرایش کالاها" },
+  { code: "catalog.parties.read", description: "خواندن مشتری و تأمین‌کننده" },
+  { code: "inventory.balances.read", description: "خواندن مانده‌ی انبار" },
+  { code: "inventory.adjust", description: "اصلاح موجودی" },
+  { code: "purchasing.orders.read", description: "خواندن سفارش‌های خرید" },
+  { code: "purchasing.orders.write", description: "ثبت سفارش خرید" },
+  { code: "purchasing.orders.approve", description: "تأیید سفارش خرید" },
+  { code: "sales.orders.read", description: "خواندن سفارش‌های فروش" },
+  { code: "sales.orders.write", description: "ثبت سفارش فروش" },
+  { code: "sales.order.approve", description: "تأیید سفارش فروش" },
+  { code: "finance.invoices.read", description: "خواندن فاکتورها" },
+  { code: "finance.invoice.post", description: "صدور فاکتور و ثبت دفتر" },
+  { code: "finance.payments.create", description: "ثبت دریافت و پرداخت" },
+  { code: "finance.reports.read", description: "خواندن گزارش مالی" },
+  { code: "admin.users.manage", description: "مدیریت کاربران و نقش‌ها" },
+];
+
+const roleDefs = [
+  { code: "admin", name: "مدیر سیستم", permissionCodes: permissions.map((p) =&gt; p.code) },
+  { code: "sales", name: "فروش", permissionCodes: ["catalog.products.read", "catalog.parties.read", "sales.orders.read", "sales.orders.write", "sales.order.approve", "finance.invoices.read"] },
+  { code: "warehouse", name: "انباردار", permissionCodes: ["catalog.products.read", "inventory.balances.read", "inventory.adjust", "purchasing.orders.read"] },
+  { code: "finance", name: "مالی", permissionCodes: ["catalog.parties.read", "finance.invoices.read", "finance.invoice.post", "finance.payments.create", "finance.reports.read"] },
+];
+
+const accounts = [
+  { code: "1000", name: "صندوق و بانک", type: "ASSET" },
+  { code: "1100", name: "حساب‌های دریافتنی", type: "ASSET" },
+  { code: "1200", name: "موجودی کالا", type: "ASSET" },
+  { code: "2000", name: "حساب‌های پرداختنی", type: "LIABILITY" },
+  { code: "2100", name: "مالیات پرداختنی", type: "LIABILITY" },
+  { code: "3000", name: "سرمایه", type: "EQUITY" },
+  { code: "4000", name: "درآمد فروش", type: "REVENUE" },
+  { code: "5000", name: "بهای تمام‌شده‌ی فروش", type: "EXPENSE" },
+] as const;
+
+async function main() {
+  const companyData = {
+    name: process.env.COMPANY_NAME ?? "شرکت آزمایشی",
+    defaultCurrency: process.env.DEFAULT_CURRENCY ?? "AZN",
+  };
+  const company = await prisma.company.upsert({
+    where: { id: companyId },
+    update: companyData,
+    create: { id: companyId, ...companyData, timezone: "UTC" },
+  });
+
+  const branch = await prisma.branch.upsert({
+    where: { companyId_code: { companyId: company.id, code: "HQ" } },
+    update: { name: "شعبه‌ی مرکزی" },
+    create: { companyId: company.id, code: "HQ", name: "شعبه‌ی مرکزی" },
+  });
+  const warehouse = await prisma.warehouse.upsert({
+    where: { companyId_code: { companyId: company.id, code: "WH-MAIN" } },
+    update: { name: "انبار مرکزی", branchId: branch.id, isActive: true },
+    create: { companyId: company.id, branchId: branch.id, code: "WH-MAIN", name: "انبار مرکزی" },
+  });
+
+  const email = process.env.SEED_ADMIN_EMAIL ?? "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d4b5b0b9bdba94b1a6a4fab8bbb7b5b8">[email&#160;protected]</a>";
+  const existingAdmin = await prisma.user.findUnique({ where: { email } });
+  if (!existingAdmin &amp;&amp; !process.env.SEED_ADMIN_PASSWORD) {
+    throw new Error("Set SEED_ADMIN_PASSWORD in the root .env before the first seed run");
+  }
+  const passwordHash = existingAdmin?.passwordHash ?? await hash(process.env.SEED_ADMIN_PASSWORD!, { type: argon2id });
+  const admin = await prisma.user.upsert({
+    where: { email },
+    update: { displayName: "مدیر سیستم", isActive: true },
+    create: { email, passwordHash, displayName: "مدیر سیستم", isActive: true },
+  });
+
+  for (const permission of permissions) {
+    await prisma.permission.upsert({
+      where: { code: permission.code },
+      update: { description: permission.description },
+      create: permission,
+    });
+  }
+
+  let adminRoleId = "";
+  for (const roleDef of roleDefs) {
+    const role = await prisma.role.upsert({
+      where: { companyId_code: { companyId: company.id, code: roleDef.code } },
+      update: { name: roleDef.name },
+      create: { companyId: company.id, code: roleDef.code, name: roleDef.name },
+    });
+    if (roleDef.code === "admin") adminRoleId = role.id;
+    for (const permissionCode of roleDef.permissionCodes) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionCode: { roleId: role.id, permissionCode } },
+        update: {},
+        create: { roleId: role.id, permissionCode },
+      });
+    }
+  }
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: admin.id, roleId: adminRoleId } },
+    update: {},
+    create: { userId: admin.id, roleId: adminRoleId },
+  });
+
+  const category = await prisma.productCategory.upsert({
+    where: { companyId_code: { companyId: company.id, code: "HARDWARE" } },
+    update: { name: "یراق و قطعات" },
+    create: { companyId: company.id, code: "HARDWARE", name: "یراق و قطعات" },
+  });
+  const product = await prisma.product.upsert({
+    where: { companyId_sku: { companyId: company.id, sku: "SEED-BOLT-10" } },
+    update: { name: "پیچ صنعتی نمونه", categoryId: category.id, isActive: true },
+    create: {
+      companyId: company.id, categoryId: category.id, sku: "SEED-BOLT-10",
+      name: "پیچ صنعتی نمونه", description: "کالای نمونه‌ی Seed",
+      unit: "عدد", trackStock: true, isActive: true,
+      purchasePrice: "1.20", salePrice: "2.50", reorderPoint: "10.000",
+    },
+  });
+
+  await prisma.customer.upsert({
+    where: { companyId_code: { companyId: company.id, code: "C-SEED-001" } },
+    update: { name: "مشتری نمونه" },
+    create: { companyId: company.id, code: "C-SEED-001", name: "مشتری نمونه", email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6605131512090b031426031e070b160a034812031512">[email&#160;protected]</a>", phone: "+994 50 000 00 11", isActive: true },
+  });
+  await prisma.supplier.upsert({
+    where: { companyId_code: { companyId: company.id, code: "S-SEED-001" } },
+    update: { name: "تأمین‌کننده‌ی نمونه" },
+    create: { companyId: company.id, code: "S-SEED-001", name: "تأمین‌کننده‌ی نمونه", email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fa898f8a8a96939f88ba9f829b978a969fd48e9f898e">[email&#160;protected]</a>", phone: "+994 50 000 00 22", isActive: true },
+  });
+
+  await prisma.stockBalance.upsert({
+    where: { warehouseId_productId: { warehouseId: warehouse.id, productId: product.id } },
+    update: {},
+    create: { companyId: company.id, warehouseId: warehouse.id, productId: product.id, onHand: "100.000", reserved: "0.000" },
+  });
+  await prisma.inventoryMovement.upsert({
+    where: { idempotencyKey: "seed:opening:SEED-BOLT-10:WH-MAIN" },
+    update: {},
+    create: {
+      companyId: company.id, warehouseId: warehouse.id, productId: product.id,
+      createdById: admin.id, type: "OPENING_BALANCE", quantityDelta: "100.000",
+      unitCost: "1.2000", sourceType: "seed", sourceId: "opening:SEED-BOLT-10:WH-MAIN",
+      idempotencyKey: "seed:opening:SEED-BOLT-10:WH-MAIN", note: "موجودی اولیه‌ی نمونه",
+    },
+  });
+
+  for (const account of accounts) {
+    await prisma.account.upsert({
+      where: { companyId_code: { companyId: company.id, code: account.code } },
+      update: { name: account.name, type: account.type },
+      create: { companyId: company.id, ...account },
+    });
+  }
+
+  console.log(`Seed ready: ${company.name} · ${email} · ${warehouse.code}`);
+}
+
+main()
+  .catch((error) =&gt; { console.error(error); process.exitCode = 1; })
+  .finally(async () =&gt; { await prisma.$disconnect(); });</code></pre>
+<p>در local، بعد از اجرای migration و <code>generate</code>، مطمئن شو <code>DATABASE_URL</code> به دیتابیس موردنظر اشاره می‌کند و سپس seed را صریح اجرا کن. اجرای دوباره با <code>upsert</code> رکوردهای نمونه‌ی اصلی را تکراری نمی‌سازد و موجودی/رمز کاربر موجود را reset نمی‌کند:</p>
+<pre><code>npx prisma db seed</code></pre>
+<p>ورود مدیر محلی با ایمیل <code>SEED_ADMIN_EMAIL</code> و همان رمز واقعی‌ای است که در <code>SEED_ADMIN_PASSWORD</code> گذاشتی؛ مقدار placeholder را عوض کن. در production ابتدا migrationهای commit‌شده را deploy کن؛ seed نمایشی این راهنما را روی دیتابیس production اجرا نکن مگر آن‌که محتوا و secrets جداگانه بررسی شده باشند:</p>
+<pre><code>npx prisma migrate deploy</code></pre>
+<div class="callout">حساب‌های نمونه برای chart of accounts: <code>1000 Cash</code>، <code>1100 Accounts Receivable</code>، <code>1200 Inventory</code>، <code>2000 Accounts Payable</code>، <code>2100 Tax Payable</code>، <code>3000 Equity</code>، <code>4000 Sales Revenue</code> و <code>5000 Cost of Goods Sold</code>. کد و سرفصل نهایی باید قابل پیکربندی باشد.</div>
+
+<h2 id="s8"><span class="step-num">8</span> احراز هویت، شرکت و RBAC</h2>
+<ul>
+  <li>رمز عبور را با Argon2id یا الگوریتم امن پشتیبانی‌شده hash کنید؛ هیچ‌وقت plaintext یا hash قابل بازیابی ذخیره نشود.</li>
+  <li>Access token کوتاه‌عمر باشد. Refresh token چرخشی و hash‌شده در <code>RefreshSession</code> نگهداری شود و هنگام logout/reuse مشکوک revoke شود.</li>
+  <li>برای SPA ترجیحاً refresh token را در cookie با <code>HttpOnly; Secure; SameSite</code> نگه دارید و در صورت نیاز حفاظت CSRF اضافه کنید؛ token بلندمدت را در <code>localStorage</code> نگذارید.</li>
+  <li>مجوز نمونه: <code>catalog.products.read</code>، <code>catalog.products.write</code>، <code>inventory.adjust</code>، <code>sales.order.approve</code>، <code>finance.invoice.post</code>، <code>admin.users.manage</code>.</li>
+  <li>هر درخواست باید کاربر، شرکت فعال و permission را در سمت سرور بررسی کند. مخفی کردن دکمه در React <b>کنترل دسترسی نیست</b>.</li>
+  <li>همه‌ی queryهای دامنه‌ای با <code>companyId</code> scope شوند؛ شناسه‌ی رکورد از URL به‌تنهایی مجوز دسترسی نمی‌دهد. تغییر شرکت فعال هم باید membership کاربر را verify کند.</li>
+  <li>ورودی‌ها allowlist/validate شوند؛ rate limit روی login، محدودیت تلاش، log امن و حذف password/token از log الزامی است.</li>
+</ul>
+<div class="callout warn"><b>تست امنیت بحرانی:</b> کاربر شرکت A نباید با دانستن ID سند شرکت B بتواند آن را بخواند، ویرایش کند یا در گزارش ببیند. این تست را برای هر ماژول و هر query حساس بنویسید.</div>
+
+<h2 id="s9"><span class="step-num">9</span> راه‌اندازی API در NestJS</h2>
+<p>در <span class="path">apps/backend/src/main.ts</span> prefix، validation و CORS صریح تنظیم کنید:</p>
+<pre><code>async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix("api/v1");
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }));
+  app.enableCors({
+    origin: (process.env.CORS_ORIGIN ?? "http://localhost:4200").split(","),
+    credentials: true,
+  });
+  app.enableShutdownHooks();
+  await app.listen(Number(process.env.PORT ?? 3000), "0.0.0.0");
+}
+bootstrap();</code></pre>
+<p>در <code>AppModule</code> ماژول‌ها را compose کنید. <code>PrismaModule</code> را export کنید؛ ماژول‌های فروش و خرید نباید مستقیماً جدول‌های همدیگر را دستکاری کنند، بلکه از APIهای دامنه‌ای مجاز استفاده کنند.</p>
+<pre><code>@Module({
+  imports: [
+    PrismaModule,
+    AuthModule,
+    AuditModule,
+    CatalogModule,
+    InventoryModule,
+    PurchasingModule,
+    SalesModule,
+    FinanceModule,
+    ReportsModule,
+  ],
+})
+export class AppModule {}</code></pre>
+<div class="callout">همراه API، Swagger/OpenAPI را در محیط توسعه فعال کنید. در production یا دسترسی آن را کنترل کنید یا از آن برای تولید client تایپ‌دار فرانت‌اند استفاده کنید. خطاها یک قالب ثابت داشته باشند: <code>code</code>، <code>message</code>، <code>details</code> و <code>requestId</code>؛ stack trace به کاربر برنگردد.</div>
+
+<h2 id="s10"><span class="step-num">10</span> قرارداد API و ماژول کاتالوگ</h2>
+<p>نمونه‌ی endpointهای اصلی. همه زیر <code>/api/v1</code> هستند؛ لیست‌ها pagination و فیلتر سروری داشته باشند:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>دامنه</th><th>نمونه endpoint</th><th>عملیات</th></tr></thead>
+<tbody>
+<tr><td>Auth</td><td><code>POST /auth/login</code>، <code>POST /auth/refresh</code>، <code>POST /auth/logout</code>، <code>GET /auth/me</code></td><td>ورود، تمدید، خروج و context کاربر</td></tr>
+<tr><td>کاتالوگ/پایه</td><td><code>GET/POST /products</code>، <code>PATCH /products/:id</code>، <code>GET/POST /customers</code>، <code>GET/POST /suppliers</code>، <code>GET /branches</code>، <code>GET /warehouses</code></td><td>تعریف و جست‌وجوی کالا، طرف‌حساب، شعبه و انبار</td></tr>
+<tr><td>انبار</td><td><code>GET /inventory/balances</code>، <code>GET /inventory/movements</code>، <code>POST /inventory/adjustments</code></td><td>مانده، گردش و اصلاح با دلیل و مجوز</td></tr>
+<tr><td>خرید</td><td><code>POST /purchasing/orders</code>، <code>POST /purchasing/orders/:id/approve</code>، <code>POST /purchasing/orders/:id/receipts</code></td><td>سفارش، تأیید و دریافت جزئی/کامل</td></tr>
+<tr><td>فروش</td><td><code>POST /sales/orders</code>، <code>POST /sales/orders/:id/confirm</code>، <code>POST /sales/orders/:id/shipments</code></td><td>سفارش، رزرو و ارسال</td></tr>
+<tr><td>مالی</td><td><code>GET/POST /finance/invoices</code>، <code>POST /finance/invoices/:id/issue</code>، <code>GET/POST /finance/payments</code>، <code>GET /finance/reports/trial-balance</code></td><td>ساخت/صدور فاکتور، تخصیص وجه و گزارش دفتر</td></tr>
+<tr><td>گزارش</td><td><code>GET /reports/sales</code>، <code>GET /reports/stock-valuation</code>، <code>GET /reports/ar-aging</code></td><td>خروجی فیلترشده با تاریخ/شعبه</td></tr>
+</tbody></table></div>
+<p>قرارداد pagination پیشنهادی:</p>
+<pre><code>GET /api/v1/products?page=1&amp;pageSize=25&amp;search=bolt&amp;sort=name&amp;direction=asc
+
+{
+  "data": [{ "id": "...", "sku": "BOLT-10", "name": "پیچ ۱۰ میلی‌متری", "unit": "pcs" }],
+  "meta": { "page": 1, "pageSize": 25, "total": 126 }
+}</code></pre>
+<p>نمونه‌ی validation ورودی برای ایجاد محصول (قیمت به صورت رشته‌ی decimal می‌آید):</p>
+<pre><code>export class CreateProductDto {
+  @Matches(/^[A-Z0-9._-]{2,32}$/)
+  sku!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  name!: string;
+
+  @IsString()
+  @MaxLength(20)
+  unit!: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsBoolean()
+  trackStock = true;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,2})?$/)
+  salePrice?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,2})?$/)
+  purchasePrice?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,3})?$/)
+  reorderPoint?: string;
+}
+</code></pre>
+<p>کنترلر باریک بماند و شرکت/کاربر را از context احراز هویت بگیرد، نه از body ارسالی مرورگر:</p>
+<pre><code>@UseGuards(JwtAuthGuard, CompanyAccessGuard, PermissionGuard)
+@Permissions("catalog.products.write")
+@Controller("products")
+export class ProductsController {
+  constructor(private readonly products: ProductsService) {}
+
+  @Post()
+  create(
+    @CurrentCompanyId() companyId: string,
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: CreateProductDto,
+  ) {
+    return this.products.create(companyId, actor.userId, dto);
+  }
+}</code></pre>
+<div class="callout">در React از API contract یا client تولیدشده از OpenAPI استفاده کنید. typeهای فرانت‌اند را از Prisma model کپی نکنید؛ پاسخ API باید عمداً فقط فیلدهای مجاز را برگرداند. مجموعه‌ی تست قابل کپی برای هر route در بخش ۲۴ همین فایل آمده است؛ هر endpoint تازه هم باید بلافاصله URL، header، JSON ورودی و پاسخ مورد انتظار خودش را داشته باشد.</div>
+
+<h2 id="s11"><span class="step-num">11</span> قواعد و تراکنش‌های انبار</h2>
+<p>قاعده‌ی پایه: <code>available = onHand - reserved</code>. <code>InventoryMovement</code> دفتر تغییرناپذیر است؛ <code>StockBalance</code> برای خواندن سریع نگهداری می‌شود و باید با جمع movementها قابل تطبیق باشد.</p>
+<ul>
+  <li>ورود از رسید خرید مقدار مثبت دارد؛ ارسال فروش مقدار منفی؛ انتقال بین دو انبار دو movement هم‌زمان (خروج و ورود) می‌سازد.</li>
+  <li>اصلاح دستی موجودی فقط با permission، دلیل، مرجع و audit انجام شود؛ مقدار قبلی را overwrite نکنید.</li>
+  <li>برای confirmation سفارش فروش، موجودی قابل‌دسترس را رزرو کنید. هنگام لغو، reservation آزاد شود؛ هنگام ارسال، هم <code>onHand</code> و هم <code>reserved</code> کاهش یابند.</li>
+  <li>برای جلوگیری از oversell، فقط یک <code>findFirst</code> و سپس update کافی نیست؛ ردیف balance را در transaction قفل کنید (یا optimistic concurrency/Serializable با retry پیاده کنید).</li>
+  <li>هر فرمانی که retry می‌شود idempotency key بگیرد؛ درخواست تکراری نباید دو رسید یا دو movement بسازد.</li>
+</ul>
+<p>طرح الگوریتم reserve در سرویس (نمونه‌ی مفهومی؛ اعتبارسنجی tenant، وضعیت سفارش و خطاها هم باید اضافه شود):</p>
+<pre><code>await prisma.$transaction(async (tx) =&gt; {
+  // ابتدا ردیف balance را با upsert ایجاد/تضمین کنید.
+  await tx.stockBalance.upsert({
+    where: { warehouseId_productId: { warehouseId, productId } },
+    create: { companyId, warehouseId, productId, onHand: 0, reserved: 0 },
+    update: {},
+  });
+
+  // در PostgreSQL ردیف را قفل کنید تا دو درخواست هم‌زمان oversell نکنند.
+  const [balance] = await tx.$queryRaw`
+    SELECT "onHand", "reserved" FROM "StockBalance"
+    WHERE "companyId" = ${companyId}
+      AND "warehouseId" = ${warehouseId}
+      AND "productId" = ${productId}
+    FOR UPDATE
+  `;
+  if (!balance || balance.onHand.minus(balance.reserved).lt(quantity)) {
+    throw new ConflictException("موجودی قابل‌دسترس کافی نیست");
+  }
+
+  await tx.stockBalance.update({
+    where: { warehouseId_productId: { warehouseId, productId } },
+    data: { reserved: { increment: quantity } },
+  });
+  await tx.stockReservation.create({
+    data: { companyId, warehouseId, productId, salesOrderLineId, quantity },
+  });
+}, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });</code></pre>
+<p class="small">نوع خروجی <code>$queryRaw</code> را در کد واقعی تایپ کنید و با نسخه‌ی client/driver تست کنید. اگر transaction روی serialization conflict شکست خورد، retry محدود با backoff داشته باشید؛ retry نامحدود نکنید.</p>
+
+<h2 id="s12"><span class="step-num">12</span> فرآیند خرید</h2>
+<ol>
+  <li><b>Draft:</b> تأمین‌کننده، انبار مقصد و ردیف‌های کالا/مقدار/قیمت وارد می‌شود. مبلغ‌ها در سرور از روی ردیف‌ها محاسبه می‌شوند، نه از total مورد اعتماد کلاینت.</li>
+  <li><b>Approve:</b> نقش مجاز سفارش را تأیید می‌کند. بعد از تأیید، تغییرهای حساس با revision یا لغو و ایجاد نسخه‌ی جدید انجام شوند.</li>
+  <li><b>Receive:</b> رسید کالا می‌تواند جزئی باشد. برای هر ردیف کنترل کنید مقدار دریافتی از باقیمانده‌ی سفارش بیشتر نشود. رسید، balance و movement در یک transaction ثبت شوند.</li>
+  <li><b>Supplier invoice:</b> مبلغ، ارز، مالیات و شماره‌ی فاکتور با سفارش/رسید تطبیق داده شود؛ invoice خارجی را با شماره‌ی داخلی ERP یکی فرض نکنید.</li>
+  <li><b>Pay:</b> پرداخت به یک یا چند فاکتور allocate شود؛ مبلغ تخصیص‌یافته از مانده‌ی فاکتور بیشتر نشود.</li>
+</ol>
+<p>Transitionهای مجاز را صریح کنید و تغییر وضعیت مستقیم از endpoint عمومی ندهید:</p>
+<pre><code>DRAFT → APPROVED → PARTIALLY_RECEIVED → RECEIVED
+   └──────────────→ CANCELLED  (فقط در صورت نداشتن دریافت ناسازگار)</code></pre>
+<div class="callout">رسید خرید باید یک <code>GoodsReceipt</code> و <code>GoodsReceiptLine</code> واقعی بسازد؛ فقط زیادکردن عدد موجودی کافی نیست. شماره سند، کاربر، زمان، انبار، مقدار و ارتباط با ردیف سفارش برای برگشت/ممیزی لازم‌اند.</div>
+
+<h2 id="s13"><span class="step-num">13</span> فرآیند فروش</h2>
+<ol>
+  <li><b>Draft:</b> مشتری، انبار، ارز، قیمت‌ها و مالیات انتخاب شوند. قیمت و tax rate نهایی در سمت سرور از policy همان شرکت گرفته شود.</li>
+  <li><b>Confirm:</b> credit limit/مجوز تأیید و موجودی قابل‌دسترس بررسی؛ برای کالاهای stock-tracked رزرو ایجاد شود.</li>
+  <li><b>Ship:</b> ارسال کامل یا جزئی با <code>SalesShipment</code> ثبت شود؛ رزرو مصرف و balance کم شود؛ movement منفی و در صورت روش perpetual، ثبت بهای تمام‌شده در دفتر انجام شود.</li>
+  <li><b>Invoice:</b> فاکتور از داده‌ی سند ارسال/سفارش ساخته شود؛ پس از issue شدن، ویرایش مستقیم ممنوع و اصلاح با credit note/سند معکوس باشد.</li>
+  <li><b>Collect:</b> دریافت وجه ثبت و به فاکتور تخصیص داده شود؛ وضعیت فاکتور از روی مجموع allocationها محاسبه شود.</li>
+</ol>
+<pre><code>DRAFT → CONFIRMED → PARTIALLY_SHIPPED → SHIPPED
+   └──────────────→ CANCELLED  (رزروهای فعال آزاد شوند)</code></pre>
+<p><b>قواعد مهم:</b> انبار، کالا، مشتری و سفارش باید متعلق به همان شرکت باشند؛ مقدار ارسال از مقدار سفارش و رزرو باقیمانده بیشتر نشود؛ ارسال دوباره با همان idempotency key سند دوم نسازد؛ کالا/سفارش نهایی‌شده با حذف یا update خام پاک نشود.</p>
+
+<h2 id="s14"><span class="step-num">14</span> مالی، پرداخت و حسابداری دوبل</h2>
+<p>داشتن جدول فاکتور به‌تنهایی حسابداری نیست. هر posting باید یک <code>JournalEntry</code> و حداقل دو <code>JournalLine</code> بسازد؛ مجموع بدهکار و بستانکار باید برابر باشد. سند POSTED تغییرناپذیر است؛ اشتباه با reversal و سند اصلاحی جبران می‌شود.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>رویداد</th><th>بدهکار</th><th>بستانکار</th></tr></thead>
+<tbody>
+<tr><td>صدور فاکتور فروش</td><td>حساب‌های دریافتنی (جمع کل)</td><td>درآمد فروش (خالص) + مالیات پرداختنی</td></tr>
+<tr><td>دریافت وجه مشتری</td><td>صندوق/بانک</td><td>حساب‌های دریافتنی</td></tr>
+<tr><td>ارسال کالا در روش perpetual</td><td>بهای تمام‌شده‌ی کالای فروش‌رفته</td><td>موجودی کالا</td></tr>
+<tr><td>رسید خرید قبل از فاکتور (سیاست GRNI)</td><td>موجودی کالا</td><td>کالای دریافت‌شده/فاکتور‌نشده</td></tr>
+<tr><td>ثبت فاکتور تأمین‌کننده</td><td>GRNI یا موجودی/هزینه + مالیات قابل‌استرداد</td><td>حساب‌های پرداختنی</td></tr>
+<tr><td>پرداخت تأمین‌کننده</td><td>حساب‌های پرداختنی</td><td>صندوق/بانک</td></tr>
+</tbody></table></div>
+<p>در تابع posting:</p>
+<ul>
+  <li>همه‌ی حساب‌ها باید فعال و متعلق به شرکت سند باشند؛ ارز و دوره‌ی مالی باید باز باشد.</li>
+  <li>از <code>Decimal</code> محاسبه کنید، rounding policy را صریح کنید و مانده را بر اساس ارز/precision شرکت نگه دارید.</li>
+  <li>قبل از تغییر status به POSTED، <code>sum(debit) === sum(credit)</code> و تعداد خطوط معتبر باشد؛ برای جمع مبالغ از tolerance تصادفی float استفاده نکنید.</li>
+  <li>ترکیب ثبت journal و تغییر status سند در یک transaction و با unique source key انجام شود تا صدور مجدد دوباره ثبت مالی نسازد.</li>
+  <li>برای تراز آزمایشی، دفتر کل، AR/AP aging و cash report فیلتر تاریخ/شعبه و قواعد تاریخ ثبت را تعریف کنید.</li>
+</ul>
+<div class="callout warn">نرخ مالیات را در کد hardcode نکنید. نگه‌داری tax code، اعتبار زمانی نرخ، شماره‌گذاری قانونی اسناد، ارز چندگانه و بستن دوره در نسخه‌ی واقعی باید بر اساس کشور/حسابداری شرکت طراحی شود.</div>
+
+<h2 id="s15"><span class="step-num">15</span> ساخت اپ ERP در React</h2>
+<p>ساختار پیشنهادی فرانت‌اند را بر اساس feature نگه دارید، نه یک پوشه‌ی بزرگ component:</p>
+<pre><code>apps/frontend/src/
+├── app/                 # router, providers, layout
+├── features/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── catalog/
+│   ├── inventory/
+│   ├── purchasing/
+│   ├── sales/
+│   ├── finance/
+│   └── administration/
+└── shared/
+    ├── components/      # DataTable, ConfirmDialog, Money, DateRange
+    ├── hooks/
+    └── formatting/</code></pre>
+<p>پکیج‌های مرسوم UI/data را یک‌بار در workspace نصب و نسخه‌ها را قفل کنید:</p>
+<pre><code>npm install @mui/material @mui/icons-material @emotion/react @emotion/styled @emotion/cache stylis-plugin-rtl
+npm install @tanstack/react-query react-router-dom react-hook-form zod @hookform/resolvers</code></pre>
+<p>برای درخواست‌های API یک client مشترک داشته باشید؛ خطاها، session cookie، request id و پاسخ 204 را در یک‌جا مدیریت کنید:</p>
+<pre><code>export async function apiFetch&lt;T&gt;(path: string, init: RequestInit = {}): Promise&lt;T&gt; {
+  const response = await fetch(`/api/v1${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() =&gt; null);
+    throw new ApiError(response.status, body);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise&lt;T&gt;;
+}</code></pre>
+<p>در production، reverse proxy را طوری تنظیم کنید که UI و <code>/api</code> از یک origin سرو شوند؛ در نتیجه CORS محدودتر و cookie امن‌تر است. برای dev، origin دقیق Vite را در env allow کنید، نه <code>*</code> همراه credentials.</p>
+
+<h2 id="s16"><span class="step-num">16</span> صفحات، تجربه‌ی کاربری و RTL</h2>
+<p>منوی اولیه را permission-aware بسازید. صفحه‌ی پیشنهادی:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>منو</th><th>مسیر/صفحه</th><th>کار اصلی</th></tr></thead>
+<tbody>
+<tr><td>داشبورد</td><td><code>/dashboard</code></td><td>فروش امروز، سفارش‌های باز، کمبود موجودی، دریافت/پرداخت سررسید</td></tr>
+<tr><td>کاتالوگ</td><td><code>/catalog/products</code>، <code>/contacts/customers</code>، <code>/contacts/suppliers</code></td><td>جست‌وجو، فیلتر، تعریف/ویرایش، archive</td></tr>
+<tr><td>انبار</td><td><code>/inventory/balances</code>، <code>/inventory/movements</code>، <code>/inventory/adjustments</code></td><td>مانده به تفکیک انبار، history، اصلاح با مجوز</td></tr>
+<tr><td>خرید</td><td><code>/purchasing/orders</code>، <code>/purchasing/receipts</code></td><td>ثبت، تأیید و دریافت جزئی</td></tr>
+<tr><td>فروش</td><td><code>/sales/orders</code>، <code>/sales/shipments</code></td><td>سفارش، رزرو، ارسال و وضعیت تحویل</td></tr>
+<tr><td>مالی</td><td><code>/finance/invoices</code>، <code>/finance/payments</code>، <code>/finance/journal</code>، <code>/finance/reports</code></td><td>صدور، تخصیص وجه، دفتر و گزارش</td></tr>
+<tr><td>مدیریت</td><td><code>/admin/users</code>، <code>/admin/roles</code>، <code>/admin/company</code></td><td>کاربران، مجوزها، شعبه، ارز و timezone</td></tr>
+</tbody></table></div>
+<ul>
+  <li>برای جدول‌های ERP، server-side pagination/filter/sort، ستون‌های قابل انتخاب، empty/loading/error state و export کنترل‌شده لازم‌اند.</li>
+  <li>فرم سند باید جمع خالص/مالیات/کل و موجودی موجود را واضح نشان دهد؛ قبل از اقدام غیرقابل‌برگشت Confirm dialog و نمایش شماره سند داشته باشد.</li>
+  <li>مبالغ در API canonical و بدون جداکننده ارسال شوند؛ فقط برای نمایش با <code>Intl.NumberFormat</code> و ارز شرکت قالب‌بندی شوند. تاریخ UTC را در timezone شرکت نشان دهید.</li>
+  <li>برای فارسی، <code>dir="rtl"</code> را روی shell و theme بگذارید؛ با MUI، Emotion cache و <code>stylis-plugin-rtl</code> را تنظیم و فونت را به‌صورت محلی/داخلی bundle کنید.</li>
+  <li>تمام متن‌ها از فایل locale بیایند؛ کلیدها را از component جدا کنید. فارسی تنها locale اول باشد، نه رشته‌ی hardcode در هر صفحه.</li>
+  <li>Route guard صرفاً تجربه‌ی کاربری است؛ مجوز واقعی همیشه در Nest/API بررسی شود.</li>
+</ul>
+
+<h2 id="s17"><span class="step-num">17</span> گزارش، ممیزی و فایل‌ها</h2>
+<p><b>گزارش‌های MVP:</b> مانده و گردش موجودی به تفکیک کالا/انبار، فروش بر اساس بازه/مشتری/کالا، خرید بر اساس تأمین‌کننده، فاکتورهای سررسیدشده، AR/AP aging، cash summary و trial balance. Queryهای گزارش باید company-scoped، دارای محدودیت بازه‌ی زمانی و index متناسب باشند.</p>
+<p><b>Audit log:</b> برای loginهای حساس، تغییر نقش/قیمت، تأیید/لغو سند، اصلاح انبار، صدور فاکتور، دریافت/پرداخت و تنظیمات شرکت ثبت کنید: actor، company، action، entity، زمان، request ID و قبل/بعدِ فیلدهای مجاز. رمز، token و اطلاعات بانکی/شخصی حساس را log نکنید.</p>
+<p><b>فایل پیوست:</b> فایل فاکتور، تصویر کالا و اسناد را در object storage خصوصی (مثلاً S3-compatible) قرار دهید؛ در DB فقط metadata، مالکیت، MIME، اندازه و کلید ذخیره شود. دانلود با permission و signed URL کوتاه‌عمر انجام شود؛ MIME و حجم ورودی validate و اسکن شود.</p>
+<p>برای ایمیل، webhook و اعلان، از transaction اصلی خارج شوید: رویداد را در outbox همان transaction ذخیره کنید و worker با retry کنترل‌شده تحویل دهد. ارسال ایمیل نباید transaction ثبت فروش را خراب کند.</p>
+
+<h2 id="s18"><span class="step-num">18</span> تست واحد، یکپارچه و E2E</h2>
+<div class="grid">
+  <div class="card"><b>Unit</b><br>محاسبه‌ی tax/total، transition status، allocation، permission و validation را با mock تست کنید.</div>
+  <div class="card"><b>Integration</b><br>PostgreSQL واقعی برای migration، rollback، constraint، Prisma و تراکنش‌های انبار/مالی.</div>
+  <div class="card"><b>E2E</b><br>مرورگر واقعی برای مسیر کامل کاربر و نقش‌ها؛ داده‌ی تست مستقل از توسعه.</div>
+</div>
+<p>سناریوهای حیاتی که باید در CI باشند:</p>
+<ol>
+  <li>کاربر warehouse سفارش خرید را دریافت می‌کند؛ موجودی و movement به اندازه‌ی مقدار رسید بالا می‌روند؛ اجرای دوباره‌ی همان request مقدار را دوبار بالا نمی‌برد.</li>
+  <li>دو سفارش هم‌زمان برای آخرین واحد کالا confirm می‌شوند؛ فقط یکی موفق می‌شود یا سیاست backorder صریحاً اعمال می‌شود.</li>
+  <li>ارسال جزئی از سفارش فروش، reservation را به‌درستی مصرف می‌کند؛ مقدار ارسال از رزرو/سفارش بیشتر نمی‌شود.</li>
+  <li>ثبت invoice/payment یک Journal متوازن می‌سازد؛ فاکتور paidAmount و وضعیت آن با allocationها سازگار است.</li>
+  <li>کاربر بدون permission یا با company دیگر نمی‌تواند سند را ببیند یا تغییر دهد، حتی اگر ID را حدس بزند.</li>
+  <li>خطای میانه‌ی transaction همه‌ی تغییرات balance، movement، سند و journal را rollback می‌کند.</li>
+</ol>
+<p>برای UI از Testing Library و برای مرور end-to-end از Playwright استفاده کنید؛ visual regression را فقط برای صفحات پایدار و با محیط/font یکسان فعال کنید.</p>
+<pre><code>npx nx test backend
+npx nx test frontend
+npx nx e2e frontend-e2e
+npx nx affected -t lint test build</code></pre>
+
+<h2 id="s19"><span class="step-num">19</span> CI در GitHub Actions</h2>
+<p>پایپ‌لاین pull request باید install تمیز، validate/generate Prisma، migration روی دیتابیس تست، lint، unit/integration، build و E2E ضروری را اجرا کند. workflow نمونه را مطابق نام targetهای workspace تنظیم کنید:</p>
+<pre><code>name: ERP CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://erp_user:test_password@localhost:5432/erp_test
+      JWT_ACCESS_SECRET: test-only-access-secret-change-me
+      JWT_REFRESH_SECRET: test-only-refresh-secret-change-me
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: erp_test
+        ports:
+          - 5432:5432
+        options: &gt;-
+          --health-cmd "pg_isready -U erp_user -d erp_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://erp_user:test_password@localhost:5432/erp_test
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx prisma db seed
+      - uses: nrwl/nx-set-shas@v4
+      - run: npx nx affected -t lint test build --parallel=3
+      - run: npx playwright install --with-deps chromium
+      - run: npx nx affected -t e2e --parallel=1
+</code></pre>
+<div class="callout">Node version workflow را با نسخه‌ی LTS انتخابی و <code>.nvmrc</code>/<code>engines</code> پروژه یکی کنید. برای e2e، seed تستی و env جدا بسازید. روی branch اصلی protection، status check اجباری و review فعال کنید. deploy production job جدا، دارای approval و secretهای environment جداگانه باشد.</div>
+
+<h2 id="s20"><span class="step-num">20</span> اجرای روزمره‌ی پروژه</h2>
+<p>پس از ساخت workspace، نصب dependencyها، ساخت env و بالا آوردن دیتابیس:</p>
+<pre><code>cp .env.example .env
+docker compose up -d postgres
+npx prisma migrate dev --name erp_core
+npx prisma generate
+npx prisma db seed
+
+npx nx serve backend
+# ترمینال دوم:
+npx nx serve frontend
+
+# بررسی targetها و وضعیت پروژه‌ها:
+npx nx show projects
+npx nx run-many -t lint test build</code></pre>
+<ul>
+  <li>React: معمولاً <code>http://localhost:4200</code></li>
+  <li>Nest API: معمولاً <code>http://localhost:3000/api/v1</code></li>
+  <li>Swagger در dev: مسیر تنظیم‌شده در اپ، مثلاً <code>/api/docs</code></li>
+  <li>PostgreSQL: فقط برای dev روی <code>localhost:5432</code></li>
+</ul>
+<p class="small">پورت واقعی را از project configuration نسخه‌ی Nx خود بخوانید؛ اگر پورت پیش‌فرض فرق داشت، <code>CORS_ORIGIN</code> و تنظیم proxy فرانت را هماهنگ کنید.</p>
+
+<h2 id="s21"><span class="step-num">21</span> استقرار، مانیتورینگ و پشتیبان‌گیری</h2>
+<ul>
+  <li><b>Local:</b> Docker Compose برای Postgres و Nx serve برای اپ‌ها.</li>
+  <li><b>Production:</b> build immutable برای API و UI؛ UI پشت Nginx/CDN و API پشت reverse proxy با HTTPS؛ دیتابیس managed/private ترجیح دارد.</li>
+  <li><b>Migration:</b> در release به‌صورت مرحله‌ی کنترل‌شده و قبل/بعد از deploy اجرا شود؛ migration مخرب را با الگوی expand/contract و سازگاری نسخه‌ها انجام دهید.</li>
+  <li><b>Health:</b> <code>/health/live</code> برای زنده بودن process و <code>/health/ready</code> برای readiness وابستگی‌های لازم؛ health endpoint اطلاعات حساس ندهد.</li>
+  <li><b>Logs/metrics:</b> log ساختاریافته با request ID، latency، نرخ خطا و metricهای دیتابیس؛ PII/رمز/توکن در log ممنوع. برای Prometheus/Grafana از secret امن و image version پین‌شده استفاده کنید.</li>
+  <li><b>Backup:</b> backup رمزگذاری‌شده، retention مشخص و PITR در صورت نیاز؛ restore را به‌صورت دوره‌ای در محیط جدا تمرین کنید. backup آزمایش‌نشده تضمین بازیابی نیست.</li>
+  <li><b>Docker:</b> از root اجرا نکنید، imageها را pin کنید، dependency و فایل env را در image نریزید؛ Dockerfile تولیدی Nx را با output واقعی build خود بررسی کنید، چون مسیر dist به bundler/config وابسته است.</li>
+</ul>
+<div class="callout warn">docker-compose و رمزهای ساده‌ی راهنمای توسعه، deployment production نیستند. admin/admin، Grafana بدون رمز یا <code>latest</code> در سرویس حساس نگذارید.</div>
+
+<h2 id="s22"><span class="step-num">22</span> نقشه‌ی توسعه‌ی ماژول‌های بعدی</h2>
+<p>بعد از پایدار شدن vertical slice اصلی، توسعه را در milestoneهای قابل تحویل انجام دهید:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Milestone</th><th>خروجی قابل‌نمایش</th><th>وابستگی/ملاحظه</th></tr></thead>
+<tbody>
+<tr><td>۰. Platform</td><td>Nx، CI، login، شرکت/شعبه، RBAC، audit و seed</td><td>شرکت/tenant را قبل از انباشته شدن داده طراحی کنید</td></tr>
+<tr><td>۱. Inventory + Catalog</td><td>محصول، مشتری/تأمین‌کننده، انبار، opening balance، movement</td><td>قواعد واحد، precision و جلوگیری از موجودی منفی</td></tr>
+<tr><td>۲. Procure-to-Pay</td><td>سفارش خرید، رسید جزئی، فاکتور، بدهی و پرداخت</td><td>تطبیق سفارش/رسید/فاکتور و duplicate protection</td></tr>
+<tr><td>۳. Order-to-Cash</td><td>سفارش، reservation، shipment، invoice و receipt</td><td>هم‌زمانی انبار، backorder و برگشت کالا</td></tr>
+<tr><td>۴. Finance + Reports</td><td>chart of accounts، journal، trial balance و AR/AP aging</td><td>تأیید حسابدار، دوره‌ی مالی و سیاست مالیات</td></tr>
+<tr><td>۵. HRM/CRM</td><td>کارمند، دپارتمان، مرخصی/حضور، سرنخ و فعالیت مشتری</td><td>حریم خصوصی، نگه‌داری داده و مقررات حقوق</td></tr>
+<tr><td>۶. عملیات پیشرفته</td><td>Payroll، تولید/BOM، سریال/بچ/انقضا، چندارزی، e-invoice</td><td>هر کدام ماژول و rule set کشور/صنعت خود را می‌خواهد</td></tr>
+</tbody></table></div>
+<p><b>Micro-frontend:</b> فقط وقتی چند تیم واقعاً مستقل deploy می‌کنند یا مرز runtime لازم شده آن را بررسی کنید. تا آن زمان lazy loading و libraryهای feature در یک React app ساده‌تر و قابل اعتمادتر است.</p>
+
+<h2 id="s23"><span class="step-num">23</span> معیار تحویل ERP MVP</h2>
+<p>نسخه را وقتی MVP بنامید که این موارد قابل اجرا و تست باشند:</p>
+<ul>
+  <li>کاربر وارد می‌شود، شرکت/شعبه‌ی مجاز را انتخاب می‌کند و منوی مطابق permission می‌بیند.</li>
+  <li>محصول، مشتری، تأمین‌کننده و انبار تعریف می‌شوند و داده‌ی شرکت دیگر قابل مشاهده نیست.</li>
+  <li>سفارش خرید تأیید و به‌صورت جزئی دریافت می‌شود؛ مانده‌ی انبار و ledger گردش با رسید هماهنگ‌اند.</li>
+  <li>سفارش فروش موجودی را رزرو می‌کند؛ shipment جزئی مانده را درست کم می‌کند؛ لغو reservation را آزاد می‌کند.</li>
+  <li>صدور invoice و دریافت/پرداخت idempotent است؛ postingهای مالی ترازند و سند posted قابل ویرایش خام نیست.</li>
+  <li>گزارش مانده‌ی انبار، فروش، خرید، AR/AP و trial balance با فیلتر تاریخ/شرکت درست است.</li>
+  <li>تست race condition، rollback، permission، company isolation، migration و مسیر E2E در CI می‌گذرد.</li>
+  <li>هیچ secret واقعی در repo نیست؛ backup/restore، health check و روش انتشار مستند و تمرین‌شده‌اند.</li>
+</ul>
+<div class="callout good"><b>جمع‌بندی:</b> با این گسترش، فایل از «راهنمای نصب Nx + دو اپ خالی» به یک blueprint عملی برای ERP MVP تبدیل شده است: دامنه‌ی واقعی، schema پایه، گردش‌کارهای end-to-end، API، UI، امنیت، حسابداری، تست و انتشار. قدم منطقی بعدی، پیاده‌سازی milestoneهای ۰ تا ۴ در همین ترتیب و تبدیل هر بخش به کد و تست در repo است.</div>
+
+<footer>نسخه‌ی توسعه‌یافته‌ی راهنمای Nx Monorepo — مناسب شروع یک ERP قابل توسعه با React، NestJS، Prisma و PostgreSQL. پیش از استفاده‌ی عملی، schema را با Prisma validate کنید و قواعد مالی/مالیاتی را متناسب با کسب‌وکار نهایی بازبینی کنید.</footer>
+<h2 id="s24"><span class="step-num">24</span> تست واقعی APIها با URL و JSON</h2>
+<p>این بخش را کنار هر endpoint نگه دارید: بعد از تمام شدن route و service همان API، درخواستش را با Postman یا curl اجرا کنید و status، پاسخ و اثر دیتابیسی‌اش را بررسی کنید. آدرس پایه‌ی local:</p>
+<div class="callout">در JSONهای نمونه، <code>AZN</code> و تاریخ‌های ۲۰۲۶ فقط مقدار دمو هستند؛ آن‌ها را با ارز و تقویم/سیاست شرکت خودت عوض کن. برای اجرای دوباره، دیتابیس تست را reset کن یا SKU و کدهای <code>DEMO</code> را تغییر بده؛ این رکوردها عمداً unique هستند.</div>
+<pre><code>http://localhost:3000/api/v1</code></pre>
+<div class="callout warn"><b>ترتیب پیشنهادی تست:</b> login ← گرفتن شناسه‌ی شعبه/انبار ← ساخت محصول و طرف‌حساب ← اصلاح موجودی اولیه یا ثبت خرید ← فروش/ارسال ← فاکتور و پرداخت ← گزارش. مقادیر <code>{{accessToken}}</code>، <code>{{productId}}</code> و بقیه، متغیرهای محیط Postman هستند؛ بعد از هر پاسخ، شناسه‌ی <code>data.id</code> را در متغیر متناظر قرار دهید. در پاسخ لیست، از <code>data[0].id</code> استفاده کنید.</div>
+<p>مجموعه‌ی آماده‌ی Postman را هم می‌توانید import کنید: <a href="erp-api-tests.postman_collection.json"><b>erp-api-tests.postman_collection.json</b></a> و environment آن: <a href="erp-local.postman_environment.json"><b>erp-local.postman_environment.json</b></a>. سپس فقط ایمیل/رمز seed را در environment وارد کنید و درخواست‌ها را به‌ترتیب اجرا کنید.</p>
+<p>متغیرهای محیط Postman را این‌طور بسازید:</p>
+<pre><code>baseUrl        = http://localhost:3000/api/v1
+seedAdminEmail = ایمیلی که seed ساخته است
+seedAdminPassword = رمزی که فقط در env توسعه قرار داده‌اید
+accessToken    = خالی تا بعد از login
+branchId       = از GET /branches
+warehouseId    = از GET /warehouses
+productId      = از پاسخ POST /products
+customerId     = از پاسخ POST /customers
+supplierId     = از پاسخ POST /suppliers</code></pre>
+<p>برای همه‌ی درخواست‌های محافظت‌شده، این headerها را بگذارید:</p>
+<pre><code>Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Accept: application/json</code></pre>
+<p>قرارداد پاسخ را ثابت نگه دارید: login شامل <code>accessToken</code> و <code>user</code> است؛ بقیه‌ی پاسخ‌های موفق، <code>{ "data": ... }</code> و در لیست‌ها <code>meta</code> هم دارند. پاسخ مورد انتظار هر route را با این قرارداد مقایسه کنید.</p>
+
+<h3>Auth و اطلاعات پایه</h3>
+<p><b>ورود — POST <code>/auth/login</code></b><br>URL کامل: <span class="path">{{baseUrl}}/auth/login</span> — این درخواست token نمی‌خواهد.</p>
+<pre><code>{
+  "email": "{{seedAdminEmail}}",
+  "password": "{{seedAdminPassword}}"
+}</code></pre>
+<p>از پاسخ، مقدار <code>accessToken</code> را در environment ذخیره کنید. سپس:</p>
+<pre><code>GET {{baseUrl}}/auth/me
+GET {{baseUrl}}/branches
+GET {{baseUrl}}/warehouses</code></pre>
+<p>این GETها body ندارند. از خروجی شرکت/شعبه/انبار شناسه‌ها را کپی کنید. تمدید نشست: <code>POST {{baseUrl}}/auth/refresh</code> بدون body و با refresh cookie معتبر؛ خروج: <code>POST {{baseUrl}}/auth/logout</code> بدون body.</p>
+
+<h3>Catalog API — کالا، مشتری و تأمین‌کننده</h3>
+<p><b>ساخت کالا — POST <code>/products</code></b><br>URL: <span class="path">{{baseUrl}}/products</span></p>
+<pre><code>{
+  "sku": "DEMO-BOLT-10",
+  "name": "پیچ صنعتی ۱۰ میلی‌متری",
+  "description": "داده‌ی آزمایشی؛ بعد از تست حذف/آرشیو شود",
+  "unit": "عدد",
+  "trackStock": true,
+  "salePrice": "2.50",
+  "purchasePrice": "1.20",
+  "reorderPoint": "10.000"
+}</code></pre>
+<p>پاسخ نمونه: <code>{ "data": { "id": "...", "sku": "DEMO-BOLT-10", ... } }</code>. مقدار <code>data.id</code> را به عنوان <code>productId</code> ذخیره کنید. لیست و جست‌وجو:</p>
+<pre><code>GET {{baseUrl}}/products?page=1&amp;pageSize=20&amp;search=DEMO-BOLT-10</code></pre>
+<p><b>ساخت مشتری — POST <code>/customers</code></b></p>
+<pre><code>{
+  "code": "C-DEMO-001",
+  "name": "مشتری آزمایشی آذر",
+  "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5a382f233f281a3f223b372a363f742e3f292e">[email&#160;protected]</a>",
+  "phone": "+994 50 000 00 01",
+  "taxId": "TEST-TAX-C-001"
+}</code></pre>
+<p><b>ساخت تأمین‌کننده — POST <code>/suppliers</code></b></p>
+<pre><code>{
+  "code": "S-DEMO-001",
+  "name": "تأمین‌کننده‌ی آزمایشی",
+  "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dfa9bab1bbb0ad9fbaa7beb2afb3baf1abbaacab">[email&#160;protected]</a>",
+  "phone": "+994 50 000 00 02",
+  "taxId": "TEST-TAX-S-001"
+}</code></pre>
+<p>URLها: <span class="path">{{baseUrl}}/customers</span> و <span class="path">{{baseUrl}}/suppliers</span>. برای اطمینان <code>GET</code> همین دو مسیر را اجرا کنید. برای ویرایش کالا: <code>PATCH {{baseUrl}}/products/{{productId}}</code> با body نمونه‌ی <code>{ "name": "پیچ صنعتی ۱۰ میلی‌متری - اصلاح‌شده" }</code>.</p>
+
+<h3>Inventory API — مانده، گردش و اصلاح</h3>
+<p>خواندن مانده و دفتر حرکت body ندارد:</p>
+<pre><code>GET {{baseUrl}}/inventory/balances?warehouseId={{warehouseId}}&amp;page=1&amp;pageSize=50
+GET {{baseUrl}}/inventory/movements?warehouseId={{warehouseId}}&amp;productId={{productId}}&amp;page=1&amp;pageSize=50</code></pre>
+<p><b>اصلاح موجودی — POST <code>/inventory/adjustments</code></b><br>Header علاوه بر سه header عمومی:</p>
+<pre><code>Idempotency-Key: inventory-adjustment-demo-001</code></pre>
+<pre><code>{
+  "warehouseId": "{{warehouseId}}",
+  "productId": "{{productId}}",
+  "quantityDelta": "100.000",
+  "note": "موجودی اولیه‌ی تست برای سنجش گردش خرید و فروش"
+}</code></pre>
+<p>پاسخ و دیتابیس را با <code>GET /inventory/balances</code> دوباره چک کنید؛ مقدار <code>onHand</code> باید ۱۰۰ واحد بیشتر شود و فقط یک movement ساخته شود، حتی اگر درخواست با همان idempotency key retry شود.</p>
+
+<h3>Purchasing API — سفارش و رسید خرید</h3>
+<p><b>ساخت سفارش — POST <code>/purchasing/orders</code></b></p>
+<pre><code>{
+  "supplierId": "{{supplierId}}",
+  "branchId": "{{branchId}}",
+  "warehouseId": "{{warehouseId}}",
+  "currency": "AZN",
+  "lines": [
+    {
+      "productId": "{{productId}}",
+      "description": "پیچ صنعتی ۱۰ میلی‌متری",
+      "quantity": "25.000",
+      "unitCost": "1.20",
+      "taxRate": "0.00"
+    }
+  ]
+}</code></pre>
+<p>URL: <span class="path">{{baseUrl}}/purchasing/orders</span>. از پاسخ <code>data.id</code> را به <code>purchaseOrderId</code> و <code>data.lines[0].id</code> را به <code>purchaseOrderLineId</code> ذخیره کنید. تأیید، بدون body:</p>
+<pre><code>POST {{baseUrl}}/purchasing/orders/{{purchaseOrderId}}/approve</code></pre>
+<p><b>دریافت جزئی/کامل — POST <code>/purchasing/orders/{{purchaseOrderId}}/receipts</code></b></p>
+<pre><code>{
+  "number": "GRN-DEMO-001",
+  "receivedAt": "2026-10-02T10:00:00.000Z",
+  "lines": [
+    {
+      "purchaseOrderLineId": "{{purchaseOrderLineId}}",
+      "quantity": "10.000",
+      "unitCost": "1.20"
+    }
+  ]
+}</code></pre>
+<p>برای تست دریافت جزئی ابتدا <code>quantity</code> را ۱۰ و در رسید بعدی ۱۵ بفرستید؛ سفارش باید به <code>PARTIALLY_RECEIVED</code> و سپس <code>RECEIVED</code> برسد و balance هر بار فقط به اندازه‌ی همان رسید افزایش یابد.</p>
+<pre><code>GET {{baseUrl}}/purchasing/orders?page=1&amp;pageSize=25&amp;status=PARTIALLY_RECEIVED</code></pre>
+
+<h3>Sales API — سفارش، رزرو و ارسال</h3>
+<p><b>ساخت سفارش فروش — POST <code>/sales/orders</code></b></p>
+<pre><code>{
+  "customerId": "{{customerId}}",
+  "branchId": "{{branchId}}",
+  "warehouseId": "{{warehouseId}}",
+  "currency": "AZN",
+  "lines": [
+    {
+      "productId": "{{productId}}",
+      "description": "پیچ صنعتی ۱۰ میلی‌متری",
+      "quantity": "6.000",
+      "unitPrice": "2.50",
+      "taxRate": "0.00"
+    }
+  ]
+}</code></pre>
+<p>URL: <span class="path">{{baseUrl}}/sales/orders</span>. از پاسخ <code>data.id</code> و <code>data.lines[0].id</code> را به <code>salesOrderId</code> و <code>salesOrderLineId</code> ذخیره کنید. تأیید سفارش body ندارد و باید ۶ واحد رزرو کند:</p>
+<pre><code>POST {{baseUrl}}/sales/orders/{{salesOrderId}}/confirm</code></pre>
+<p><b>ثبت ارسال — POST <code>/sales/orders/{{salesOrderId}}/shipments</code></b></p>
+<pre><code>{
+  "number": "SHP-DEMO-001",
+  "shippedAt": "2026-10-02T11:30:00.000Z",
+  "lines": [
+    { "salesOrderLineId": "{{salesOrderLineId}}", "quantity": "6.000" }
+  ]
+}</code></pre>
+<p>بعد از ارسال، <code>GET /inventory/balances</code> را چک کنید: موجودی کل و رزرو باید مطابق shipment کم شوند و یک movement منفی ثبت شود. فهرست سفارش‌های فروش:</p>
+<pre><code>GET {{baseUrl}}/sales/orders?page=1&amp;pageSize=25&amp;status=SHIPPED</code></pre>
+
+<h3>Finance API — فاکتور، پرداخت و دفتر</h3>
+<p><b>ساخت draft فاکتور از سفارش فروش — POST <code>/finance/invoices</code></b><br>سرور باید lineها و مبلغ را از سند مرجع بسازد و total ارسالی از کلاینت را نپذیرد.</p>
+<pre><code>{
+  "type": "SALES",
+  "salesOrderId": "{{salesOrderId}}",
+  "customerId": "{{customerId}}",
+  "currency": "AZN",
+  "issueDate": "2026-10-02",
+  "dueDate": "2026-11-01"
+}</code></pre>
+<p>از پاسخ <code>data.id</code> را به <code>invoiceId</code> ذخیره و فاکتور را صادر کنید؛ این endpoint body ندارد:</p>
+<pre><code>POST {{baseUrl}}/finance/invoices/{{invoiceId}}/issue</code></pre>
+<p>صدور باید status را به <code>ISSUED</code> تغییر دهد و یک Journal متوازن بسازد. برای پرداخت بخشی از فاکتور:</p>
+<pre><code>POST {{baseUrl}}/finance/payments</code></pre>
+<pre><code>{
+  "direction": "INCOMING",
+  "amount": "5.00",
+  "currency": "AZN",
+  "method": "BANK_TRANSFER",
+  "reference": "PAY-DEMO-001",
+  "allocations": [
+    { "invoiceId": "{{invoiceId}}", "amount": "5.00" }
+  ]
+}</code></pre>
+<p>برای تکمیل چرخه‌ی خرید، بعد از رسید، draft فاکتور تأمین‌کننده را از سفارش خرید بسازید (همان URL <code>POST /finance/invoices</code>):</p>
+<pre><code>{
+  "type": "PURCHASE",
+  "purchaseOrderId": "{{purchaseOrderId}}",
+  "supplierId": "{{supplierId}}",
+  "currency": "AZN",
+  "issueDate": "2026-10-02",
+  "dueDate": "2026-10-16"
+}</code></pre>
+<p>شناسه‌ی پاسخ را در <code>purchaseInvoiceId</code> ذخیره کنید، سپس صادر و بخشی از آن را پرداخت کنید:</p>
+<pre><code>POST {{baseUrl}}/finance/invoices/{{purchaseInvoiceId}}/issue
+POST {{baseUrl}}/finance/payments</code></pre>
+<pre><code>{
+  "direction": "OUTGOING",
+  "amount": "3.00",
+  "currency": "AZN",
+  "method": "BANK_TRANSFER",
+  "reference": "PAY-VENDOR-DEMO-001",
+  "allocations": [
+    { "invoiceId": "{{purchaseInvoiceId}}", "amount": "3.00" }
+  ]
+}</code></pre>
+<p>دریافت لیست فاکتورها و پرداخت‌ها:</p>
+<pre><code>GET {{baseUrl}}/finance/invoices?page=1&amp;pageSize=25
+GET {{baseUrl}}/finance/payments?page=1&amp;pageSize=25</code></pre>
+<p>تراز آزمایشی در بازه‌ی انتخابی، بدون body:</p>
+<pre><code>GET {{baseUrl}}/finance/reports/trial-balance?from=2026-10-01&amp;to=2026-10-31&amp;currency=AZN</code></pre>
+
+<h3>Reports API — گزارش‌های قابل راستی‌آزمایی</h3>
+<pre><code>GET {{baseUrl}}/reports/overview?from=2026-09-26&amp;to=2026-10-02
+GET {{baseUrl}}/reports/sales?from=2026-10-01&amp;to=2026-10-31&amp;groupBy=day
+GET {{baseUrl}}/reports/stock-valuation?warehouseId={{warehouseId}}
+GET {{baseUrl}}/reports/ar-aging?asOf=2026-10-02</code></pre>
+<p>GETها body ندارند. جمع فروش را با invoiceهای صادرشده، ارزش موجودی را با روش costing انتخاب‌شده و AR aging را با مانده‌ی فاکتورهای فروش تطبیق دهید. خروجی گزارش باید فقط داده‌های شرکت فعال را شامل شود.</p>
+<div class="callout good"><b>چک‌لیست هر API:</b> URL/HTTP method درست است؟ body طبق DTO اعتبارسنجی می‌شود؟ پاسخ موفق و خطای 400/401/403/404/409 تست شده؟ شرکت دیگر قابل دسترسی نیست؟ اجرای تکراری سند تکراری می‌سازد؟ اثر دیتابیس، audit و پاسخ API هم‌خوان‌اند؟ نتیجه را کنار test case همان endpoint ثبت کنید.</div>
+
+<h2 id="s25"><span class="step-num">25</span> فرانت‌اند کامل و چشم‌گیر با MUI</h2>
+<p>برای اینکه کد فرانت فقط چند snippet پراکنده نباشد، سورس کامل یک اپ React + TypeScript + MUI در پوشه‌ی <code>erp-frontend/</code> و آرشیو قابل دانلود قرار گرفته است. این اپ راست‌چین، responsive و دارای حالت Demo و اتصال Live به Nest API است:</p>
+<p><a href="erp-frontend.zip" download><b>⬇ دریافت سورس کامل فرانت‌اند: erp-frontend.zip</b></a></p>
+<p>ماژول‌های پیاده‌شده در UI:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>بخش</th><th>قابلیت‌های حاضر در کد</th></tr></thead>
+<tbody>
+<tr><td>Shell و navigation</td><td>سایدبار تیره‌ی گرادیانی، منوی responsive، topbar شیشه‌ای، جست‌وجو، اعلان، پروفایل و ورود/خروج</td></tr>
+<tr><td>داشبورد</td><td>KPI، نمودار روند فروش/خرید با Recharts، سفارش‌های اخیر، شاخص عملیات و هشدار کمبود</td></tr>
+<tr><td>کالا و طرف‌حساب</td><td>لیست و جست‌وجو، فرم ثبت در Dialog، وضعیت، قیمت و اطلاعات تماس</td></tr>
+<tr><td>انبار</td><td>موجودی/رزرو/قابل فروش، فیلتر کالاهای کم‌موجود و فرم اصلاح با دلیل</td></tr>
+<tr><td>فروش و خرید</td><td>فهرست سند، ساخت سفارش، تأیید، اقدام shipment/receipt و نمایش وضعیت</td></tr>
+<tr><td>مالی و گزارش</td><td>فاکتورها، مانده، پرداخت، نمودارهای مالی و کارت‌های گزارش</td></tr>
+<tr><td>RTL و design system</td><td>Emotion cache با <code>stylis-plugin-rtl</code>، فونت Vazirmatn محلی، theme MUI سفارشی، کارت‌ها و رنگ‌های هماهنگ</td></tr>
+</tbody></table></div>
+<p>اجرای سریع پروژه:</p>
+<pre><code>cd erp-frontend
+npm install
+cp .env.example .env
+npm run dev</code></pre>
+<p>دمو بدون بک‌اند پیش‌فرض است و اطلاعات نمونه را در localStorage نگه می‌دارد. برای اتصال به API واقعی در فایل <code>.env</code>:</p>
+<pre><code>VITE_API_MODE=live
+VITE_API_BASE_URL=/api/v1
+VITE_PROXY_TARGET=http://localhost:3000</code></pre>
+<p>بعد از آن <code>npm run dev</code> را اجرا کنید؛ Vite درخواست‌های <code>/api</code> را به Nest proxy می‌کند. صفحه‌ی ورود در حالت mock دمو است؛ در حالت live، endpoint واقعی <code>/auth/login</code> باید <code>accessToken</code> و کاربر را برگرداند. access token فقط در حافظه‌ی اپ نگه‌داری می‌شود.</p>
+<pre><code>erp-frontend/
+├── src/main.tsx                 # React providers + Emotion RTL + MUI
+├── src/theme.ts                 # palette، typography و component overrides
+├── src/api.ts                   # typed API client و mock/live switch
+├── src/mock.ts                  # داده‌ها و عملیات demo
+├── src/auth/AuthProvider.tsx    # login/logout و session state
+├── src/components/AppShell.tsx  # sidebar، header و layout
+└── src/pages/                   # dashboard, products, contacts, inventory,
+                                 # orders, finance, reports, settings, login</code></pre>
+<div class="callout warn"><b>مرز امنیت:</b> سورس فرانت در mock mode برای نمایش و تست UX است. در live mode هم دکمه‌ها و route guard فقط تجربه‌ی کاربری‌اند؛ اعتبار قیمت، موجودی، permission، تراکنش، tax و ثبت دفتر باید در Nest/PostgreSQL enforce شود. قبل از تحویل، <code>npm run build</code> و تست مسیرهای سفارش/انبار/مالی را اجرا کنید.</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a44315cf7a768ec9',t:'MTc5MDkzNzU4Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

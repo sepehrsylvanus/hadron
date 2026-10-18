@@ -47,3 +47,7 @@ temp/
 .local-host/
 output/migration/
 *.tmp
+
+# Nx experiment caches / generated client
+.nx/
+**/generated/prisma/

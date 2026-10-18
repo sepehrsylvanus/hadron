@@ -1,0 +1,1100 @@
+// LAB-ONLY projection. Read decisions.json before migration. Never use the main ERP database.
+
+generator client {
+  provider = "prisma-client"
+  output = "../apps/api/src/generated/prisma"
+  moduleFormat = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas = ["catalog", "engineering", "identity", "organization", "planning", "procurement", "reference_data", "trading"]
+}
+
+enum TradingTradePartiesPartyTypeEnum {
+  LEGAL_ENTITY
+  NATURAL_PERSON
+  FOREIGN_ENTITY
+  @@schema("trading")
+}
+
+enum TradingBusinessCardsStatusEnum {
+  NOT_ISSUED
+  IN_PROGRESS
+  VALID
+  EXPIRING_SOON
+  EXPIRED
+  SUSPENDED
+  REVOKED
+  @@schema("trading")
+}
+
+enum TradingTradeProjectsStatusEnum {
+  DRAFT
+  ACTIVE
+  WAITING_ORDER
+  FX_PROCESS
+  READY_TO_SHIP
+  IN_TRANSIT
+  IN_CUSTOMS
+  CLEARED
+  DELIVERED
+  CLOSED
+  CANCELLED
+  @@schema("trading")
+}
+
+enum TradingTradeProjectsCurrentStageEnum {
+  PROJECT_SETUP
+  ORDER
+  FX
+  INSURANCE
+  SHIPPING
+  CUSTOMS
+  COMMITMENT
+  COSTS
+  @@schema("trading")
+}
+
+enum TradingProjectStagesStageEnum {
+  PROJECT_SETUP
+  ORDER
+  FX
+  INSURANCE
+  SHIPPING
+  CUSTOMS
+  COMMITMENT
+  COSTS
+  @@schema("trading")
+}
+
+enum TradingProjectStagesStatusEnum {
+  NOT_STARTED
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  SKIPPED
+  CANCELLED
+  @@schema("trading")
+}
+
+enum TradingOrderRegistrationsStatusEnum {
+  DRAFT
+  SUBMITTED
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  @@schema("trading")
+}
+
+enum TradingTradeAuditEventsStageEnum {
+  PROJECT_SETUP
+  ORDER
+  FX
+  INSURANCE
+  SHIPPING
+  CUSTOMS
+  COMMITMENT
+  COSTS
+  @@schema("trading")
+}
+
+/// Source Data Map: catalog.items;
+model CatalogItems {
+  Id String @id @db.Uuid @default(uuid())
+  BaseUnitId String @db.Uuid
+  BusinessNumber String @db.VarChar(32)
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  IsActive Boolean
+  ItemType String @db.VarChar(20)
+  NameEn String? @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  Notes String? @db.VarChar(2000)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_BaseUnitId ReferenceDataUnits @relation("rel_catalog_items_BaseUnitId_9636483269", fields: [BaseUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_items_BaseUnitId_96364832_c678322ec2")
+  back_f81c0dd38edc CatalogMaterialItemProfiles? @relation("rel_catalog_material_item_profiles_ItemI_ea47c622cf")
+  back_a17a4b1481d2 CatalogProducts? @relation("rel_catalog_products_ItemId_79d4b637c2")
+  back_1f5142559d24 EngineeringBomItemApplicabilities[] @relation("rel_engineering_bom_item_applicabilities_3269ee8a15")
+  back_a524e98d197a EngineeringBomItemApplicabilities[] @relation("rel_engineering_bom_item_applicabilities_278cfe906a")
+  back_4aedfe54243b EngineeringBomLines[] @relation("rel_engineering_bom_lines_ChildItemId_d9e86d6ee7")
+  back_cab491475a72 EngineeringBomRevisions[] @relation("rel_engineering_bom_revisions_ParentItem_d9ce1de156")
+  back_f34ceb6fcf56 ProcurementSourcingOptions[] @relation("rel_procurement_sourcing_options_ItemId_56187b8779")
+  @@index([BaseUnitId], map: "ix_catalog.items_BaseUnitId_87da7331f4")
+  @@index([ItemType, IsActive], map: "ix_catalog.items_ItemType_IsActive_f4f24a65f6")
+  @@unique([BusinessNumber], map: "uq_catalog.items_BusinessNumber_b6e6acb353")
+  @@map("items")
+  @@schema("catalog")
+}
+
+/// Source Data Map: catalog.material_item_profiles;
+model CatalogMaterialItemProfiles {
+  ItemId String @id @db.Uuid
+  CategoryId String @db.Uuid
+  CriticalDays Int
+  DefaultPlanningScrapPercent Decimal @db.Decimal(5, 2)
+  ExcessStartDays Int
+  NetWeightKg Decimal? @db.Decimal(18, 6)
+  SafeStartDays Int
+  SafetyStockQty Decimal @db.Decimal(18, 6)
+  SupplyMethod String @db.VarChar(16)
+  link_ItemId CatalogItems @relation("rel_catalog_material_item_profiles_ItemI_ea47c622cf", fields: [ItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_material_item_profiles_It_0896851e08")
+  link_CategoryId ReferenceDataReferenceValues @relation("rel_catalog_material_item_profiles_Categ_2a139c62b9", fields: [CategoryId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_material_item_profiles_Ca_450b0789fd")
+  @@index([CategoryId], map: "ix_catalog.material_item_profiles_Catego_dfd399136f")
+  @@index([SupplyMethod], map: "ix_catalog.material_item_profiles_Supply_6bf7c531fe")
+  @@map("material_item_profiles")
+  @@schema("catalog")
+}
+
+/// Source Data Map: catalog.products;
+model CatalogProducts {
+  ItemId String @id @db.Uuid
+  BusinessUnitId String? @db.Uuid
+  CriticalDays Int
+  ExcessStartDays Int
+  ProductCategoryId String @db.Uuid
+  SafeStartDays Int
+  SafetyStockQty Decimal @db.Decimal(18, 6)
+  link_ItemId CatalogItems @relation("rel_catalog_products_ItemId_79d4b637c2", fields: [ItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_products_ItemId_79d4b637c_85f70e155a")
+  link_BusinessUnitId ReferenceDataReferenceValues? @relation("rel_catalog_products_BusinessUnitId_9ca503ba3d", fields: [BusinessUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_products_BusinessUnitId_9_01d6b913f0")
+  link_ProductCategoryId ReferenceDataReferenceValues @relation("rel_catalog_products_ProductCategoryId_58f284c4ca", fields: [ProductCategoryId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_catalog_products_ProductCategoryI_c184362d86")
+  @@index([BusinessUnitId], map: "ix_catalog.products_BusinessUnitId_e4ba864972")
+  @@index([ProductCategoryId], map: "ix_catalog.products_ProductCategoryId_f647dfad47")
+  @@map("products")
+  @@schema("catalog")
+}
+
+/// Source Data Map: engineering.bom_item_applicabilities;
+model EngineeringBomItemApplicabilities {
+  Id String @id @db.Uuid @default(uuid())
+  ChildItemId String @db.Uuid
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  IsActive Boolean
+  ParentItemId String @db.Uuid
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_ChildItemId CatalogItems @relation("rel_engineering_bom_item_applicabilities_3269ee8a15", fields: [ChildItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_item_applicabilit_40a3f7568e")
+  link_ParentItemId CatalogItems @relation("rel_engineering_bom_item_applicabilities_278cfe906a", fields: [ParentItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_item_applicabilit_98d956ed05")
+  @@index([ChildItemId, IsActive], map: "ix_engineering.bom_item_applicabilities__ccf51cc9ba")
+  @@index([ParentItemId, IsActive], map: "ix_engineering.bom_item_applicabilities__6162db1e88")
+  @@unique([ParentItemId, ChildItemId], map: "uq_engineering.bom_item_applicabilities__1cd3c841b9")
+  @@map("bom_item_applicabilities")
+  @@schema("engineering")
+}
+
+/// Source Data Map: engineering.bom_lines;
+model EngineeringBomLines {
+  Id String @id @db.Uuid @default(uuid())
+  BomRevisionId String @db.Uuid
+  ChildBaseUnitId String @db.Uuid
+  ChildItemId String @db.Uuid
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  ScrapOverridePercent Decimal? @db.Decimal(5, 2)
+  SortOrder Int
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  UsageQty Decimal @db.Decimal(18, 6)
+  link_BomRevisionId EngineeringBomRevisions @relation("rel_engineering_bom_lines_BomRevisionId_e41e0f8903", fields: [BomRevisionId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_lines_BomRevision_88570b1b6b")
+  link_ChildBaseUnitId ReferenceDataUnits @relation("rel_engineering_bom_lines_ChildBaseUnitI_cca95159d0", fields: [ChildBaseUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_lines_ChildBaseUn_75da257808")
+  link_ChildItemId CatalogItems @relation("rel_engineering_bom_lines_ChildItemId_d9e86d6ee7", fields: [ChildItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_lines_ChildItemId_8599dc80f5")
+  @@index([ChildBaseUnitId], map: "ix_engineering.bom_lines_ChildBaseUnitId_63b7937ebc")
+  @@index([ChildItemId], map: "ix_engineering.bom_lines_ChildItemId_25ffa0dced")
+  @@unique([BomRevisionId, ChildItemId], map: "uq_engineering.bom_lines_BomRevisionId_C_4ec2da3410")
+  @@map("bom_lines")
+  @@schema("engineering")
+}
+
+/// Source Data Map: engineering.bom_revisions;
+model EngineeringBomRevisions {
+  Id String @id @db.Uuid @default(uuid())
+  ApprovedAtUtc DateTime? @db.Timestamptz(6)
+  ApprovedByActorId String? @db.VarChar(200)
+  BaseOutputQty Decimal @db.Decimal(18, 6)
+  CopiedFromRevisionId String? @db.Uuid
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  LegacyEffectiveFrom DateTime? @db.Date
+  LegacyEffectiveTo DateTime? @db.Date
+  ObsoletedAtUtc DateTime? @db.Timestamptz(6)
+  ObsoletedByActorId String? @db.VarChar(200)
+  ParentBaseUnitId String @db.Uuid
+  ParentItemId String @db.Uuid
+  RevisionCode String @db.VarChar(32)
+  RevisionNotes String? @db.VarChar(2000)
+  Status String @db.VarChar(16)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_CopiedFromRevisionId EngineeringBomRevisions? @relation("rel_engineering_bom_revisions_CopiedFrom_69a394ae4c", fields: [CopiedFromRevisionId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_revisions_CopiedF_84ffaddbcc")
+  link_ParentBaseUnitId ReferenceDataUnits @relation("rel_engineering_bom_revisions_ParentBase_9e54b2d317", fields: [ParentBaseUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_revisions_ParentB_ee9ad21cfe")
+  link_ParentItemId CatalogItems @relation("rel_engineering_bom_revisions_ParentItem_d9ce1de156", fields: [ParentItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_engineering_bom_revisions_ParentI_87d8a06407")
+  back_0a17db5bcbcf EngineeringBomLines[] @relation("rel_engineering_bom_lines_BomRevisionId_e41e0f8903")
+  back_155d439c73ea EngineeringBomRevisions[] @relation("rel_engineering_bom_revisions_CopiedFrom_69a394ae4c")
+  @@index([CopiedFromRevisionId], map: "ix_engineering.bom_revisions_CopiedFromR_9697ae57f3")
+  @@index([ParentBaseUnitId], map: "ix_engineering.bom_revisions_ParentBaseU_ea70e88696")
+  @@index([ParentItemId, Status], map: "ix_engineering.bom_revisions_ParentItemI_4f04d7d7bc")
+  @@unique([RevisionCode], map: "uq_engineering.bom_revisions_RevisionCod_62e2ebc52d")
+  @@map("bom_revisions")
+  @@schema("engineering")
+}
+
+/// Source Data Map: identity.users;
+model IdentityUsers {
+  Id String @id @db.Uuid @default(uuid())
+  AccessFailedCount Int
+  AccessVersion BigInt
+  ConcurrencyStamp String? @db.Text
+  CreatedAtUtc DateTime @db.Timestamptz(6)
+  Email String @db.VarChar(256)
+  EmailConfirmed Boolean
+  FirstName String @db.VarChar(100)
+  IsActive Boolean
+  LastName String @db.VarChar(100)
+  LockoutEnabled Boolean
+  LockoutEnd DateTime? @db.Timestamptz(6)
+  MustChangePassword Boolean
+  NormalizedEmail String @db.VarChar(256)
+  NormalizedUserName String? @db.VarChar(256)
+  OrganizationalUnitId String @db.Uuid
+  PasswordHash String? @db.Text
+  PhoneNumber String @db.VarChar(32)
+  PhoneNumberConfirmed Boolean
+  ProfilePhotoContentType String? @db.VarChar(100)
+  ProfilePhotoObjectKey String? @db.VarChar(500)
+  ProfilePhotoSha256 String? @db.VarChar(64)
+  ProfilePhotoSize BigInt?
+  SecurityStamp String? @db.Text
+  TwoFactorEnabled Boolean
+  UpdatedAtUtc DateTime @db.Timestamptz(6)
+  UserName String? @db.VarChar(256)
+  link_OrganizationalUnitId OrganizationOrganizationalUnits @relation("rel_identity_users_OrganizationalUnitId_bc8093598c", fields: [OrganizationalUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_identity_users_OrganizationalUnit_6ba96cccac")
+  back_bd53194d6b0e PlanningPlannerWorkItemEvents[] @relation("rel_planning_planner_work_item_events_As_e602c7e5bb")
+  back_762abae7fbe9 PlanningPlannerWorkItems[] @relation("rel_planning_planner_work_items_Acknowle_ebc6891d41")
+  back_1d0a2fa3ac81 PlanningPlannerWorkItems[] @relation("rel_planning_planner_work_items_Assigned_cc5fc94552")
+  back_13456fa112e2 TradingTradeParties[] @relation("rel_trading_trade_parties_createdByUserI_bf281873d0")
+  back_6b0f283424f3 TradingTradeParties[] @relation("rel_trading_trade_parties_updatedByUserI_dbeaee49c5")
+  back_393c42069dc8 TradingTradeProjects[] @relation("rel_trading_trade_projects_responsibleUs_46a790b52e")
+  back_d943e9778dac TradingTradeProjects[] @relation("rel_trading_trade_projects_closedByUserI_b1b1f9f156")
+  back_f4cb22b71572 TradingTradeProjects[] @relation("rel_trading_trade_projects_createdByUser_f138f614d5")
+  back_3f03354c3ac1 TradingTradeProjects[] @relation("rel_trading_trade_projects_updatedByUser_c75cb1ad0e")
+  back_426a87f01002 TradingProjectStages[] @relation("rel_trading_project_stages_responsibleUs_72a1fc12db")
+  back_876442f87272 TradingProjectStages[] @relation("rel_trading_project_stages_updatedByUser_5513969841")
+  back_35d4303dca92 TradingOrderRegistrations[] @relation("rel_trading_order_registrations_responsi_fc74803dbe")
+  back_2f4ae24f2e0b TradingOrderRegistrations[] @relation("rel_trading_order_registrations_createdB_0979f1345a")
+  back_96d399573f38 TradingTradeAuditEvents[] @relation("rel_trading_trade_audit_events_actorUser_6d1c7aaece")
+  @@index([OrganizationalUnitId], map: "ix_identity.users_OrganizationalUnitId_cf4fb9acbc")
+  @@unique([NormalizedEmail], map: "uq_identity.users_NormalizedEmail_1ba588cd36")
+  @@unique([NormalizedUserName], map: "uq_identity.users_NormalizedUserName_fec3c9ac0a")
+  @@map("users")
+  @@schema("identity")
+}
+
+/// Source Data Map: organization.internal_people;
+model OrganizationInternalPeople {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  DisplayNameEn String? @db.VarChar(200)
+  DisplayNameFa String @db.VarChar(200)
+  IsActive Boolean
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  back_7f59c7f29f87 ProcurementSuppliers[] @relation("rel_procurement_suppliers_OwnerId_c752034aca")
+  @@index([IsActive, DisplayNameFa], map: "ix_organization.internal_people_IsActive_0c8fe2d995")
+  @@map("internal_people")
+  @@schema("organization")
+}
+
+/// Source Data Map: organization.organizational_units;
+model OrganizationOrganizationalUnits {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6)
+  IsActive Boolean
+  NameEn String? @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  UpdatedAtUtc DateTime @db.Timestamptz(6)
+  Version BigInt @default(1)
+  back_87599c00e4d8 IdentityUsers[] @relation("rel_identity_users_OrganizationalUnitId_bc8093598c")
+  @@map("organizational_units")
+  @@schema("organization")
+}
+
+/// Source Data Map: planning.mrp_run_bom_inputs;
+model PlanningMrpRunBomInputs {
+  Id String @id @db.Uuid @default(uuid())
+  BaseOutputQty Decimal @db.Decimal(28, 12)
+  ChildBaseUnitId String @db.Uuid
+  ChildItemId String @db.Uuid
+  EffectiveFrom DateTime @db.Date
+  EffectiveTo DateTime? @db.Date
+  LineId String @db.Uuid
+  ParentBaseUnitId String @db.Uuid
+  ParentItemId String @db.Uuid
+  RevisionCode String @db.VarChar(32)
+  RevisionId String @db.Uuid
+  RunId String @db.Uuid
+  ScrapOverridePercent Decimal? @db.Decimal(28, 12)
+  UsageQty Decimal @db.Decimal(28, 12)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_bom_inputs_RunId_76d1ee3e8b", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_bom_inputs_RunId_7a8375607f")
+  @@index([RunId, ParentItemId, EffectiveFrom, EffectiveTo], map: "ix_planning.mrp_run_bom_inputs_RunId_Par_04b37fb59b")
+  @@unique([RunId, RevisionId, LineId], map: "uq_planning.mrp_run_bom_inputs_RunId_Rev_c29bfe2202")
+  @@map("mrp_run_bom_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_daily_results;
+model PlanningMrpRunDailyResults {
+  Id String @id @db.Uuid @default(uuid())
+  Completeness String @db.VarChar(40)
+  Date DateTime @db.Date
+  FirmIncoming Decimal @db.Decimal(28, 12)
+  FirmProjected Decimal @db.Decimal(28, 12)
+  GrossDemand Decimal @db.Decimal(28, 12)
+  IsRootProduct Boolean
+  ItemId String @db.Uuid
+  NetRequirement Decimal @db.Decimal(28, 12)
+  PlanningBalance Decimal @db.Decimal(28, 12)
+  PlanningBeforeNeed Decimal @db.Decimal(28, 12)
+  RunId String @db.Uuid
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_daily_results_RunId_61ed3f4b5b", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_daily_results_Ru_f0c3278f6a")
+  @@unique([RunId, ItemId, Date], map: "uq_planning.mrp_run_daily_results_RunId__35a48b2382")
+  @@map("mrp_run_daily_results")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_demand_traces;
+model PlanningMrpRunDemandTraces {
+  Id String @id @db.Uuid @default(uuid())
+  BaseRequirement Decimal @db.Decimal(28, 12)
+  BomLineId String? @db.Uuid
+  BomRevisionId String? @db.Uuid
+  ChildGrossRequirement Decimal @db.Decimal(28, 12)
+  ChildItemId String @db.Uuid
+  Date DateTime @db.Date
+  ParentDemandDate DateTime @db.Date
+  ParentItemId String @db.Uuid
+  ParentNetRequirement Decimal @db.Decimal(28, 12)
+  RunId String @db.Uuid
+  ScrapPercent Decimal @db.Decimal(28, 12)
+  ScrapSource String @db.VarChar(30)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_demand_traces_RunId_9cddd9dd93", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_demand_traces_Ru_4d9e0b5c9c")
+  @@index([RunId, ChildItemId, Date], map: "ix_planning.mrp_run_demand_traces_RunId__c5484d6f81")
+  @@map("mrp_run_demand_traces")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_exceptions;
+model PlanningMrpRunExceptions {
+  Id String @id @db.Uuid @default(uuid())
+  AffectsDemand Boolean
+  Code String @db.VarChar(100)
+  Date DateTime? @db.Date
+  ItemId String? @db.Uuid
+  Message String @db.VarChar(1000)
+  RunId String @db.Uuid
+  Severity String @db.VarChar(20)
+  SourceReference String? @db.VarChar(300)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_exceptions_RunId_006858f460", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_exceptions_RunId_fcc6bf69fb")
+  back_73db36bb34d4 PlanningPlannerWorkItems[] @relation("rel_planning_planner_work_items_Exceptio_65f2de5cf3")
+  @@index([RunId, ItemId, Date], map: "ix_planning.mrp_run_exceptions_RunId_Ite_d9f6b189e6")
+  @@map("mrp_run_exceptions")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_external_source_inputs;
+model PlanningMrpRunExternalSourceInputs {
+  Id String @id @db.Uuid @default(uuid())
+  AllLeadStagesAreSet Boolean
+  CurrencyIsActive Boolean?
+  EffectiveFrom DateTime? @db.Date
+  EffectiveTo DateTime? @db.Date
+  IncotermIsValid Boolean
+  ItemBaseUnitId String @db.Uuid
+  ItemId String @db.Uuid
+  ItemIsActive Boolean
+  MinimumOrderQuantityIsSet Boolean
+  OptionIsActive Boolean
+  PriceId String? @db.Uuid
+  RunId String @db.Uuid
+  ShippingModeIsActive Boolean
+  SourcingOptionId String @db.Uuid
+  SupplierIsActive Boolean
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_external_source_inp_c818ca0007", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_external_source__1adcece97c")
+  @@index([RunId, ItemId], map: "ix_planning.mrp_run_external_source_inpu_8afbcc478f")
+  @@unique([RunId, SourcingOptionId, PriceId], map: "uq_planning.mrp_run_external_source_inpu_fbc4845c5f")
+  @@map("mrp_run_external_source_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_firm_supply_inputs;
+model PlanningMrpRunFirmSupplyInputs {
+  Id String @id @db.Uuid @default(uuid())
+  DeliveryScheduleId String @db.Uuid
+  Eta DateTime? @db.Date
+  EtaSource String @db.VarChar(64)
+  EtaStatus String @db.VarChar(20)
+  ItemId String @db.Uuid
+  OpenQty Decimal @db.Decimal(28, 12)
+  PurchaseOrderId String @db.Uuid
+  PurchaseOrderLineId String @db.Uuid
+  PurchaseOrderNumber String @db.VarChar(32)
+  PurchaseOrderStatus String @db.VarChar(32)
+  RunId String @db.Uuid
+  SupplierId String? @db.Uuid
+  SupplierNameEn String? @db.VarChar(200)
+  SupplierNameFa String? @db.VarChar(200)
+  SupplierNumber String? @db.VarChar(32)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_firm_supply_inputs__e1a5d93ee2", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_firm_supply_inpu_834578a149")
+  @@index([RunId, ItemId, Eta], map: "ix_planning.mrp_run_firm_supply_inputs_R_c48d1fc135")
+  @@unique([RunId, DeliveryScheduleId], map: "uq_planning.mrp_run_firm_supply_inputs_R_ae89b977e6")
+  @@map("mrp_run_firm_supply_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_forecast_inputs;
+model PlanningMrpRunForecastInputs {
+  Id String @id @db.Uuid @default(uuid())
+  ActualMtd Decimal @db.Decimal(28, 12)
+  BusinessPeriodId String @db.Uuid
+  DemandDate DateTime @db.Date
+  DemandQty Decimal @db.Decimal(28, 12)
+  ForecastRevisionId String @db.Uuid
+  ForecastSeriesId String @db.Uuid
+  PeriodForecastQty Decimal @db.Decimal(28, 12)
+  ProductId String @db.Uuid
+  RunId String @db.Uuid
+  UnitId String @db.Uuid
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_forecast_inputs_Run_eb1c8e9117", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_forecast_inputs__ef91cb832e")
+  @@index([RunId, BusinessPeriodId], map: "ix_planning.mrp_run_forecast_inputs_RunI_94ec508ed1")
+  @@unique([RunId, ProductId, DemandDate], map: "uq_planning.mrp_run_forecast_inputs_RunI_20ed792654")
+  @@map("mrp_run_forecast_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_forecast_period_inputs;
+model PlanningMrpRunForecastPeriodInputs {
+  Id String @id @db.Uuid @default(uuid())
+  ActualMtdQty Decimal @db.Decimal(28, 12)
+  AllocationState String @db.VarChar(60)
+  BusinessPeriodId String @db.Uuid
+  EligibleAllocationStart DateTime @db.Date
+  ExceptionCode String? @db.VarChar(100)
+  ForecastRevisionId String? @db.Uuid
+  ForecastSeriesId String? @db.Uuid
+  OfficialForecastQty Decimal? @db.Decimal(28, 12)
+  PeriodEndDate DateTime @db.Date
+  PeriodStartDate DateTime @db.Date
+  ProductBaseUnitId String @db.Uuid
+  ProductId String @db.Uuid
+  RemainingForecastQty Decimal? @db.Decimal(28, 12)
+  RunId String @db.Uuid
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_forecast_period_inp_5879147550", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_forecast_period__60f3662946")
+  @@index([RunId, PeriodStartDate, PeriodEndDate], map: "ix_planning.mrp_run_forecast_period_inpu_eb1f421829")
+  @@unique([RunId, ProductId, BusinessPeriodId], map: "uq_planning.mrp_run_forecast_period_inpu_98d699df8e")
+  @@map("mrp_run_forecast_period_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_inventory_inputs;
+model PlanningMrpRunInventoryInputs {
+  Id String @id @db.Uuid @default(uuid())
+  ItemId String @db.Uuid
+  OnHandQty Decimal @db.Decimal(28, 12)
+  RunId String @db.Uuid
+  UnitId String @db.Uuid
+  WarehouseCode String @db.VarChar(32)
+  WarehouseId String @db.Uuid
+  WarehouseIsActive Boolean
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_inventory_inputs_Ru_f411900025", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_inventory_inputs_d052e1e056")
+  @@unique([RunId, ItemId, WarehouseId], map: "uq_planning.mrp_run_inventory_inputs_Run_277fe4d63f")
+  @@map("mrp_run_inventory_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_item_inputs;
+model PlanningMrpRunItemInputs {
+  Id String @id @db.Uuid @default(uuid())
+  BaseUnitId String @db.Uuid
+  CategoryCode String? @db.VarChar(50)
+  CategoryId String? @db.Uuid
+  CategoryNameEn String? @db.VarChar(200)
+  CategoryNameFa String? @db.VarChar(200)
+  CriticalDays Int?
+  DefaultScrapPercent Decimal @db.Decimal(28, 12)
+  ExcessStartDays Int?
+  IsActive Boolean
+  ItemCode String @db.VarChar(32)
+  ItemId String @db.Uuid
+  ItemType String @db.VarChar(20)
+  NameEn String? @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  RunId String @db.Uuid
+  SafeStartDays Int?
+  SafetyStockQty Decimal @db.Decimal(28, 12)
+  SupplyMethod String? @db.VarChar(20)
+  UnitCode String @db.VarChar(50)
+  UnitNameEn String? @db.VarChar(200)
+  UnitNameFa String @db.VarChar(200)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_item_inputs_RunId_c69bad5ccd", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_item_inputs_RunI_9e3b660a22")
+  @@unique([RunId, ItemId], map: "uq_planning.mrp_run_item_inputs_RunId_It_cd329bf9cd")
+  @@map("mrp_run_item_inputs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_run_item_summaries;
+model PlanningMrpRunItemSummaries {
+  Id String @id @db.Uuid @default(uuid())
+  Completeness String @db.VarChar(40)
+  FirmCoverageDate DateTime? @db.Date
+  FirmCoverageDays Int?
+  FirmCoverageState String? @db.VarChar(40)
+  ItemId String @db.Uuid
+  MissingEtaFirmQty Decimal @db.Decimal(28, 12)
+  OverdueFirmQty Decimal @db.Decimal(28, 12)
+  RunId String @db.Uuid
+  SafetyBreachDate DateTime? @db.Date
+  StartingOnHand Decimal @db.Decimal(28, 12)
+  StockCoverageDate DateTime? @db.Date
+  StockCoverageDays Int?
+  StockCoverageState String? @db.VarChar(40)
+  StockoutDate DateTime? @db.Date
+  TotalFirmIncoming Decimal @db.Decimal(28, 12)
+  TotalGrossDemand Decimal @db.Decimal(28, 12)
+  TotalNetRequirement Decimal @db.Decimal(28, 12)
+  link_RunId PlanningMrpRuns @relation("rel_planning_mrp_run_item_summaries_RunI_4dbb07d87e", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_mrp_run_item_summaries_R_45feb7af58")
+  @@unique([RunId, ItemId], map: "uq_planning.mrp_run_item_summaries_RunId_7463fe5452")
+  @@map("mrp_run_item_summaries")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.mrp_runs;
+model PlanningMrpRuns {
+  Id String @id @db.Uuid @default(uuid())
+  ActorIdentifier String? @db.VarChar(200)
+  AsOfDate DateTime @db.Date
+  Assumptions String @db.VarChar(1000)
+  CompletedAtUtc DateTime? @db.Timestamptz(6)
+  Completeness String @db.VarChar(40)
+  EngineVersion String @db.VarChar(64)
+  FailureCode String? @db.VarChar(100)
+  FailureMessage String? @db.VarChar(2000)
+  HorizonEndDate DateTime @db.Date
+  Purpose String @db.VarChar(20)
+  RunNumber String @db.VarChar(40)
+  SnapshotCapturedAtUtc DateTime? @db.Timestamptz(6)
+  StartedAtUtc DateTime @db.Timestamptz(6)
+  Status String @db.VarChar(40)
+  back_1f8561be9a35 PlanningMrpRunBomInputs[] @relation("rel_planning_mrp_run_bom_inputs_RunId_76d1ee3e8b")
+  back_ccde884e4115 PlanningMrpRunDailyResults[] @relation("rel_planning_mrp_run_daily_results_RunId_61ed3f4b5b")
+  back_c805d29aa352 PlanningMrpRunDemandTraces[] @relation("rel_planning_mrp_run_demand_traces_RunId_9cddd9dd93")
+  back_203155b06d7b PlanningMrpRunExceptions[] @relation("rel_planning_mrp_run_exceptions_RunId_006858f460")
+  back_14e13293b5de PlanningMrpRunExternalSourceInputs[] @relation("rel_planning_mrp_run_external_source_inp_c818ca0007")
+  back_555157eee9e1 PlanningMrpRunFirmSupplyInputs[] @relation("rel_planning_mrp_run_firm_supply_inputs__e1a5d93ee2")
+  back_b051f31e255b PlanningMrpRunForecastInputs[] @relation("rel_planning_mrp_run_forecast_inputs_Run_eb1c8e9117")
+  back_2c42cc14de36 PlanningMrpRunForecastPeriodInputs[] @relation("rel_planning_mrp_run_forecast_period_inp_5879147550")
+  back_3e9142d37925 PlanningMrpRunInventoryInputs[] @relation("rel_planning_mrp_run_inventory_inputs_Ru_f411900025")
+  back_e021b5bb3198 PlanningMrpRunItemInputs[] @relation("rel_planning_mrp_run_item_inputs_RunId_c69bad5ccd")
+  back_a6c097848d09 PlanningMrpRunItemSummaries[] @relation("rel_planning_mrp_run_item_summaries_RunI_4dbb07d87e")
+  back_bd4552e287a6 PlanningPlannerWorkItems[] @relation("rel_planning_planner_work_items_RunId_b6293e587c")
+  @@index([AsOfDate, StartedAtUtc], map: "ix_planning.mrp_runs_AsOfDate_StartedAtU_b6a08a7a00")
+  @@unique([RunNumber], map: "uq_planning.mrp_runs_RunNumber_f9a7773a5e")
+  @@map("mrp_runs")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.planner_saved_views;
+model PlanningPlannerSavedViews {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6)
+  FiltersJson Json @db.JsonB
+  Name String @db.VarChar(120)
+  NormalizedName String @db.VarChar(120)
+  OwnerIdentifier String @db.VarChar(200)
+  UpdatedAtUtc DateTime @db.Timestamptz(6)
+  Version BigInt @default(1)
+  @@unique([OwnerIdentifier, NormalizedName], map: "uq_planning.planner_saved_views_OwnerIde_3aac6d9e25")
+  @@map("planner_saved_views")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.planner_work_item_events;
+model PlanningPlannerWorkItemEvents {
+  Id String @id @db.Uuid @default(uuid())
+  ActorIdentifier String @db.VarChar(200)
+  AssignedUserId String? @db.Uuid
+  EventType String @db.VarChar(32)
+  OccurredAtUtc DateTime @db.Timestamptz(6)
+  WorkItemId String @db.Uuid
+  link_AssignedUserId IdentityUsers? @relation("rel_planning_planner_work_item_events_As_e602c7e5bb", fields: [AssignedUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_item_events_9fa1cb23b5")
+  link_WorkItemId PlanningPlannerWorkItems @relation("rel_planning_planner_work_item_events_Wo_f7bc4472da", fields: [WorkItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_item_events_e8fb250fdb")
+  @@index([AssignedUserId], map: "ix_planning.planner_work_item_events_Ass_fde14573ff")
+  @@index([WorkItemId, OccurredAtUtc], map: "ix_planning.planner_work_item_events_Wor_263f674cc2")
+  @@map("planner_work_item_events")
+  @@schema("planning")
+}
+
+/// Source Data Map: planning.planner_work_items;
+model PlanningPlannerWorkItems {
+  Id String @id @db.Uuid @default(uuid())
+  AcknowledgedAtUtc DateTime? @db.Timestamptz(6)
+  AcknowledgedByUserId String? @db.Uuid
+  AssignedUserId String? @db.Uuid
+  CreatedAtUtc DateTime @db.Timestamptz(6)
+  CreatedByIdentifier String @db.VarChar(200)
+  ExceptionId String @db.Uuid
+  RunId String @db.Uuid
+  Status String @db.VarChar(24)
+  UpdatedAtUtc DateTime @db.Timestamptz(6)
+  Version BigInt @default(1)
+  link_AcknowledgedByUserId IdentityUsers? @relation("rel_planning_planner_work_items_Acknowle_ebc6891d41", fields: [AcknowledgedByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_items_Ackno_5fd7e59cb5")
+  link_AssignedUserId IdentityUsers? @relation("rel_planning_planner_work_items_Assigned_cc5fc94552", fields: [AssignedUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_items_Assig_0016e18d19")
+  link_ExceptionId PlanningMrpRunExceptions @relation("rel_planning_planner_work_items_Exceptio_65f2de5cf3", fields: [ExceptionId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_items_Excep_ead6addc8f")
+  link_RunId PlanningMrpRuns @relation("rel_planning_planner_work_items_RunId_b6293e587c", fields: [RunId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_planning_planner_work_items_RunId_72a102c150")
+  back_9d32e8f8bc30 PlanningPlannerWorkItemEvents[] @relation("rel_planning_planner_work_item_events_Wo_f7bc4472da")
+  @@index([AcknowledgedByUserId], map: "ix_planning.planner_work_items_Acknowled_f62360ea0d")
+  @@index([AssignedUserId], map: "ix_planning.planner_work_items_AssignedU_8648034a43")
+  @@index([RunId], map: "ix_planning.planner_work_items_RunId_4b5a88fcc8")
+  @@index([Status, AssignedUserId, UpdatedAtUtc], map: "ix_planning.planner_work_items_Status_As_7b6a7672dc")
+  @@unique([ExceptionId], map: "uq_planning.planner_work_items_Exception_d75a0cb74b")
+  @@map("planner_work_items")
+  @@schema("planning")
+}
+
+/// Source Data Map: procurement.sourcing_options;
+model ProcurementSourcingOptions {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  DestinationCustomsDays Int?
+  ForwarderToShipmentDays Int?
+  IncotermId String? @db.Uuid
+  IsActive Boolean
+  IsPreferred Boolean
+  ItemBaseUnitId String @db.Uuid
+  ItemId String @db.Uuid
+  MinimumOrderQuantity Decimal? @db.Decimal(18, 6)
+  RouteScope String @db.VarChar(16)
+  ShippingModeId String? @db.Uuid
+  ShippingPeriodDays Int?
+  SourcingNumber String @db.VarChar(32)
+  SupplierId String @db.Uuid
+  SupplierLeadTimeDays Int?
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_IncotermId ReferenceDataReferenceValues? @relation("rel_procurement_sourcing_options_Incoter_a49f20af58", fields: [IncotermId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_options_Inco_8d5ba9fc01")
+  link_ItemBaseUnitId ReferenceDataUnits @relation("rel_procurement_sourcing_options_ItemBas_a84f8dfaef", fields: [ItemBaseUnitId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_options_Item_4e7e39db12")
+  link_ItemId CatalogItems @relation("rel_procurement_sourcing_options_ItemId_56187b8779", fields: [ItemId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_options_Item_0cf2369d81")
+  link_ShippingModeId ReferenceDataReferenceValues? @relation("rel_procurement_sourcing_options_Shippin_cc9f2aba6d", fields: [ShippingModeId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_options_Ship_767fece763")
+  link_SupplierId ProcurementSuppliers @relation("rel_procurement_sourcing_options_Supplie_700f1567c9", fields: [SupplierId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_options_Supp_63a003943b")
+  back_db744353a463 ProcurementSourcingPrices[] @relation("rel_procurement_sourcing_prices_Sourcing_2b8a1a90b7")
+  @@index([IncotermId], map: "ix_procurement.sourcing_options_Incoterm_0404cd8ec6")
+  @@index([ItemBaseUnitId], map: "ix_procurement.sourcing_options_ItemBase_2aa5f49acc")
+  @@index([ShippingModeId], map: "ix_procurement.sourcing_options_Shipping_dc6af02175")
+  @@index([ItemId, IsActive], map: "ix_procurement.sourcing_options_ItemId_I_2a232e8aa4")
+  @@index([SupplierId, IsActive], map: "ix_procurement.sourcing_options_Supplier_008f6ec661")
+  @@unique([SourcingNumber], map: "uq_procurement.sourcing_options_Sourcing_2b5d6f4fea")
+  @@map("sourcing_options")
+  @@schema("procurement")
+}
+
+/// Source Data Map: procurement.sourcing_prices;
+model ProcurementSourcingPrices {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  CurrencyId String @db.Uuid
+  EffectiveFrom DateTime @db.Date
+  EffectiveTo DateTime? @db.Date
+  SourcingOptionId String @db.Uuid
+  UnitPrice Decimal @db.Decimal(18, 6)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  link_CurrencyId ReferenceDataCurrencies @relation("rel_procurement_sourcing_prices_Currency_6ffd13d7fe", fields: [CurrencyId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_prices_Curre_0d56d2e5d9")
+  link_SourcingOptionId ProcurementSourcingOptions @relation("rel_procurement_sourcing_prices_Sourcing_2b8a1a90b7", fields: [SourcingOptionId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_sourcing_prices_Sourc_25a53bfae7")
+  @@index([CurrencyId], map: "ix_procurement.sourcing_prices_CurrencyI_7dfbc41ba5")
+  @@index([SourcingOptionId, EffectiveFrom, EffectiveTo], map: "ix_procurement.sourcing_prices_SourcingO_c5676dc188")
+  @@map("sourcing_prices")
+  @@schema("procurement")
+}
+
+/// Source Data Map: procurement.supplier_contacts;
+model ProcurementSupplierContacts {
+  Id String @id @db.Uuid @default(uuid())
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Email String? @db.VarChar(254)
+  FullName String @db.VarChar(200)
+  IsActive Boolean
+  IsPrimary Boolean
+  JobTitle String? @db.VarChar(150)
+  Mobile String? @db.VarChar(50)
+  Phone String? @db.VarChar(50)
+  SupplierId String @db.Uuid
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  link_SupplierId ProcurementSuppliers @relation("rel_procurement_supplier_contacts_Suppli_9f93afdaba", fields: [SupplierId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_supplier_contacts_Sup_65883e8f9d")
+  @@map("supplier_contacts")
+  @@schema("procurement")
+}
+
+/// Source Data Map: procurement.supplier_payment_profiles;
+model ProcurementSupplierPaymentProfiles {
+  SupplierId String @id @db.Uuid
+  AdvancePercent Decimal @db.Decimal(5, 2)
+  BeforeShipmentPercent Decimal @db.Decimal(5, 2)
+  CreditAnchor String? @db.VarChar(32)
+  CreditDays Int?
+  CreditPercent Decimal @db.Decimal(5, 2)
+  PaymentTermId String? @db.Uuid
+  link_SupplierId ProcurementSuppliers @relation("rel_procurement_supplier_payment_profile_a7d5dadad0", fields: [SupplierId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_supplier_payment_prof_b2fba3ae11")
+  link_PaymentTermId ReferenceDataReferenceValues? @relation("rel_procurement_supplier_payment_profile_df874c707d", fields: [PaymentTermId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_supplier_payment_prof_06f6cf0cf9")
+  @@index([PaymentTermId], map: "ix_procurement.supplier_payment_profiles_c03e3953be")
+  @@map("supplier_payment_profiles")
+  @@schema("procurement")
+}
+
+/// Source Data Map: procurement.suppliers;
+model ProcurementSuppliers {
+  Id String @id @db.Uuid @default(uuid())
+  CountryId String @db.Uuid
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  ExpertLeadTimeScore Int?
+  ExpertQualityScore Int?
+  IsActive Boolean
+  Name String @db.VarChar(200)
+  NormalizedName String @db.VarChar(200)
+  Notes String? @db.VarChar(2000)
+  OwnerId String? @db.Uuid
+  SupplierNumber String @db.VarChar(32)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_CountryId ReferenceDataCountries @relation("rel_procurement_suppliers_CountryId_5d857b29f9", fields: [CountryId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_suppliers_CountryId_5_0091d789b8")
+  link_OwnerId OrganizationInternalPeople? @relation("rel_procurement_suppliers_OwnerId_c752034aca", fields: [OwnerId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_procurement_suppliers_OwnerId_c75_7bed62101d")
+  back_44d669825992 ProcurementSourcingOptions[] @relation("rel_procurement_sourcing_options_Supplie_700f1567c9")
+  back_6a9016265f50 ProcurementSupplierContacts[] @relation("rel_procurement_supplier_contacts_Suppli_9f93afdaba")
+  back_43ccb0ed529c ProcurementSupplierPaymentProfiles? @relation("rel_procurement_supplier_payment_profile_a7d5dadad0")
+  @@index([CountryId], map: "ix_procurement.suppliers_CountryId_ef9fad8d61")
+  @@index([NormalizedName], map: "ix_procurement.suppliers_NormalizedName_670a38e830")
+  @@index([OwnerId], map: "ix_procurement.suppliers_OwnerId_c2c57715a6")
+  @@index([IsActive, Name], map: "ix_procurement.suppliers_IsActive_Name_cfeaf5338d")
+  @@unique([SupplierNumber], map: "uq_procurement.suppliers_SupplierNumber_6d20e56d12")
+  @@map("suppliers")
+  @@schema("procurement")
+}
+
+/// Source Data Map: reference_data.currencies;
+model ReferenceDataCurrencies {
+  Id String @id @db.Uuid @default(uuid())
+  Code String @db.VarChar(3)
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  DecimalPrecision Int
+  IsActive Boolean
+  NameEn String @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  NormalizedCode String @db.VarChar(3)
+  Symbol String? @db.VarChar(20)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  back_1849e296dfe1 ProcurementSourcingPrices[] @relation("rel_procurement_sourcing_prices_Currency_6ffd13d7fe")
+  back_8bb9b8b03bb7 TradingBusinessCards[] @relation("rel_trading_business_cards_currencyId_86cae7e4e6")
+  back_e21e592a5c1f TradingOrderRegistrations[] @relation("rel_trading_order_registrations_currency_8eccbf6c62")
+  @@index([IsActive], map: "ix_reference_data.currencies_IsActive_15c51ca467")
+  @@unique([NormalizedCode], map: "uq_reference_data.currencies_NormalizedC_2b706f8af2")
+  @@map("currencies")
+  @@schema("reference_data")
+}
+
+/// Source Data Map: reference_data.reference_types;
+model ReferenceDataReferenceTypes {
+  Id String @id @db.Uuid @default(uuid())
+  Code String @db.VarChar(50)
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  NameEn String @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  back_7fe1cc6477b8 ReferenceDataReferenceValues[] @relation("rel_reference_data_reference_values_Refe_c1b8af9c6e")
+  @@unique([Code], map: "uq_reference_data.reference_types_Code_bae5b26585")
+  @@map("reference_types")
+  @@schema("reference_data")
+}
+
+/// Source Data Map: reference_data.reference_values;
+model ReferenceDataReferenceValues {
+  Id String @id @db.Uuid @default(uuid())
+  Code String @db.VarChar(50)
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  IsActive Boolean
+  NameEn String @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  NormalizedCode String @db.VarChar(50)
+  ReferenceTypeId String @db.Uuid
+  SortOrder Int
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  link_ReferenceTypeId ReferenceDataReferenceTypes @relation("rel_reference_data_reference_values_Refe_c1b8af9c6e", fields: [ReferenceTypeId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_reference_data_reference_values_R_ff15c6666d")
+  back_6d93455e5840 CatalogMaterialItemProfiles[] @relation("rel_catalog_material_item_profiles_Categ_2a139c62b9")
+  back_82e5c845868d CatalogProducts[] @relation("rel_catalog_products_BusinessUnitId_9ca503ba3d")
+  back_b29ebefb1cd4 CatalogProducts[] @relation("rel_catalog_products_ProductCategoryId_58f284c4ca")
+  back_b866e79179a5 ProcurementSourcingOptions[] @relation("rel_procurement_sourcing_options_Incoter_a49f20af58")
+  back_f3201a175ccc ProcurementSourcingOptions[] @relation("rel_procurement_sourcing_options_Shippin_cc9f2aba6d")
+  back_877e9f6b3fe5 ProcurementSupplierPaymentProfiles[] @relation("rel_procurement_supplier_payment_profile_df874c707d")
+  @@index([ReferenceTypeId, IsActive, SortOrder], map: "ix_reference_data.reference_values_Refer_ec7639f637")
+  @@unique([ReferenceTypeId, NormalizedCode], map: "uq_reference_data.reference_values_Refer_b3b5227cd8")
+  @@map("reference_values")
+  @@schema("reference_data")
+}
+
+/// Source Data Map: reference_data.units;
+model ReferenceDataUnits {
+  Id String @id @db.Uuid @default(uuid())
+  Code String @db.VarChar(50)
+  CreatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  IsActive Boolean
+  NameEn String @db.VarChar(200)
+  NameFa String @db.VarChar(200)
+  NormalizedCode String @db.VarChar(50)
+  SortOrder Int
+  Symbol String? @db.VarChar(20)
+  UpdatedAtUtc DateTime @db.Timestamptz(6) @default(now())
+  Version BigInt @default(1)
+  back_7be775ced2a2 CatalogItems[] @relation("rel_catalog_items_BaseUnitId_9636483269")
+  back_2a6f0bdbebed EngineeringBomLines[] @relation("rel_engineering_bom_lines_ChildBaseUnitI_cca95159d0")
+  back_1164d9292751 EngineeringBomRevisions[] @relation("rel_engineering_bom_revisions_ParentBase_9e54b2d317")
+  back_3aa63719091f ProcurementSourcingOptions[] @relation("rel_procurement_sourcing_options_ItemBas_a84f8dfaef")
+  @@index([IsActive, SortOrder], map: "ix_reference_data.units_IsActive_SortOrd_41daaf7cc3")
+  @@unique([NormalizedCode], map: "uq_reference_data.units_NormalizedCode_173a979840")
+  @@map("units")
+  @@schema("reference_data")
+}
+
+/// Source Data Map: reference_data.countries; فهرست یکپارچهٔ کشورها با کدهای ISO؛ برای استفادهٔ تأمین‌کنندگان، شخصیت‌های حقوقی و لجستیک. در بک‌اند فعلی جدول مرجع کشوری وجود ندارد و این جدول پیشنهاد می‌شود.
+model ReferenceDataCountries {
+  Id String @id @db.Uuid @default(uuid())
+  Iso2Code String? @db.Text
+  Iso3Code String? @db.Text
+  NameEn String? @db.Text
+  NameFa String? @db.Text
+  IsActive Boolean?
+  back_4381cca31c91 ProcurementSuppliers[] @relation("rel_procurement_suppliers_CountryId_5d857b29f9")
+  back_50d342d3974a TradingTradeReferenceValues[] @relation("rel_trading_trade_reference_values_count_f7383fa90d")
+  back_06be033a9963 TradingTradeParties[] @relation("rel_trading_trade_parties_countryId_aa18ab3cc0")
+  @@map("countries")
+  @@schema("reference_data")
+}
+
+/// Source Data Map: trading.trade_reference_values; دیکشنری واحد ماژول: نقش طرف، نوع مجوز، نوع وثیقه، منبع ارز، نوع مجوز، نتیجهٔ بازرسی، بسته‌بندی، پورت، اینکوترم، روش پرداخت و اولویت.
+model TradingTradeReferenceValues {
+  id String @id @db.Uuid @default(uuid())
+  referenceType String @db.Text
+  code String @db.Text
+  nameFa String @db.Text
+  nameEn String? @db.Text
+  symbol String? @db.Text
+  sortOrder Int @default(0)
+  isActive Boolean @default(true)
+  countryId String? @db.Uuid
+  extra Json? @db.JsonB
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  version Int @default(1)
+  link_countryId ReferenceDataCountries? @relation("rel_trading_trade_reference_values_count_f7383fa90d", fields: [countryId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_reference_values_co_927143c4c4")
+  @@map("trade_reference_values")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.trade_parties; رجیستری واحد طرف‌های تجاری. جای جداول پراکندهٔ فورواردر و ادارهٔ گمرک را می‌گیرد؛ مشتری و تأمین‌کننده هم همین‌جا ثبت می‌شوند.
+model TradingTradeParties {
+  id String @id @db.Uuid @default(uuid())
+  partyNumber String @db.Text
+  partyType TradingTradePartiesPartyTypeEnum
+  legalNameFa String @db.Text
+  legalNameEn String? @db.Text
+  nationalId String? @db.Text
+  registrationNumber String? @db.Text
+  economicCode String? @db.Text
+  countryId String? @db.Uuid
+  province String? @db.Text
+  city String? @db.Text
+  address String? @db.Text
+  phone String? @db.Text
+  mobile String? @db.Text
+  email String? @db.Text
+  website String? @db.Text
+  contactName String? @db.Text
+  contactPhone String? @db.Text
+  rating Int?
+  priority Int? @default(0)
+  isActive Boolean @default(true)
+  isBlocked Boolean @default(false)
+  blockReason String? @db.Text
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  createdByUserId String? @db.Uuid
+  updatedByUserId String? @db.Uuid
+  version Int @default(1)
+  link_countryId ReferenceDataCountries? @relation("rel_trading_trade_parties_countryId_aa18ab3cc0", fields: [countryId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_parties_countryId_a_dd2ca96b52")
+  link_createdByUserId IdentityUsers? @relation("rel_trading_trade_parties_createdByUserI_bf281873d0", fields: [createdByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_parties_createdByUs_fe5f5ca659")
+  link_updatedByUserId IdentityUsers? @relation("rel_trading_trade_parties_updatedByUserI_dbeaee49c5", fields: [updatedByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_parties_updatedByUs_1d135991f8")
+  back_0850c4be6872 TradingTradePartyRoles[] @relation("rel_trading_trade_party_roles_partyId_6eb662dc91")
+  back_8e6fcd4906d2 TradingBusinessCards[] @relation("rel_trading_business_cards_partyId_a02246c7e9")
+  back_24ad17fb9ddc TradingTradeProjects[] @relation("rel_trading_trade_projects_customerParty_975784cac0")
+  back_347b8b56f827 TradingTradeProjects[] @relation("rel_trading_trade_projects_supplierParty_c7b8819f99")
+  back_594def515459 TradingOrderRegistrations[] @relation("rel_trading_order_registrations_bankPart_3e11aa1ba9")
+  @@unique([partyNumber], map: "uq_trading.trade_parties_partyNumber_844b27694e")
+  @@map("trade_parties")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.trade_party_roles; یک شرکت می‌تواند هم‌زمان فورواردر، ترخیص‌کار، بیمه‌گر و صاحب کارت باشد.
+model TradingTradePartyRoles {
+  id String @id @db.Uuid @default(uuid())
+  partyId String @db.Uuid
+  roleCode String @db.Text
+  isPrimary Boolean @default(false)
+  validFrom DateTime? @db.Date
+  validTo DateTime? @db.Date
+  isActive Boolean @default(true)
+  notes String? @db.Text
+  link_partyId TradingTradeParties @relation("rel_trading_trade_party_roles_partyId_6eb662dc91", fields: [partyId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_party_roles_partyId_d6658641a1")
+  @@map("trade_party_roles")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.business_cards; شمارهٔ ثبت، شرکا، اعتبار، درصد و مقدار تخصیص پیش‌فرض کارت.
+model TradingBusinessCards {
+  id String @id @db.Uuid @default(uuid())
+  partyId String @db.Uuid
+  cardNumber String @db.Text
+  registrationNumber String? @db.Text
+  issueDate DateTime? @db.Date
+  expiryDate DateTime? @db.Date
+  status TradingBusinessCardsStatusEnum @default(NOT_ISSUED)
+  allocationPercent Decimal? @db.Decimal(24, 6)
+  allocationAmount Decimal? @db.Decimal(24, 6)
+  currencyId String? @db.Uuid
+  partners Json? @db.JsonB
+  documentKey String? @db.Text
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  version Int @default(1)
+  link_partyId TradingTradeParties @relation("rel_trading_business_cards_partyId_a02246c7e9", fields: [partyId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_business_cards_partyId_a0_e94080d112")
+  link_currencyId ReferenceDataCurrencies? @relation("rel_trading_business_cards_currencyId_86cae7e4e6", fields: [currencyId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_business_cards_currencyId_81b72b7e38")
+  back_65f8d7da323a TradingTradeProjects[] @relation("rel_trading_trade_projects_businessCardI_b0792e1e6d")
+  @@unique([cardNumber], map: "uq_trading.business_cards_cardNumber_5496999fcd")
+  @@map("business_cards")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.trade_projects; ریشهٔ ماژول: هویت پرونده، کد ۸ رقمی، قفل ویرایش، مسئول پیگیری و مرحلهٔ جاری.
+model TradingTradeProjects {
+  id String @id @db.Uuid @default(uuid())
+  projectNumber String @db.Text
+  titleFa String @db.Text
+  titleEn String? @db.Text
+  goodsSummary String? @db.Text
+  customerPartyId String? @db.Uuid
+  supplierPartyId String? @db.Uuid
+  businessCardId String? @db.Uuid
+  priorityCode String? @db.Text
+  status TradingTradeProjectsStatusEnum @default(DRAFT)
+  currentStage TradingTradeProjectsCurrentStageEnum?
+  responsibleUserId String? @db.Uuid
+  registrationDate DateTime @db.Date @default(now())
+  targetDate DateTime? @db.Date
+  eightDigitCode String? @db.Text
+  codeIssuedAt DateTime? @db.Date
+  codeExpiresAt DateTime? @db.Date
+  isLocked Boolean @default(false)
+  lockedAtUtc DateTime? @db.Timestamptz(6)
+  lockReason String? @db.Text
+  closedAtUtc DateTime? @db.Timestamptz(6)
+  closedByUserId String? @db.Uuid
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  createdByUserId String? @db.Uuid
+  updatedByUserId String? @db.Uuid
+  version Int @default(1)
+  link_customerPartyId TradingTradeParties? @relation("rel_trading_trade_projects_customerParty_975784cac0", fields: [customerPartyId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_customerPa_cadcb2a66f")
+  link_supplierPartyId TradingTradeParties? @relation("rel_trading_trade_projects_supplierParty_c7b8819f99", fields: [supplierPartyId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_supplierPa_d024585d5f")
+  link_businessCardId TradingBusinessCards? @relation("rel_trading_trade_projects_businessCardI_b0792e1e6d", fields: [businessCardId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_businessCa_f9b461f776")
+  link_responsibleUserId IdentityUsers? @relation("rel_trading_trade_projects_responsibleUs_46a790b52e", fields: [responsibleUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_responsibl_1634d61f35")
+  link_closedByUserId IdentityUsers? @relation("rel_trading_trade_projects_closedByUserI_b1b1f9f156", fields: [closedByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_closedByUs_9135d9aaf2")
+  link_createdByUserId IdentityUsers? @relation("rel_trading_trade_projects_createdByUser_f138f614d5", fields: [createdByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_createdByU_d6914e13ff")
+  link_updatedByUserId IdentityUsers? @relation("rel_trading_trade_projects_updatedByUser_c75cb1ad0e", fields: [updatedByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_projects_updatedByU_2547744a01")
+  back_aa67953d76f8 TradingProjectStages[] @relation("rel_trading_project_stages_projectId_98be984cc2")
+  back_977baf3d4bd6 TradingOrderRegistrations[] @relation("rel_trading_order_registrations_projectI_c81a9f97a7")
+  @@unique([eightDigitCode], map: "uq_trading.trade_projects_eightDigitCode_7f28464f8f")
+  @@unique([projectNumber], map: "uq_trading.trade_projects_projectNumber_5a8463999e")
+  @@map("trade_projects")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.project_stages; هر پرونده ۸ مرحله دارد؛ هر مرحله جدا باز/بسته می‌شود و مسئول و توضیح خودش را دارد.
+model TradingProjectStages {
+  id String @id @db.Uuid @default(uuid())
+  projectId String @db.Uuid
+  stage TradingProjectStagesStageEnum
+  status TradingProjectStagesStatusEnum @default(NOT_STARTED)
+  responsibleUserId String? @db.Uuid
+  sortOrder Int @default(0)
+  startedAt DateTime? @db.Date
+  dueDate DateTime? @db.Date
+  completedAt DateTime? @db.Date
+  isLocked Boolean @default(false)
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  updatedByUserId String? @db.Uuid
+  version Int @default(1)
+  link_projectId TradingTradeProjects @relation("rel_trading_project_stages_projectId_98be984cc2", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_project_stages_projectId__562c153e86")
+  link_responsibleUserId IdentityUsers? @relation("rel_trading_project_stages_responsibleUs_72a1fc12db", fields: [responsibleUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_project_stages_responsibl_5e5a79b56b")
+  link_updatedByUserId IdentityUsers? @relation("rel_trading_project_stages_updatedByUser_5513969841", fields: [updatedByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_project_stages_updatedByU_dfeb27c94c")
+  @@map("project_stages")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.order_registrations; سند مستقل سفارش با بانک عامل، مقدار ارز، اقلام، مجوزها و کد ۸ رقمی.
+model TradingOrderRegistrations {
+  id String @id @db.Uuid @default(uuid())
+  projectId String @db.Uuid
+  orderNumber String @db.Text
+  registrationDate DateTime? @db.Date
+  status TradingOrderRegistrationsStatusEnum @default(DRAFT)
+  bankPartyId String? @db.Uuid
+  currencyId String @db.Uuid
+  declaredValueAmount Decimal @db.Decimal(24, 6)
+  currencyAmount Decimal @db.Decimal(24, 6)
+  exchangeRate Decimal? @db.Decimal(24, 8)
+  incotermCode String? @db.Text
+  paymentMethodCode String? @db.Text
+  responsibleUserId String? @db.Uuid
+  notes String? @db.Text
+  createdAtUtc DateTime @db.Timestamptz(6) @default(now())
+  updatedAtUtc DateTime @db.Timestamptz(6)
+  createdByUserId String? @db.Uuid
+  version Int @default(1)
+  link_projectId TradingTradeProjects @relation("rel_trading_order_registrations_projectI_c81a9f97a7", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_order_registrations_proje_051138f1c8")
+  link_bankPartyId TradingTradeParties? @relation("rel_trading_order_registrations_bankPart_3e11aa1ba9", fields: [bankPartyId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_order_registrations_bankP_18189d083b")
+  link_currencyId ReferenceDataCurrencies @relation("rel_trading_order_registrations_currency_8eccbf6c62", fields: [currencyId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_order_registrations_curre_c71abb0e2b")
+  link_responsibleUserId IdentityUsers? @relation("rel_trading_order_registrations_responsi_fc74803dbe", fields: [responsibleUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_order_registrations_respo_d0662ad264")
+  link_createdByUserId IdentityUsers? @relation("rel_trading_order_registrations_createdB_0979f1345a", fields: [createdByUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_order_registrations_creat_756526ee57")
+  @@unique([orderNumber], map: "uq_trading.order_registrations_orderNumb_6d5d0b354e")
+  @@map("order_registrations")
+  @@schema("trading")
+}
+
+/// Source Data Map: trading.trade_audit_events; فقط افزودنی: چه کسی، در کدام مرحله، چه چیزی را عوض کرد و چرا.
+model TradingTradeAuditEvents {
+  id String @id @db.Uuid @default(uuid())
+  entityType String @db.Text
+  entityId String @db.Text
+  entityLabel String? @db.Text
+  action String @db.Text
+  stage TradingTradeAuditEventsStageEnum?
+  actorUserId String @db.Uuid
+  actorNameSnapshot String? @db.Text
+  previousJson Json? @db.JsonB
+  currentJson Json? @db.JsonB
+  notes String? @db.Text
+  reason String? @db.Text
+  occurredAtUtc DateTime @db.Timestamptz(6) @default(now())
+  link_actorUserId IdentityUsers @relation("rel_trading_trade_audit_events_actorUser_6d1c7aaece", fields: [actorUserId], references: [Id], onDelete: Restrict, onUpdate: NoAction, map: "fk_rel_trading_trade_audit_events_actorU_aeea106ba4")
+  @@map("trade_audit_events")
+  @@schema("trading")
+}

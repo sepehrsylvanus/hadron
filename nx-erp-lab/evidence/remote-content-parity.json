@@ -1,0 +1,12 @@
+{
+  "remoteHead": "f79b79e79f5fd523d83da4e725f3eb5acd7d020a",
+  "remoteBranch": "arena/d5f0785f-hadron",
+  "files": 595,
+  "relocatedIdentical": 592,
+  "intentionalPathAdaptations": [
+    "docs/MIGRATION.md",
+    "scripts/windows/New-HadronErpMigrationBundle.ps1",
+    "scripts/windows/Restore-HadronErpMigrationBundle.ps1"
+  ],
+  "conclusion": "Every remote application file is preserved in main-erp. Only listed path adaptations differ."
+}

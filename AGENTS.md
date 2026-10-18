@@ -1,3 +1,13 @@
+# Repository layout and scope (owner-approved split)
+
+- `main-erp/` is the existing ERP application, including all pre-existing uncommitted Trading work. Its approved production stack remains .NET/EF Core/PostgreSQL + React. Run its app/build/test/Compose commands from `main-erp/`. Its original instructions are also preserved at `main-erp/AGENTS.md`.
+- `nx-erp-lab/` is a separate, instructional experiment explicitly requested by the owner: Nx + NestJS + Prisma + PostgreSQL + a React shell only. Do not port, replace, or share the existing ERP database. No frontend feature modules are requested in this phase.
+- The uploaded Data Map is the schema source; preserve the original attachments. Document inference, type normalization, missing metadata and differences from deployed EF models. Never describe generated schema or sample code as already implemented/tested services.
+- Keep `.git` and this repository root in place. Changes stay on the Arena session branch; no PR.
+- All other existing platform/domain/security/data-integrity principles below continue to apply. The stack exception above applies only to the isolated lab.
+
+---
+
 # AGENTS.md — Hadron Tavan ERP Platform
 
 ## 1. Project Mission

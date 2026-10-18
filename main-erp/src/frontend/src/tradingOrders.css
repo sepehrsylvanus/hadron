@@ -1,0 +1,11 @@
+.trade-orders, .trade-orders-project { display: grid; gap: var(--space-4, 16px); min-width: 0; }
+.trade-order-project-picker { max-width: 620px; padding: var(--space-4, 16px); }
+.trade-order-form input[readonly], .trade-order-status input[readonly] { background: var(--surface-page, #f7f7f7); }
+.trade-order-message { padding: 12px 16px; border-inline-start: 3px solid var(--brand-red, #CE1628); background: var(--surface-page, #f7f7f7); }
+.trade-order-note { white-space: normal; max-width: 300px; overflow-wrap: anywhere; }
+.trade-orders .ui-inline-actions { flex-wrap: wrap; }
+.trade-order-form input, .trade-order-form textarea, .trade-order-status textarea { min-width: 0; max-width: 100%; }
+@media(max-width:640px) { .trade-order-project-picker { max-width: 100%; } .trade-orders { width: 100%; } }
+
+.trade-order-editor { scroll-margin-block-start: 96px; }
+.trade-order-editor:empty { display: none; }
