@@ -48,7 +48,7 @@ services:
     logging: *default-logging
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -217,7 +217,7 @@ services:
   # The host bind path is explicit and Data Protection keys stay on a volume.
   maintenance-tools:
     profiles: ["maintenance"]
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
     environment:

@@ -55,6 +55,25 @@ Node.js 26 is currently a Current release, not LTS. It is used by explicit proje
 
 The API uses `http://localhost:5080` in Development. Vite reads frontend variables from the repository-root `.env` file. The bootstrap token is accepted only while no Identity user exists; after the first administrator is created, normal Cookie authentication is required. Environment-specific hostnames and credentials are not embedded in application code.
 
+### Interactive Windows launcher
+
+After configuring `.env`, run `run-hadron.cmd` from the repository root. It starts
+PostgreSQL and MinIO with Docker Compose, applies migrations, and runs the API
+and frontend on loopback. It prints the frontend URL and the selected ports.
+If a preferred port is occupied, the launcher selects the next available TCP
+port and passes it to the dependent services; existing running Compose database
+and MinIO bindings are reused. It does not change `.env` or stop unrelated
+processes. Closing the launcher stops the API and frontend, but leaves Docker
+containers and their data intact. Port selection is best-effort: another process
+can acquire a port between checking and starting; rerun if that happens.
+
+This launcher is for local development only: it uses local PostgreSQL and MinIO,
+not custom remote endpoints, and does not start the optional LiveKit profile.
+The separate managed company-LAN host below intentionally retains its fixed,
+firewall-scoped ports. Do not use the two launch modes at the same time.
+The MinIO image is pulled from Quay; Docker Desktop must be able to reach
+`quay.io` as well as Docker Hub (for PostgreSQL).
+
 ### Persistent local Windows test host
 
 The manual terminals above are the default developer workflow. For an operator PC that must keep the local test system available after Codex or a terminal closes, publish the API to the isolated local-host runtime and register the two current-user Scheduled Tasks:
