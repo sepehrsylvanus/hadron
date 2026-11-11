@@ -249,7 +249,9 @@ try {
         throw 'MinIO credentials are missing from the local environment.'
     }
 
-    $minioImage = 'quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z'
+    & docker compose build minio
+    Assert-NativeSuccess -Operation 'MinIO maintenance image build'
+    $minioImage = 'hadron-minio:RELEASE.2025-09-07T16-13-09Z'
     $bucketLines = & docker run --rm --network hadron-erp_default `
         --env MINIO_ACCESS_KEY --env MINIO_SECRET_KEY `
         --entrypoint /bin/sh $minioImage -ec `

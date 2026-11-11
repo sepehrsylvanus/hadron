@@ -54,11 +54,11 @@ docker compose --env-file deploy/production.env -f compose.production.yml config
 
 ## Build و استقرار اولیه
 
-ابتدا imageهای API، UI و migration را بسازید:
+ابتدا imageهای API، UI، migration و MinIO را بسازید. MinIO از فایل‌های release رسمی GitHub با checksum ثابت ساخته می‌شود؛ دسترسی به GitHub و Docker Hub لازم است:
 
 ```bash
 docker compose --env-file deploy/production.env -f compose.production.yml \
-  --profile maintenance build api web migrate
+  --profile maintenance build api web migrate minio maintenance-tools
 ```
 
 سپس فقط storageها را بالا بیاورید و منتظر سلامت آن‌ها بمانید:
