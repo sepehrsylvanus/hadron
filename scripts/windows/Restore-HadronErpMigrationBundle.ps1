@@ -164,7 +164,7 @@ try {
             throw 'MinIO credentials are missing from the destination .env file.'
         }
 
-        $minioImage = 'quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z'
+        $minioImage = 'hadron-minio:RELEASE.2025-09-07T16-13-09Z'
         $minioParity = @(Import-Csv -LiteralPath $minioParityPath)
         $backupBucketDirectories = @(Get-ChildItem -LiteralPath $minioRoot -Directory | Sort-Object Name)
         $parityBucketNames = @($minioParity | ForEach-Object { $_.Bucket } | Sort-Object -Unique)

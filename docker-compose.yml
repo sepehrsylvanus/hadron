@@ -20,7 +20,10 @@ services:
       start_period: 10s
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: hadron-minio:RELEASE.2025-09-07T16-13-09Z
+    build:
+      context: ./deploy/minio
+    pull_policy: build
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -32,7 +35,7 @@ services:
     volumes:
       - hadron-minio-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/ready"]
       interval: 5s
       timeout: 5s
       retries: 12

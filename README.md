@@ -71,8 +71,9 @@ This launcher is for local development only: it uses local PostgreSQL and MinIO,
 not custom remote endpoints, and does not start the optional LiveKit profile.
 The separate managed company-LAN host below intentionally retains its fixed,
 firewall-scoped ports. Do not use the two launch modes at the same time.
-The MinIO image is pulled from Quay; Docker Desktop must be able to reach
-`quay.io` as well as Docker Hub (for PostgreSQL).
+MinIO is built locally from checksum-verified upstream GitHub release binaries.
+Docker Desktop must be able to reach GitHub release downloads and Docker Hub
+(for the Alpine base image and PostgreSQL). The first build may take longer.
 
 ### Persistent local Windows test host
 
