@@ -1,0 +1,790 @@
+{
+  "schemaVersion": 1,
+  "description": "Realistic Hadron Tavan demo seed dataset covering every section of the Inventory module.",
+  "units": [
+    {
+      "code": "PCE",
+      "nameFa": "عدد",
+      "nameEn": "Piece",
+      "symbol": "pcs",
+      "sortOrder": 10
+    },
+    {
+      "code": "KG",
+      "nameFa": "کیلوگرم",
+      "nameEn": "Kilogram",
+      "symbol": "kg",
+      "sortOrder": 20
+    },
+    {
+      "code": "M",
+      "nameFa": "متر",
+      "nameEn": "Meter",
+      "symbol": "m",
+      "sortOrder": 30
+    },
+    {
+      "code": "BOX",
+      "nameFa": "کارتن",
+      "nameEn": "Carton Box",
+      "symbol": "box",
+      "sortOrder": 40
+    },
+    {
+      "code": "PACK",
+      "nameFa": "بسته",
+      "nameEn": "Pack",
+      "symbol": "pk",
+      "sortOrder": 50
+    },
+    {
+      "code": "ROLL",
+      "nameFa": "رول",
+      "nameEn": "Roll",
+      "symbol": "rl",
+      "sortOrder": 60
+    },
+    {
+      "code": "TON",
+      "nameFa": "تن",
+      "nameEn": "Metric Ton",
+      "symbol": "t",
+      "sortOrder": 70
+    }
+  ],
+  "referenceValues": [
+    {
+      "key": "BU_ELEC",
+      "typeCode": "BUSINESS_UNIT",
+      "nameFa": "واحد تولید تجهیزات الکترونیک",
+      "nameEn": "Electronics Manufacturing Unit",
+      "sortOrder": 10
+    },
+    {
+      "key": "PCAT_POWER",
+      "typeCode": "PRODUCT_CATEGORY",
+      "nameFa": "تجهیزات قدرت و محافظت",
+      "nameEn": "Power & Protection Equipment",
+      "sortOrder": 10
+    },
+    {
+      "key": "PCAT_SMART",
+      "typeCode": "PRODUCT_CATEGORY",
+      "nameFa": "تجهیزات کنترل هوشمند",
+      "nameEn": "Smart Control Devices",
+      "sortOrder": 20
+    },
+    {
+      "key": "PTCAT_ENCL",
+      "typeCode": "PART_CATEGORY",
+      "nameFa": "بدنه و قطعات مکانیکی",
+      "nameEn": "Enclosures & Mechanical Parts",
+      "sortOrder": 10
+    },
+    {
+      "key": "PTCAT_PCB",
+      "typeCode": "PART_CATEGORY",
+      "nameFa": "برد و زیرمجموعه الکترونیکی",
+      "nameEn": "PCB & Electronic Subassemblies",
+      "sortOrder": 20
+    },
+    {
+      "key": "PTCAT_PKG",
+      "typeCode": "PART_CATEGORY",
+      "nameFa": "بسته‌بندی و ملزومات",
+      "nameEn": "Packaging & Accessories",
+      "sortOrder": 30
+    },
+    {
+      "key": "CCAT_POLY",
+      "typeCode": "COMPONENT_CATEGORY",
+      "nameFa": "مواد اولیه پلیمری",
+      "nameEn": "Polymer Raw Materials",
+      "sortOrder": 10
+    },
+    {
+      "key": "CCAT_ELEC",
+      "typeCode": "COMPONENT_CATEGORY",
+      "nameFa": "قطعات الکترونیکی",
+      "nameEn": "Electronic Components",
+      "sortOrder": 20
+    },
+    {
+      "key": "CCAT_CABLE",
+      "typeCode": "COMPONENT_CATEGORY",
+      "nameFa": "سیم، کابل و اتصالات",
+      "nameEn": "Wires, Cables & Connectors",
+      "sortOrder": 30
+    }
+  ],
+  "products": [
+    {
+      "key": "PROD_STAB_3K",
+      "nameFa": "استابلایزر هوشمند ۳ کاوا هادرون",
+      "nameEn": "Hadron Smart Stabilizer 3kVA",
+      "categoryKey": "PCAT_POWER",
+      "businessUnitKey": "BU_ELEC",
+      "baseUnitCode": "PCE",
+      "safetyStockQty": 25,
+      "criticalDays": 7,
+      "safeStartDays": 20,
+      "excessStartDays": 60,
+      "notes": "محصول نهایی سری قدرت با تثبیت‌کننده دیجیتال ولتاژ"
+    },
+    {
+      "key": "PROD_PROT_PRO",
+      "nameFa": "محافظ دیجیتال ولتاژ سری پرو",
+      "nameEn": "Digital Voltage Protector Pro",
+      "categoryKey": "PCAT_POWER",
+      "businessUnitKey": "BU_ELEC",
+      "baseUnitCode": "PCE",
+      "safetyStockQty": 80,
+      "criticalDays": 5,
+      "safeStartDays": 15,
+      "excessStartDays": 45,
+      "notes": "محافظ ولتاژ پرتیراژ با بسته‌بندی کارتن ۱۰ عددی"
+    },
+    {
+      "key": "PROD_CTRL_IOT",
+      "nameFa": "کنترلر هوشمند تابلو برق IoT",
+      "nameEn": "Smart IoT Panel Controller",
+      "categoryKey": "PCAT_SMART",
+      "businessUnitKey": "BU_ELEC",
+      "baseUnitCode": "PCE",
+      "safetyStockQty": 30,
+      "criticalDays": 10,
+      "safeStartDays": 25,
+      "excessStartDays": 75,
+      "notes": "واحد کنترل صنعتی با مانیتورینگ تحت شبکه"
+    }
+  ],
+  "parts": [
+    {
+      "key": "PART_BODY_ABS",
+      "nameFa": "بدنه پلیمری ضدحریق مدل H3",
+      "nameEn": "Flame-Retardant Polymer Enclosure H3",
+      "categoryKey": "PTCAT_ENCL",
+      "baseUnitCode": "PCE",
+      "supplyMethod": "MAKE",
+      "netWeightKg": 0.42,
+      "defaultPlanningScrapPercent": 2.5,
+      "safetyStockQty": 120,
+      "criticalDays": 5,
+      "safeStartDays": 15,
+      "excessStartDays": 45,
+      "notes": "قطعه تزریق پلاستیک ساخت داخل برای خط مونتاژ ۱"
+    },
+    {
+      "key": "PART_PCB_MAIN",
+      "nameFa": "برد اصلی کنترل ولتاژ Rev-C",
+      "nameEn": "Main Voltage Control PCB Rev-C",
+      "categoryKey": "PTCAT_PCB",
+      "baseUnitCode": "PCE",
+      "supplyMethod": "BUY",
+      "netWeightKg": 0.145,
+      "defaultPlanningScrapPercent": 1.0,
+      "safetyStockQty": 150,
+      "criticalDays": 10,
+      "safeStartDays": 25,
+      "excessStartDays": 60,
+      "notes": "برد مونتاژشده SMD با تست عملکردی ورودی"
+    },
+    {
+      "key": "PART_BOX_RETAIL",
+      "nameFa": "جعبه بسته‌بندی لمینت محصول",
+      "nameEn": "Laminated Retail Packaging Box",
+      "categoryKey": "PTCAT_PKG",
+      "baseUnitCode": "PCE",
+      "supplyMethod": "BUY",
+      "netWeightKg": 0.12,
+      "defaultPlanningScrapPercent": 3.0,
+      "safetyStockQty": 300,
+      "criticalDays": 5,
+      "safeStartDays": 14,
+      "excessStartDays": 50,
+      "notes": "جعبه چاپی بسته‌بندی نهایی در بسته‌های ۵۰ عددی"
+    }
+  ],
+  "components": [
+    {
+      "key": "COMP_ABS_GRAN",
+      "nameFa": "گرانول پلیمر ABS نسوز",
+      "nameEn": "Fire-Retardant ABS Polymer Granule",
+      "categoryKey": "CCAT_POLY",
+      "baseUnitCode": "KG",
+      "supplyMethod": "BUY",
+      "netWeightKg": 1.0,
+      "defaultPlanningScrapPercent": 1.5,
+      "safetyStockQty": 250,
+      "criticalDays": 7,
+      "safeStartDays": 21,
+      "excessStartDays": 60,
+      "notes": "ماده اولیه واحد تزریق پلاستیک — قابل ورود با واحد تن یا کیلوگرم"
+    },
+    {
+      "key": "COMP_RELAY_30A",
+      "nameFa": "رله قدرت ۳۰ آمپر صنعتی",
+      "nameEn": "Industrial 30A Power Relay",
+      "categoryKey": "CCAT_ELEC",
+      "baseUnitCode": "PCE",
+      "supplyMethod": "BUY",
+      "netWeightKg": 0.035,
+      "defaultPlanningScrapPercent": 0.5,
+      "safetyStockQty": 500,
+      "criticalDays": 14,
+      "safeStartDays": 30,
+      "excessStartDays": 90,
+      "notes": "کامپوننت کلیدی کلیدزنی قدرت در استابلایزر و محافظ"
+    },
+    {
+      "key": "COMP_CABLE_CU",
+      "nameFa": "کابل مسی افشان ۲×۱.۵ استاندارد",
+      "nameEn": "Flexible Copper Cable 2x1.5mm",
+      "categoryKey": "CCAT_CABLE",
+      "baseUnitCode": "M",
+      "supplyMethod": "BUY",
+      "netWeightKg": 0.095,
+      "defaultPlanningScrapPercent": 2.0,
+      "safetyStockQty": 400,
+      "criticalDays": 7,
+      "safeStartDays": 20,
+      "excessStartDays": 60,
+      "notes": "کابل استاندارد ورودی و خروجی در رول‌های ۱۰۰ متری"
+    }
+  ],
+  "warehouses": [
+    {
+      "key": "WH_MAIN",
+      "nameFa": "انبار مرکزی مواد و قطعات",
+      "nameEn": "Central Materials & Parts Warehouse",
+      "addressFa": "شهرک صنعتی، سوله A، ردیف ۱ تا ۱۲",
+      "addressEn": "Industrial Park, Hall A, Aisles 1-12",
+      "warehouseType": "STORAGE",
+      "isActive": true,
+      "notes": "انبار اصلی نگهداری قطعات، کامپوننت‌ها و اقلام عمومی مشمول برنامه‌ریزی MRP"
+    },
+    {
+      "key": "WH_RAW",
+      "nameFa": "انبار مواد اولیه و پلیمر",
+      "nameEn": "Raw Materials & Polymer Warehouse",
+      "addressFa": "شهرک صنعتی، سوله B، بخش شمالی",
+      "addressEn": "Industrial Park, Hall B, North Wing",
+      "warehouseType": "STORAGE",
+      "isActive": true,
+      "notes": "نگهداری گرانول پلیمری، کابل‌های رولی و اقلام حجیم خط تولید"
+    },
+    {
+      "key": "WH_STAGING",
+      "nameFa": "انبار پای کار خط مونتاژ ۱",
+      "nameEn": "Assembly Line 1 Production Staging",
+      "addressFa": "سالن تولید، خط مونتاژ ۱، ایستگاه تغذیه",
+      "addressEn": "Production Hall, Assembly Line 1, Feed Station",
+      "warehouseType": "PRODUCTION_STAGING",
+      "isActive": true,
+      "notes": "موجودی مستقر در کنار خط تولید؛ جزو دارایی فیزیکی شرکت اما خارج از موجودی قابل برنامه‌ریزی MRP"
+    },
+    {
+      "key": "WH_FG",
+      "nameFa": "انبار محصول نهایی و ارسال",
+      "nameEn": "Finished Goods & Dispatch Warehouse",
+      "addressFa": "ساختمان لجستیک، سوله C، سکوی بارگیری",
+      "addressEn": "Logistics Building, Hall C, Loading Dock",
+      "warehouseType": "FINISHED_GOODS",
+      "isActive": true,
+      "notes": "نگهداری محصولات تست‌شده آماده ارسال برای سفارش‌های مشتریان"
+    },
+    {
+      "key": "WH_ARCHIVE",
+      "nameFa": "انبار قدیم کارگاه (آرشیو)",
+      "nameEn": "Legacy Workshop Warehouse (Inactive)",
+      "addressFa": "سایت قدیمی، سوله ۲ (تخلیه‌شده)",
+      "addressEn": "Old Site, Hall 2 (Decommissioned)",
+      "warehouseType": "STORAGE",
+      "isActive": false,
+      "notes": "انبار قدیمی که پس از انتقال کامل موجودی به انبار مرکزی غیرفعال شده است",
+      "deactivateReason": "تخلیه کامل و انتقال فعالیت به انبار مرکزی"
+    }
+  ],
+  "unitConversions": [
+    {
+      "itemKey": "PROD_PROT_PRO",
+      "transactionUnitCode": "BOX",
+      "factorToBase": 10,
+      "isActive": true
+    },
+    {
+      "itemKey": "PART_BODY_ABS",
+      "transactionUnitCode": "BOX",
+      "factorToBase": 20,
+      "isActive": true
+    },
+    {
+      "itemKey": "PART_PCB_MAIN",
+      "transactionUnitCode": "PACK",
+      "factorToBase": 25,
+      "isActive": true
+    },
+    {
+      "itemKey": "PART_BOX_RETAIL",
+      "transactionUnitCode": "PACK",
+      "factorToBase": 50,
+      "isActive": true
+    },
+    {
+      "itemKey": "COMP_ABS_GRAN",
+      "transactionUnitCode": "TON",
+      "factorToBase": 1000,
+      "isActive": true
+    },
+    {
+      "itemKey": "COMP_RELAY_30A",
+      "transactionUnitCode": "PACK",
+      "factorToBase": 100,
+      "isActive": true
+    },
+    {
+      "itemKey": "COMP_RELAY_30A",
+      "transactionUnitCode": "BOX",
+      "factorToBase": 500,
+      "isActive": false,
+      "deactivateReason": "تغییر استاندارد بسته‌بندی تأمین‌کننده به بسته ۱۰۰ عددی"
+    },
+    {
+      "itemKey": "COMP_CABLE_CU",
+      "transactionUnitCode": "ROLL",
+      "factorToBase": 100,
+      "isActive": true
+    }
+  ],
+  "transactions": [
+    {
+      "seedTag": "[INV-SEED:OPN-01]",
+      "operation": "OPENING",
+      "itemKey": "PROD_STAB_3K",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "PCE",
+      "quantity": 45,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه استابلایزر ۳ کاوا در انبار محصول نهایی [INV-SEED:OPN-01]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-02]",
+      "operation": "OPENING",
+      "itemKey": "PROD_PROT_PRO",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "BOX",
+      "quantity": 18,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۱۸ کارتن محافظ دیجیتال پرو [INV-SEED:OPN-02]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-03]",
+      "operation": "OPENING",
+      "itemKey": "PROD_CTRL_IOT",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "PCE",
+      "quantity": 30,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه کنترلر هوشمند تابلو برق [INV-SEED:OPN-03]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-04]",
+      "operation": "OPENING",
+      "itemKey": "PART_BODY_ABS",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "BOX",
+      "quantity": 25,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۲۵ کارتن بدنه پلیمری در انبار مرکزی [INV-SEED:OPN-04]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-05]",
+      "operation": "OPENING",
+      "itemKey": "PART_PCB_MAIN",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 20,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۲۰ بسته برد اصلی Rev-C [INV-SEED:OPN-05]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-06]",
+      "operation": "OPENING",
+      "itemKey": "PART_BOX_RETAIL",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 16,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۱۶ بسته جعبه لمینت [INV-SEED:OPN-06]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-07]",
+      "operation": "OPENING",
+      "itemKey": "COMP_ABS_GRAN",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "TON",
+      "quantity": 0.75,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۰.۷۵ تن گرانول ABS نسوز [INV-SEED:OPN-07]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-08]",
+      "operation": "OPENING",
+      "itemKey": "COMP_RELAY_30A",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 24,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۲۴ بسته رله ۳۰ آمپر [INV-SEED:OPN-08]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-09]",
+      "operation": "OPENING",
+      "itemKey": "COMP_CABLE_CU",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "ROLL",
+      "quantity": 12,
+      "daysAgo": 20,
+      "reason": "موجودی افتتاحیه ۱۲ رول کابل مسی افشان [INV-SEED:OPN-09]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-10]",
+      "operation": "OPENING",
+      "itemKey": "PART_BODY_ABS",
+      "warehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PCE",
+      "quantity": 60,
+      "daysAgo": 20,
+      "reason": "موجودی اولیه پای کار بدنه پلیمری در خط مونتاژ ۱ [INV-SEED:OPN-10]"
+    },
+    {
+      "seedTag": "[INV-SEED:OPN-11]",
+      "operation": "OPENING",
+      "itemKey": "PART_PCB_MAIN",
+      "warehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PCE",
+      "quantity": 40,
+      "daysAgo": 20,
+      "reason": "موجودی اولیه پای کار برد اصلی در خط مونتاژ ۱ [INV-SEED:OPN-11]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-01]",
+      "operation": "RECEIPT",
+      "itemKey": "PART_PCB_MAIN",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 12,
+      "daysAgo": 15,
+      "reason": "رسید خرید ۱۲ بسته برد کنترل ولتاژ از تأمین‌کننده داخلی [INV-SEED:RCP-01]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-02]",
+      "operation": "RECEIPT",
+      "itemKey": "COMP_ABS_GRAN",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "TON",
+      "quantity": 0.5,
+      "daysAgo": 14,
+      "reason": "رسید خرید ۵۰۰ کیلوگرم (۰.۵ تن) گرانول ABS [INV-SEED:RCP-02]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-03]",
+      "operation": "RECEIPT",
+      "itemKey": "COMP_RELAY_30A",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 10,
+      "daysAgo": 12,
+      "reason": "رسید خرید ۱۰ بسته رله قدرت ۳۰ آمپر [INV-SEED:RCP-03]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-04]",
+      "operation": "RECEIPT",
+      "itemKey": "COMP_CABLE_CU",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "ROLL",
+      "quantity": 5.5,
+      "daysAgo": 11,
+      "reason": "رسید ورود ۵.۵ رول کابل مسی افشان [INV-SEED:RCP-04]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-01]",
+      "operation": "ISSUE",
+      "itemKey": "PART_BODY_ABS",
+      "warehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PCE",
+      "quantity": 35,
+      "daysAgo": 10,
+      "reason": "مصرف روزانه خط مونتاژ ۱ برای تولید سری استابلایزر [INV-SEED:ISS-01]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-02]",
+      "operation": "ISSUE",
+      "itemKey": "PART_PCB_MAIN",
+      "warehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PCE",
+      "quantity": 25,
+      "daysAgo": 9,
+      "reason": "مصرف برد اصلی در خط مونتاژ ۱ [INV-SEED:ISS-02]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-05]",
+      "operation": "RECEIPT",
+      "itemKey": "PROD_STAB_3K",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "PCE",
+      "quantity": 35,
+      "daysAgo": 9,
+      "reason": "تحویل محصول ساخته‌شده از خط مونتاژ ۱ به انبار محصول نهایی [INV-SEED:RCP-05]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-06]",
+      "operation": "RECEIPT",
+      "itemKey": "PROD_PROT_PRO",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "BOX",
+      "quantity": 12,
+      "daysAgo": 8,
+      "reason": "تحویل ۱۲ کارتن محافظ دیجیتال پرو پس از کنترل کیفیت [INV-SEED:RCP-06]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-03]",
+      "operation": "ISSUE",
+      "itemKey": "PROD_STAB_3K",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "PCE",
+      "quantity": 18,
+      "daysAgo": 7,
+      "reason": "خروج محصول جهت ارسال سفارش نماینده فروش تهران [INV-SEED:ISS-03]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-07]",
+      "operation": "RECEIPT",
+      "itemKey": "PROD_CTRL_IOT",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "PCE",
+      "quantity": 25,
+      "daysAgo": 6,
+      "reason": "رسید محصول نهایی کنترلر هوشمند پس از تست Burn-in [INV-SEED:RCP-07]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-04]",
+      "operation": "ISSUE",
+      "itemKey": "PROD_PROT_PRO",
+      "warehouseKey": "WH_FG",
+      "transactionUnitCode": "BOX",
+      "quantity": 7,
+      "daysAgo": 6,
+      "reason": "خروج ۷ کارتن محافظ ولتاژ بابت حواله فروش [INV-SEED:ISS-04]"
+    },
+    {
+      "seedTag": "[INV-SEED:RCP-08]",
+      "operation": "RECEIPT",
+      "itemKey": "PART_BOX_RETAIL",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 4,
+      "daysAgo": 5,
+      "reason": "رسید تکراری اشتباه ۴ بسته جعبه (برگشت‌داده‌شده جهت نمایش سند Reversal) [INV-SEED:RCP-08]"
+    },
+    {
+      "seedTag": "[INV-SEED:ADJI-01]",
+      "operation": "ADJUSTMENT",
+      "direction": "IN",
+      "itemKey": "COMP_RELAY_30A",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PCE",
+      "quantity": 45,
+      "daysAgo": 5,
+      "reason": "تعدیل اضافی انبارگردانی دوره‌ای قفسه B4 [INV-SEED:ADJI-01]"
+    },
+    {
+      "seedTag": "[INV-SEED:ADJO-01]",
+      "operation": "ADJUSTMENT",
+      "direction": "OUT",
+      "itemKey": "PART_BODY_ABS",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PCE",
+      "quantity": 8,
+      "daysAgo": 4,
+      "reason": "تعدیل کسری بابت شکستگی ۸ عدد بدنه هنگام جابه‌جایی پالت [INV-SEED:ADJO-01]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-05]",
+      "operation": "ISSUE",
+      "itemKey": "COMP_ABS_GRAN",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "KG",
+      "quantity": 187.5,
+      "daysAgo": 4,
+      "reason": "خروج ۱۸۷.۵ کیلوگرم گرانول برای واحد تزریق پلاستیک [INV-SEED:ISS-05]"
+    },
+    {
+      "seedTag": "[INV-SEED:ADJI-02]",
+      "operation": "ADJUSTMENT",
+      "direction": "IN",
+      "itemKey": "COMP_ABS_GRAN",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "KG",
+      "quantity": 12.5,
+      "daysAgo": 3,
+      "reason": "تعدیل اضافی ۱۲.۵ کیلوگرم پس از توزین مجدد کیسه‌های باقی‌مانده [INV-SEED:ADJI-02]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-06]",
+      "operation": "ISSUE",
+      "itemKey": "COMP_CABLE_CU",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "M",
+      "quantity": 142.25,
+      "daysAgo": 3,
+      "reason": "خروج ۱۴۲.۲۵ متر کابل برای واحد برش و مونتاژ دسته‌سیم [INV-SEED:ISS-06]"
+    },
+    {
+      "seedTag": "[INV-SEED:ISS-07]",
+      "operation": "ISSUE",
+      "itemKey": "PART_BOX_RETAIL",
+      "warehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PACK",
+      "quantity": 3,
+      "daysAgo": 2,
+      "reason": "خروج ۳ بسته جعبه جهت واحد بسته‌بندی محصول نهایی [INV-SEED:ISS-07]"
+    },
+    {
+      "seedTag": "[INV-SEED:ADJO-02]",
+      "operation": "ADJUSTMENT",
+      "direction": "OUT",
+      "itemKey": "COMP_CABLE_CU",
+      "warehouseKey": "WH_RAW",
+      "transactionUnitCode": "M",
+      "quantity": 7.75,
+      "daysAgo": 1,
+      "reason": "تعدیل کسری ۷.۷۵ متر ضایعات سررول کابل در شمارش [INV-SEED:ADJO-02]"
+    }
+  ],
+  "reversals": [
+    {
+      "targetSeedTag": "[INV-SEED:RCP-08]",
+      "reason": "برگشت رسید ثبت تکراری جعبه بسته‌بندی — اصلاح خطای ثبت [INV-SEED:REV-01]"
+    }
+  ],
+  "transfers": [
+    {
+      "seedTag": "[INV-SEED:TR-01]",
+      "itemKey": "PART_BODY_ABS",
+      "sourceWarehouseKey": "WH_MAIN",
+      "destinationWarehouseKey": "WH_STAGING",
+      "transactionUnitCode": "BOX",
+      "quantity": 6,
+      "reason": "انتقال ۶ کارتن بدنه پلیمری به پای کار خط مونتاژ ۱ (دریافت کامل) [INV-SEED:TR-01]",
+      "dispatchDaysAgo": 8,
+      "dispatchReason": "بارگیری و خروج ۶ کارتن بدنه از انبار مرکزی",
+      "receipts": [
+        {
+          "seedTag": "[INV-SEED:TR-01-R1]",
+          "quantity": 4,
+          "daysAgo": 7,
+          "reason": "دریافت پارت اول ۴ کارتن در خط مونتاژ ۱ [INV-SEED:TR-01-R1]"
+        },
+        {
+          "seedTag": "[INV-SEED:TR-01-R2]",
+          "quantity": 2,
+          "daysAgo": 6,
+          "reason": "دریافت پارت نهایی ۲ کارتن و تکمیل انتقال [INV-SEED:TR-01-R2]"
+        }
+      ]
+    },
+    {
+      "seedTag": "[INV-SEED:TR-07]",
+      "itemKey": "COMP_ABS_GRAN",
+      "sourceWarehouseKey": "WH_RAW",
+      "destinationWarehouseKey": "WH_MAIN",
+      "transactionUnitCode": "KG",
+      "quantity": 125,
+      "reason": "انتقال ۱۲۵ کیلوگرم گرانول ABS به انبار مرکزی جهت تأمین اضطراری [INV-SEED:TR-07]",
+      "dispatchDaysAgo": 6,
+      "dispatchReason": "خروج ۵ کیسه ۲۵ کیلویی از انبار مواد اولیه",
+      "receipts": [
+        {
+          "seedTag": "[INV-SEED:TR-07-R1]",
+          "quantity": 125,
+          "daysAgo": 5,
+          "reason": "تحویل کامل ۱۲۵ کیلوگرم در انبار مرکزی [INV-SEED:TR-07-R1]"
+        }
+      ]
+    },
+    {
+      "seedTag": "[INV-SEED:TR-02]",
+      "itemKey": "PART_PCB_MAIN",
+      "sourceWarehouseKey": "WH_MAIN",
+      "destinationWarehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PACK",
+      "quantity": 8,
+      "reason": "انتقال ۸ بسته برد اصلی به پای کار خط مونتاژ ۱ (دریافت جزئی + در راه) [INV-SEED:TR-02]",
+      "dispatchDaysAgo": 5,
+      "dispatchReason": "ارسال ۸ بسته برد Rev-C از انبار مرکزی به سالن مونتاژ",
+      "receipts": [
+        {
+          "seedTag": "[INV-SEED:TR-02-R1]",
+          "quantity": 3,
+          "daysAgo": 4,
+          "reason": "دریافت پارت اول ۳ بسته در ایستگاه تغذیه خط ۱ [INV-SEED:TR-02-R1]"
+        },
+        {
+          "seedTag": "[INV-SEED:TR-02-R2]",
+          "quantity": 2,
+          "daysAgo": 3,
+          "reason": "دریافت اشتباه پارت دوم ۲ بسته (برگشت داده‌شده) [INV-SEED:TR-02-R2]",
+          "reverseReason": "پارت دوم هنوز تحویل فیزیکی نشده بود — برگشت دریافت جهت اصلاح"
+        }
+      ]
+    },
+    {
+      "seedTag": "[INV-SEED:TR-06]",
+      "itemKey": "PROD_CTRL_IOT",
+      "sourceWarehouseKey": "WH_FG",
+      "destinationWarehouseKey": "WH_MAIN",
+      "transactionUnitCode": "PCE",
+      "quantity": 10,
+      "reason": "انتقال ۱۰ عدد کنترلر جهت بازبینی فنی (لغوشده پس از ارسال) [INV-SEED:TR-06]",
+      "dispatchDaysAgo": 4,
+      "dispatchReason": "خروج اولیه از انبار محصول نهایی",
+      "receipts": [],
+      "cancelReason": "لغو انتقال به دلیل تغییر برنامه ارسال سفارش مشتری و بازگشت به انبار محصول نهایی"
+    },
+    {
+      "seedTag": "[INV-SEED:TR-03]",
+      "itemKey": "COMP_RELAY_30A",
+      "sourceWarehouseKey": "WH_MAIN",
+      "destinationWarehouseKey": "WH_STAGING",
+      "transactionUnitCode": "PACK",
+      "quantity": 5,
+      "reason": "ارسال ۵ بسته رله ۳۰ آمپر به خط مونتاژ ۱ (در راه) [INV-SEED:TR-03]",
+      "dispatchDaysAgo": 2,
+      "dispatchReason": "ارسال‌شده از انبار مرکزی و در مسیر تحویل به سالن تولید",
+      "receipts": []
+    },
+    {
+      "seedTag": "[INV-SEED:TR-04]",
+      "itemKey": "COMP_CABLE_CU",
+      "sourceWarehouseKey": "WH_RAW",
+      "destinationWarehouseKey": "WH_MAIN",
+      "transactionUnitCode": "ROLL",
+      "quantity": 3,
+      "reason": "انتقال ۳ رول کابل مسی از انبار مواد اولیه به انبار مرکزی (در راه) [INV-SEED:TR-04]",
+      "dispatchDaysAgo": 1,
+      "dispatchReason": "خروج ۳ رول کابل از سوله B به مقصد سوله A",
+      "receipts": []
+    },
+    {
+      "seedTag": "[INV-SEED:TR-05]",
+      "itemKey": "COMP_ABS_GRAN",
+      "sourceWarehouseKey": "WH_RAW",
+      "destinationWarehouseKey": "WH_STAGING",
+      "transactionUnitCode": "KG",
+      "quantity": 150,
+      "reason": "پیش‌نویس درخواست انتقال ۱۵۰ کیلوگرم گرانول ABS برای شیفت بعد [INV-SEED:TR-05]",
+      "receipts": []
+    }
+  ]
+}
