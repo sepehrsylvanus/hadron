@@ -1,0 +1,3042 @@
+{
+  "secondarySource": {
+    "path": "main-erp/src/backend/Hadron.Erp.Api/Infrastructure/Migrations/HadronDbContextModelSnapshot.cs",
+    "sha256": "e587dea02edb2fc89d190f6090e8f8e5c7e3e5b3e88589a0b1886b9aee017389",
+    "purpose": "Only supplement metadata of source-map columns, never add EF-only fields/tables"
+  },
+  "scopeFile": "scope.json",
+  "selectionPolicy": "Explicit table allowlist only. Never select a complete PostgreSQL schema and never expand automatically through foreign keys. Supporting tables do not authorize additional business modules or API pages.",
+  "sourceSha256": "eed1c3d2183b6daec6d6b3dfe4ca734a680096d3469213692c5e2120c6d5cb45",
+  "sourceTables": 180,
+  "selectedTables": 42,
+  "columns": 537,
+  "schemas": {
+    "catalog": 3,
+    "engineering": 3,
+    "identity": 1,
+    "organization": 2,
+    "planning": 15,
+    "procurement": 5,
+    "reference_data": 5,
+    "trading": 8
+  },
+  "modelNames": {
+    "catalog.items": "CatalogItems",
+    "catalog.material_item_profiles": "CatalogMaterialItemProfiles",
+    "catalog.products": "CatalogProducts",
+    "engineering.bom_item_applicabilities": "EngineeringBomItemApplicabilities",
+    "engineering.bom_lines": "EngineeringBomLines",
+    "engineering.bom_revisions": "EngineeringBomRevisions",
+    "identity.users": "IdentityUsers",
+    "organization.internal_people": "OrganizationInternalPeople",
+    "organization.organizational_units": "OrganizationOrganizationalUnits",
+    "planning.mrp_run_bom_inputs": "PlanningMrpRunBomInputs",
+    "planning.mrp_run_daily_results": "PlanningMrpRunDailyResults",
+    "planning.mrp_run_demand_traces": "PlanningMrpRunDemandTraces",
+    "planning.mrp_run_exceptions": "PlanningMrpRunExceptions",
+    "planning.mrp_run_external_source_inputs": "PlanningMrpRunExternalSourceInputs",
+    "planning.mrp_run_firm_supply_inputs": "PlanningMrpRunFirmSupplyInputs",
+    "planning.mrp_run_forecast_inputs": "PlanningMrpRunForecastInputs",
+    "planning.mrp_run_forecast_period_inputs": "PlanningMrpRunForecastPeriodInputs",
+    "planning.mrp_run_inventory_inputs": "PlanningMrpRunInventoryInputs",
+    "planning.mrp_run_item_inputs": "PlanningMrpRunItemInputs",
+    "planning.mrp_run_item_summaries": "PlanningMrpRunItemSummaries",
+    "planning.mrp_runs": "PlanningMrpRuns",
+    "planning.planner_saved_views": "PlanningPlannerSavedViews",
+    "planning.planner_work_item_events": "PlanningPlannerWorkItemEvents",
+    "planning.planner_work_items": "PlanningPlannerWorkItems",
+    "procurement.sourcing_options": "ProcurementSourcingOptions",
+    "procurement.sourcing_prices": "ProcurementSourcingPrices",
+    "procurement.supplier_contacts": "ProcurementSupplierContacts",
+    "procurement.supplier_payment_profiles": "ProcurementSupplierPaymentProfiles",
+    "procurement.suppliers": "ProcurementSuppliers",
+    "reference_data.currencies": "ReferenceDataCurrencies",
+    "reference_data.reference_types": "ReferenceDataReferenceTypes",
+    "reference_data.reference_values": "ReferenceDataReferenceValues",
+    "reference_data.units": "ReferenceDataUnits",
+    "reference_data.countries": "ReferenceDataCountries",
+    "trading.trade_reference_values": "TradingTradeReferenceValues",
+    "trading.trade_parties": "TradingTradeParties",
+    "trading.trade_party_roles": "TradingTradePartyRoles",
+    "trading.business_cards": "TradingBusinessCards",
+    "trading.trade_projects": "TradingTradeProjects",
+    "trading.project_stages": "TradingProjectStages",
+    "trading.order_registrations": "TradingOrderRegistrations",
+    "trading.trade_audit_events": "TradingTradeAuditEvents"
+  },
+  "excludedTables": [
+    "cash_flow.material_cost_book_lines",
+    "cash_flow.material_cost_book_operation_receipts",
+    "cash_flow.material_cost_book_revisions",
+    "cash_flow.material_cost_books",
+    "cash_flow.reporting_fx_operation_receipts",
+    "cash_flow.reporting_fx_rate_sets",
+    "cash_flow.reporting_fx_rates",
+    "collaboration.attachments",
+    "collaboration.call_sessions",
+    "collaboration.conversation_members",
+    "collaboration.conversations",
+    "collaboration.meeting_attendance_intervals",
+    "collaboration.meeting_events",
+    "collaboration.meeting_guest_access_tickets",
+    "collaboration.meeting_guest_invites",
+    "collaboration.meeting_participants",
+    "collaboration.meeting_sessions",
+    "collaboration.message_reactions",
+    "collaboration.messages",
+    "collaboration.official_letter_events",
+    "collaboration.official_letter_recipients",
+    "collaboration.official_letters",
+    "identity.role_claims",
+    "identity.roles",
+    "identity.user_roles",
+    "identity.user_claims",
+    "identity.user_data_scopes",
+    "identity.user_logins",
+    "identity.user_permission_overrides",
+    "identity.user_sessions",
+    "identity.user_tokens",
+    "identity.security_audit_events",
+    "inventory.warehouses",
+    "inventory.item_unit_conversions",
+    "inventory.transactions",
+    "inventory.transfer_receipts",
+    "inventory.transfers",
+    "organization.legal_entities",
+    "planning.business_periods",
+    "planning.daily_actual_revisions",
+    "planning.daily_actuals",
+    "planning.forecast_plan_entries",
+    "planning.forecast_plan_entry_corrections",
+    "planning.forecast_plans",
+    "planning.forecast_revisions",
+    "planning.forecast_series",
+    "planning.mrp_daily_certificates",
+    "planning.mrp_plan_slots",
+    "planning.mrp_refresh_outbox",
+    "planning.mrp_run_manufacturing_operation_inputs",
+    "planning.mrp_run_resolved_route_results",
+    "planning.mrp_run_route_availability_inputs",
+    "planning.mrp_run_route_decisions",
+    "planning.order_planning_generations",
+    "planning.order_recommendation_candidates",
+    "planning.order_recommendation_decisions",
+    "planning.order_recommendations",
+    "planning.period_lifecycle_events",
+    "planning.what_if_daily_results",
+    "planning.what_if_exceptions",
+    "planning.what_if_firm_supply_overrides",
+    "planning.what_if_forecast_overrides",
+    "planning.what_if_inventory_overrides",
+    "planning.what_if_item_summaries",
+    "planning.what_if_scenarios",
+    "platform.operational_audit_events",
+    "procurement.delivery_schedule_actual_milestones",
+    "procurement.delivery_schedule_allocation_events",
+    "procurement.delivery_schedule_plan_revisions",
+    "procurement.delivery_schedules",
+    "procurement.lead_time_recommendation_applications",
+    "procurement.purchase_order_lifecycle_events",
+    "procurement.purchase_order_lines",
+    "procurement.purchase_orders",
+    "procurement.purchase_receipt_lines",
+    "procurement.purchase_receipts",
+    "procurement.purchase_schedule_cancellations",
+    "production.manufacturing_route_operations",
+    "production.manufacturing_routes",
+    "production.work_centers",
+    "production.material_stagings",
+    "production.order_lifecycle_events",
+    "production.order_materials",
+    "production.orders",
+    "production.report_materials",
+    "production.reports",
+    "finance.chart_of_accounts",
+    "finance.fiscal_years",
+    "finance.accounting_periods",
+    "finance.cost_centers",
+    "finance.tax_codes",
+    "finance.journal_entries",
+    "finance.journal_lines",
+    "finance.ap_invoices",
+    "finance.ap_invoice_lines",
+    "finance.ar_invoices",
+    "finance.ar_invoice_lines",
+    "finance.bank_institutions",
+    "finance.bank_accounts",
+    "finance.supplier_payments",
+    "finance.supplier_payment_allocations",
+    "finance.customer_receipts",
+    "finance.customer_receipt_allocations",
+    "finance.bank_reconciliations",
+    "finance.bank_statement_lines",
+    "sales.customers",
+    "sales.customer_contacts",
+    "sales.customer_addresses",
+    "sales.sales_orders",
+    "sales.sales_order_lines",
+    "sales.sales_order_events",
+    "sales.delivery_notes",
+    "sales.delivery_note_lines",
+    "trading.trade_party_licenses",
+    "trading.trade_party_allocation_rules",
+    "trading.bank_collateral_terms",
+    "trading.project_parties",
+    "trading.project_key_dates",
+    "trading.project_documents",
+    "trading.order_registration_lines",
+    "trading.order_permits",
+    "trading.fx_files",
+    "trading.fx_allocations",
+    "trading.fx_receipts",
+    "trading.collaterals",
+    "trading.insurance_policies",
+    "trading.inspections",
+    "trading.shipments",
+    "trading.shipment_items",
+    "trading.shipment_parties",
+    "trading.shipment_legs",
+    "trading.shipment_customs",
+    "trading.commitments",
+    "trading.commitment_discharges",
+    "trading.cost_types",
+    "trading.trade_costs",
+    "trading.cost_allocations",
+    "trading.cost_payments"
+  ],
+  "decisions": [
+    {
+      "table": "catalog.items",
+      "column": "BaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "BusinessNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "ItemType",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "catalog.items",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "Notes",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "catalog.items",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.items",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "CategoryId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "CriticalDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "DefaultPlanningScrapPercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "DefaultPlanningScrapPercent",
+      "decision": "precision-from-EF",
+      "value": "5,2"
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "ExcessStartDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "NetWeightKg",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "NetWeightKg",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "SafeStartDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "SafetyStockQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "SafetyStockQty",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "catalog.material_item_profiles",
+      "column": "SupplyMethod",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "BusinessUnitId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "catalog.products",
+      "column": "CriticalDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "ExcessStartDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "ProductCategoryId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "SafeStartDays",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "SafetyStockQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "catalog.products",
+      "column": "SafetyStockQty",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "ChildItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "ParentItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_item_applicabilities",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "BomRevisionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "ChildBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "ChildItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "ScrapOverridePercent",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "ScrapOverridePercent",
+      "decision": "precision-from-EF",
+      "value": "5,2"
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "SortOrder",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "UsageQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_lines",
+      "column": "UsageQty",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ApprovedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ApprovedByActorId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "BaseOutputQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "BaseOutputQty",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "CopiedFromRevisionId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "LegacyEffectiveFrom",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "LegacyEffectiveTo",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ObsoletedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ObsoletedByActorId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ParentBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ParentItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "RevisionCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "RevisionNotes",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "Status",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "identity.users",
+      "column": "AccessFailedCount",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "AccessVersion",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "ConcurrencyStamp",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "Email",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "EmailConfirmed",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "FirstName",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "LastName",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "LockoutEnabled",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "LockoutEnd",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "MustChangePassword",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "NormalizedEmail",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "NormalizedUserName",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "OrganizationalUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "PasswordHash",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "PhoneNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "PhoneNumberConfirmed",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "ProfilePhotoContentType",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "ProfilePhotoObjectKey",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "ProfilePhotoSha256",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "ProfilePhotoSize",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "SecurityStamp",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "identity.users",
+      "column": "TwoFactorEnabled",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "identity.users",
+      "column": "UserName",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "DisplayNameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "DisplayNameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.internal_people",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "organization.organizational_units",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "BaseOutputQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "BaseOutputQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ChildBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ChildItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "EffectiveFrom",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "EffectiveTo",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "LineId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ParentBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ParentItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "RevisionCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "RevisionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ScrapOverridePercent",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "ScrapOverridePercent",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "UsageQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_bom_inputs",
+      "column": "UsageQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "Completeness",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "Date",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "FirmIncoming",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "FirmIncoming",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "FirmProjected",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "FirmProjected",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "GrossDemand",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "GrossDemand",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "IsRootProduct",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "NetRequirement",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "NetRequirement",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "PlanningBalance",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "PlanningBalance",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "PlanningBeforeNeed",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "PlanningBeforeNeed",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_daily_results",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "BaseRequirement",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "BaseRequirement",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "BomLineId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "BomRevisionId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ChildGrossRequirement",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ChildGrossRequirement",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ChildItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "Date",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ParentDemandDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ParentItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ParentNetRequirement",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ParentNetRequirement",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ScrapPercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ScrapPercent",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_demand_traces",
+      "column": "ScrapSource",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "AffectsDemand",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "Code",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "Date",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "Message",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "Severity",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_exceptions",
+      "column": "SourceReference",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "AllLeadStagesAreSet",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "CurrencyIsActive",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "EffectiveFrom",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "EffectiveTo",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "IncotermIsValid",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "ItemBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "ItemIsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "MinimumOrderQuantityIsSet",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "OptionIsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "PriceId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "ShippingModeIsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "SourcingOptionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_external_source_inputs",
+      "column": "SupplierIsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "DeliveryScheduleId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "Eta",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "EtaSource",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "EtaStatus",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "OpenQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "OpenQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "PurchaseOrderId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "PurchaseOrderLineId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "PurchaseOrderNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "PurchaseOrderStatus",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "SupplierId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "SupplierNameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "SupplierNameFa",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_firm_supply_inputs",
+      "column": "SupplierNumber",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "ActualMtd",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "ActualMtd",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "BusinessPeriodId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "DemandDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "DemandQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "DemandQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "ForecastRevisionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "ForecastSeriesId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "PeriodForecastQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "PeriodForecastQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "ProductId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_inputs",
+      "column": "UnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ActualMtdQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ActualMtdQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "AllocationState",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "BusinessPeriodId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "EligibleAllocationStart",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ExceptionCode",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ForecastRevisionId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ForecastSeriesId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "OfficialForecastQty",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "OfficialForecastQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "PeriodEndDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "PeriodStartDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ProductBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "ProductId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "RemainingForecastQty",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "RemainingForecastQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_forecast_period_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "OnHandQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "OnHandQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "UnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "WarehouseCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "WarehouseId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_inventory_inputs",
+      "column": "WarehouseIsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "BaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "CategoryCode",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "CategoryId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "CategoryNameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "CategoryNameFa",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "CriticalDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "DefaultScrapPercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "DefaultScrapPercent",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "ExcessStartDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "ItemCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "ItemType",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "SafeStartDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "SafetyStockQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "SafetyStockQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "SupplyMethod",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "UnitCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "UnitNameEn",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_inputs",
+      "column": "UnitNameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "Completeness",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "FirmCoverageDate",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "FirmCoverageDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "FirmCoverageState",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "MissingEtaFirmQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "MissingEtaFirmQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "OverdueFirmQty",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "OverdueFirmQty",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "SafetyBreachDate",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StartingOnHand",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StartingOnHand",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StockCoverageDate",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StockCoverageDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StockCoverageState",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "StockoutDate",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalFirmIncoming",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalFirmIncoming",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalGrossDemand",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalGrossDemand",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalNetRequirement",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_run_item_summaries",
+      "column": "TotalNetRequirement",
+      "decision": "precision-from-EF",
+      "value": "28,12"
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "ActorIdentifier",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "AsOfDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "Assumptions",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "CompletedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "Completeness",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "EngineVersion",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "FailureCode",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "FailureMessage",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "HorizonEndDate",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "Purpose",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "RunNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "SnapshotCapturedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "StartedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.mrp_runs",
+      "column": "Status",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "FiltersJson",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "Name",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "NormalizedName",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "OwnerIdentifier",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_saved_views",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "planning.planner_work_item_events",
+      "column": "ActorIdentifier",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_item_events",
+      "column": "AssignedUserId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.planner_work_item_events",
+      "column": "EventType",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_item_events",
+      "column": "OccurredAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_item_events",
+      "column": "WorkItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "AcknowledgedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "AcknowledgedByUserId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "AssignedUserId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "CreatedByIdentifier",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "ExceptionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "RunId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "Status",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "planning.planner_work_items",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "DestinationCustomsDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ForwarderToShipmentDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "IncotermId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "IsPreferred",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ItemBaseUnitId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ItemId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "MinimumOrderQuantity",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "MinimumOrderQuantity",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "RouteScope",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ShippingModeId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ShippingPeriodDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "SourcingNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "SupplierId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "SupplierLeadTimeDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "CurrencyId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "EffectiveFrom",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "EffectiveTo",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "SourcingOptionId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "UnitPrice",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "UnitPrice",
+      "decision": "precision-from-EF",
+      "value": "18,6"
+    },
+    {
+      "table": "procurement.sourcing_prices",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "Email",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "FullName",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "IsPrimary",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "JobTitle",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "Mobile",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "Phone",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "SupplierId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "AdvancePercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "AdvancePercent",
+      "decision": "precision-from-EF",
+      "value": "5,2"
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "BeforeShipmentPercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "BeforeShipmentPercent",
+      "decision": "precision-from-EF",
+      "value": "5,2"
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "CreditAnchor",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "CreditDays",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "CreditPercent",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "CreditPercent",
+      "decision": "precision-from-EF",
+      "value": "5,2"
+    },
+    {
+      "table": "procurement.supplier_payment_profiles",
+      "column": "PaymentTermId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "CountryId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "ExpertLeadTimeScore",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "ExpertQualityScore",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "Name",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "NormalizedName",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "Notes",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "OwnerId",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "SupplierNumber",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "procurement.suppliers",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "Code",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "DecimalPrecision",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "NormalizedCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "Symbol",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.currencies",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "reference_data.reference_types",
+      "column": "Code",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_types",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_types",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_types",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "Code",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "NormalizedCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "ReferenceTypeId",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "SortOrder",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.reference_values",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "reference_data.units",
+      "column": "Code",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "CreatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "IsActive",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "NameEn",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "NameFa",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "NormalizedCode",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "SortOrder",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "Symbol",
+      "decision": "nullability-from-EF",
+      "value": true
+    },
+    {
+      "table": "reference_data.units",
+      "column": "UpdatedAtUtc",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "Version",
+      "decision": "nullability-from-EF",
+      "value": false
+    },
+    {
+      "table": "reference_data.units",
+      "column": "Version",
+      "decision": "lab-domain-default",
+      "value": "1"
+    },
+    {
+      "table": "reference_data.countries",
+      "column": "Iso2Code",
+      "decision": "UNKNOWN-nullability-nullable-in-lab",
+      "value": true
+    },
+    {
+      "table": "reference_data.countries",
+      "column": "Iso3Code",
+      "decision": "UNKNOWN-nullability-nullable-in-lab",
+      "value": true
+    },
+    {
+      "table": "reference_data.countries",
+      "column": "NameEn",
+      "decision": "UNKNOWN-nullability-nullable-in-lab",
+      "value": true
+    },
+    {
+      "table": "reference_data.countries",
+      "column": "NameFa",
+      "decision": "UNKNOWN-nullability-nullable-in-lab",
+      "value": true
+    },
+    {
+      "table": "reference_data.countries",
+      "column": "IsActive",
+      "decision": "UNKNOWN-nullability-nullable-in-lab",
+      "value": true
+    },
+    {
+      "table": "trading.trade_reference_values",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.trade_party_roles",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "allocationPercent",
+      "decision": "lab-explicit-precision-not-in-map",
+      "value": "24,6"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "allocationAmount",
+      "decision": "lab-explicit-precision-not-in-map",
+      "value": "24,6"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "status",
+      "decision": "current-domain-overlay-not-source-enum",
+      "value": [
+        "DRAFT",
+        "SUBMITTED",
+        "ACTIVE",
+        "SUSPENDED",
+        "CANCELLED"
+      ]
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "declaredValueAmount",
+      "decision": "lab-explicit-precision-not-in-map",
+      "value": "24,6"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "currencyAmount",
+      "decision": "lab-explicit-precision-not-in-map",
+      "value": "24,6"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "exchangeRate",
+      "decision": "lab-explicit-precision-not-in-map",
+      "value": "24,8"
+    },
+    {
+      "table": "trading.trade_audit_events",
+      "column": "id",
+      "decision": "lab-UUID-normalization",
+      "value": "Data Map varchar UUID identifiers → PostgreSQL uuid"
+    },
+    {
+      "table": "trading.trade_reference_values",
+      "column": "countryId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "reference_data.countries.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "countryId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "reference_data.countries.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "createdByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "updatedByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "currencyId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "reference_data.currencies.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "responsibleUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "closedByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "createdByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "updatedByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "responsibleUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "updatedByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "currencyId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "reference_data.currencies.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "responsibleUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "createdByUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_audit_events",
+      "column": "actorUserId",
+      "decision": "reviewed-explicit-textual-FK-overlay",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_reference_values",
+      "column": "countryId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "reference_data.countries.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "countryId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "reference_data.countries.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "createdByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_parties",
+      "column": "updatedByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_party_roles",
+      "column": "partyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_parties.id"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "partyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_parties.id"
+    },
+    {
+      "table": "trading.business_cards",
+      "column": "currencyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "reference_data.currencies.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "customerPartyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_parties.id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "supplierPartyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_parties.id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "businessCardId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.business_cards.id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "responsibleUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "closedByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "createdByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_projects",
+      "column": "updatedByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "projectId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_projects.id"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "responsibleUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.project_stages",
+      "column": "updatedByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "projectId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_projects.id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "bankPartyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "trading.trade_parties.id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "currencyId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "reference_data.currencies.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "responsibleUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.order_registrations",
+      "column": "createdByUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "trading.trade_audit_events",
+      "column": "actorUserId",
+      "decision": "FK-native-type-aligned-to-target",
+      "value": "identity.users.Id"
+    },
+    {
+      "table": "engineering.bom_revisions",
+      "column": "ParentItemId",
+      "decision": "filtered-index-manual-SQL",
+      "value": "CREATE UNIQUE INDEX \"partial_engineering.bom_revisions_Parent_d4464187c6\" ON \"engineering\".\"bom_revisions\" (\"ParentItemId\") WHERE \"Status\" = 'APPROVED';"
+    },
+    {
+      "table": "procurement.sourcing_options",
+      "column": "ItemId",
+      "decision": "filtered-index-manual-SQL",
+      "value": "CREATE UNIQUE INDEX \"partial_procurement.sourcing_options_Ite_4749de5b8c\" ON \"procurement\".\"sourcing_options\" (\"ItemId\") WHERE \"IsActive\" AND \"IsPreferred\";"
+    },
+    {
+      "table": "procurement.supplier_contacts",
+      "column": "SupplierId",
+      "decision": "filtered-index-manual-SQL",
+      "value": "CREATE UNIQUE INDEX \"partial_procurement.supplier_contacts_Su_5caf909368\" ON \"procurement\".\"supplier_contacts\" (\"SupplierId\") WHERE \"IsActive\" AND \"IsPrimary\";"
+    }
+  ],
+  "limitations": [
+    "Data Map does not specify all nullability, precision, indexes, triggers, tenant policy or Nest authentication semantics.",
+    "EF snapshot supplements only missing legacy field metadata; no EF-only columns or tables are introduced.",
+    "UUID normalization for new Trading IDs is a lab decision, not an in-place migration plan.",
+    "Filtered indexes, application triggers, row-level security and external textual FK comments require explicit review.",
+    "Authentication hashes from ASP.NET Identity are NOT Nest/Argon2 password hashes. Use fresh lab-only accounts."
+  ]
+}

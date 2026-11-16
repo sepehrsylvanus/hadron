@@ -1,0 +1,49 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+
+# .NET outputs and local state
+**/bin/
+**/obj/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Frontend dependencies and outputs
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# IDE and editor state
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and operating-system files
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# Local database/container data
+.docker/
+docker-data/
+postgres-data/
+data/postgres/
+backups/manual-test-safety/
+backups/production/
+
+# Temporary files
+tmp/
+temp/
+.local-host/
+output/migration/
+*.tmp

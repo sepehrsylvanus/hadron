@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-18",
+  "scope": {
+    "sourceTables": 180,
+    "selectedTables": 42,
+    "businessAndSnapshotTables": 29,
+    "supportingTables": 13,
+    "columns": 537,
+    "frontendBusinessPages": 0
+  },
+  "passed": [
+    "595 original paths preserved; 592 still byte-identical; three intentional path-helper/doc edits",
+    "All 595 remote-head files represented in main-erp; same three documented differences only",
+    "Actual Nx 23.3.0 apps preset + Nest and React generators completed in temporary workspace",
+    "Prisma 7.10.1 validate (WASM) and generate succeeded",
+    "Nx API and Web builds succeeded with Node 22.22.3",
+    "24 Jest tests in 3 suites passed (2 scaffold + 22 domain cases)",
+    "Compiled API runtime: invalid/missing token →401, valid lab token →200 on scaffold route",
+    "Database-unavailable health check →503; this is NOT a successful database connection test",
+    "Existing main-erp frontend build succeeded with Node 26.0.0; 323 tests passed",
+    "Offline HTML/JS syntax, unique anchors, relative links, embedded Schema bytes and explicit allowlist passed"
+  ],
+  "notRun": [
+    "Docker/PostgreSQL startup",
+    "Prisma migrate dev/deploy and SQL execution",
+    "Real PostgreSQL integration tests, row locks and migration validation",
+    ".NET backend build and tests",
+    "Windows launcher and PowerShell backup/restore runtime",
+    "Business-module API implementation and end-to-end tests; these are guide instructions, not delivered endpoints"
+  ],
+  "environmentNote": "Prisma CLI initially attempted a schema-engine binary download blocked by the sandbox. PRISMA_SCHEMA_ENGINE_BINARY=/bin/true was set ONLY for validate/generate, which succeeded using WASM/client code generation. No migration command used this override. This is not a recommended end-user setting.",
+  "dependencyAudit": "Nx scaffold installer reported vulnerabilities; no production audit-clear claim; no audit fix --force was run."
+}

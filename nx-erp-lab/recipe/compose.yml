@@ -1,0 +1,20 @@
+name: hadron-nx-lab
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run init-env first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run init-env first}
+      POSTGRES_DB: hadron_nx_lab
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - lab-pg:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d hadron_nx_lab']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  lab-pg:
+    name: hadron-nx-lab-pg

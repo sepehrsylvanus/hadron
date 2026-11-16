@@ -1,0 +1,1546 @@
+[
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "titleFa",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "goodsSummary",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "targetDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "customerPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "businessCardId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "supplierPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "01-project.html",
+    "model": "TradeProject",
+    "table": "trade_projects",
+    "field": "titleEn",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "orderNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "registrationDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "declaredValueAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "currencyAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "incotermCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "paymentMethodCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistration",
+    "table": "order_registrations",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "goodsTitle",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "hsCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "quantity",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "unitId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "unitPrice",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderRegistrationLine",
+    "table": "order_registration_lines",
+    "field": "lineTotal",
+    "mode": "computed",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderPermit",
+    "table": "order_permits",
+    "field": "permitTypeCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderPermit",
+    "table": "order_permits",
+    "field": "permitNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderPermit",
+    "table": "order_permits",
+    "field": "issuedBy",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderPermit",
+    "table": "order_permits",
+    "field": "issueDate",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "OrderPermit",
+    "table": "order_permits",
+    "field": "expiryDate",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "02-orders.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "02-orders.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "bankPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "fxSourceCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "requestDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "allocationNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "allocationNumberDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "paidRialAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "allocatedAmount",
+    "mode": "computed",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "receivedAmount",
+    "mode": "computed",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "grossRate",
+    "mode": "computed",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "netRate",
+    "mode": "computed",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "receiptStatus",
+    "mode": "readonly",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxFile",
+    "table": "fx_files",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxAllocation",
+    "table": "fx_allocations",
+    "field": "allocatedAmount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxAllocation",
+    "table": "fx_allocations",
+    "field": "allocationDate",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxAllocation",
+    "table": "fx_allocations",
+    "field": "bankReferenceNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxReceipt",
+    "table": "fx_receipts",
+    "field": "receivedAmount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxReceipt",
+    "table": "fx_receipts",
+    "field": "receivedAt",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "FxReceipt",
+    "table": "fx_receipts",
+    "field": "bankReferenceNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "bankPartyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "collateralTypeCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "instrumentNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "amount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "heldByBank",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "Collateral",
+    "table": "collaterals",
+    "field": "heldAt",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "03-fx.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "03-fx.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "estimatedDeparture",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "estimatedArrival",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "actualDeparture",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "actualArrival",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "transportMode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "forwarderPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "carrierPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "originPortCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "destinationPortCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "packageTypeCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "packageCount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "grossWeight",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "weightUnitId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "volume",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "volumeUnitId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "hasInsurance",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "billOfLadingNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "Shipment",
+    "table": "shipments",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "goodsTitle",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "orderRegistrationLineId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "quantity",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "unitId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "grossWeight",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "volume",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "packageCount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentItem",
+    "table": "shipment_items",
+    "field": "packageTypeCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentParty",
+    "table": "shipment_parties",
+    "field": "partyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentParty",
+    "table": "shipment_parties",
+    "field": "roleCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentParty",
+    "table": "shipment_parties",
+    "field": "contactName",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ShipmentParty",
+    "table": "shipment_parties",
+    "field": "phone",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "04-shipments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "sequence",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "fromPortCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "toPortCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "transportMode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "carrierPartyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "vehicleOrVessel",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "trackingNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "estimatedDeparture",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "estimatedArrival",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "actualDeparture",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "actualArrival",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ShipmentLeg",
+    "table": "shipment_legs",
+    "field": "notes",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "05-transport.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "clearanceNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "clearanceType",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "brokerPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "customsOfficeCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "declarationDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "documentsCompletedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "releaseDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "dutyAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "dutyCurrencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ShipmentCustoms",
+    "table": "shipment_customs",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "06-customs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "insurerPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "policyNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "coverageTypeCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "premiumAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "issueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "startDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "expiryDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "InsurancePolicy",
+    "table": "insurance_policies",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "inspectorPartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "requestDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "inspectionDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "certificateNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "statusCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "resultCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "Inspection",
+    "table": "inspections",
+    "field": "resultNotes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "07-insurance.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "committedAmount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "deadlineDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "extendedToDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "dischargedAmount",
+    "mode": "computed",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "Commitment",
+    "table": "commitments",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "CommitmentDischarge",
+    "table": "commitment_discharges",
+    "field": "dischargeDate",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "CommitmentDischarge",
+    "table": "commitment_discharges",
+    "field": "amount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "CommitmentDischarge",
+    "table": "commitment_discharges",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "CommitmentDischarge",
+    "table": "commitment_discharges",
+    "field": "methodCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "CommitmentDischarge",
+    "table": "commitment_discharges",
+    "field": "documentNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "08-commitments.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "costTypeId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "stage",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "description",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "amount",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "effectiveDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "payeePartyId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "paymentMethodCode",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "referenceNumber",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "TradeCost",
+    "table": "trade_costs",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "scopeType",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "scopeId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "stage",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "allocationPercent",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "allocatedAmount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostAllocation",
+    "table": "cost_allocations",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "paidAt",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "amount",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "currencyId",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "methodCode",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "isReturn",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "CostPayment",
+    "table": "cost_payments",
+    "field": "referenceNumber",
+    "mode": "input",
+    "repeat": true
+  },
+  {
+    "page": "09-costs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "responsibleUserId",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "startedAt",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "dueDate",
+    "mode": "input",
+    "repeat": false
+  },
+  {
+    "page": "09-costs.html",
+    "model": "ProjectStage",
+    "table": "project_stages",
+    "field": "notes",
+    "mode": "input",
+    "repeat": false
+  }
+]

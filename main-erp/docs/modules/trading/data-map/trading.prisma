@@ -1,0 +1,1357 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  Hadron ERP · ماژول بازرگانی (Trading)
+//  Prisma Schema پیشنهادی — نسخهٔ ۱ · ۱۴۰۵/۰۷/۲۵
+//  اعتبارسنجی‌شده با Prisma (prisma validate: بدون خطا)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  این فایل از صفر و بر اساس ۸ بخش دفترچهٔ بازرگانی نوشته شده است، نه بر اساس
+//  نقشهٔ HTML. موارد تکراری در یک جدول ادغام شده‌اند و موجودیت‌های اضافه حذف.
+//
+//  آمار: ۳۳ مدل · ۲۱ enum · ۵۱۲ ستون · ۱۰۲ رابطه · ۹ حوزه
+//
+//  ساختار:
+//    ۰. تنظیمات و دیکشنری‌ها        TradeReferenceValue
+//    ۱. طرفین و شرکت‌ها             TradeParty / Role / License / BusinessCard ...
+//    ۲. پروژه و اطلاعات تجاری       TradeProject / ProjectStage / ProjectParty ...
+//    ۳. ثبت سفارش                   OrderRegistration / Line / Permit
+//    ۴. عملیات ارزی و بانک          FxFile / FxAllocation / FxReceipt / Collateral
+//    ۵. بیمه و بازرسی               InsurancePolicy / Inspection
+//    ۶. حمل و ترخیص                 Shipment / Item / Party / Leg / Customs
+//    ۷. رفع تعهد                    Commitment / CommitmentDischarge
+//    ۸. هزینه‌ها                     CostType / TradeCost / CostAllocation / CostPayment
+//    ۹. کنترل و ممیزی               TradeAuditEvent
+//
+//  ادغام‌ها و حذف‌ها (نسبت به نقشهٔ قبلی):
+//    • forwarders + customs_offices + بخشی از reference_values  →  TradeParty + TradePartyRole
+//    • report_notes                                              →  حذف؛ ProjectStage.notes و TradeProject.notes
+//    • fx_allocations ترکیبی                                     →  FxFile + FxAllocation + FxReceipt
+//    • costs.ScopeType/ScopeId تک‌مقداری                         →  CostAllocation چندبخشی
+//    • reference_values پراکنده                                  →  یک TradeReferenceValue با referenceType
+//    • project_shipments                                         →  ShipmentItem (اتصال در سطح قلم + پروژه)
+//    • customers / suppliers بیرونی                              →  TradeParty با نقش CUSTOMER / SUPPLIER
+//
+//  قواعد نگارش:
+//    • نام فیلدها انگلیسی است (Prisma اجازهٔ نام فارسی نمی‌دهد)؛ توضیح فارسی
+//      دقیقاً جلوی هر فیلد با // نوشته شده است.
+//    • ارجاع به جداول بیرون از این ماژول (کاربر، ارز، واحد، کشور) به‌صورت
+//      ستون UUID/کد با کامنت «FK → ...» نگه داشته شده تا فایل مستقل بماند.
+//    • برای دیدن این کامنت‌ها در Prisma Client، کافی است // را به /// تبدیل
+//      کنید و به خط بالای فیلد منتقل کنید.
+// ═══════════════════════════════════════════════════════════════════════════
+
+//  سازگاری نسخه:
+//    • Prisma 6: همین فایل همان‌طور کار می‌کند (url در datasource).
+//    • Prisma 7: خط url را حذف کنید و رشتهٔ اتصال را در prisma.config.ts بدهید.
+//    • Prisma 5: previewFeatures = ["multiSchema"] را از generator برگردانید.
+generator client {
+  provider = "prisma-client-js"
+  // اگر از Prisma 5 استفاده می‌کنید، این خط را اضافه کنید:
+  // previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["trading"]
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+//  Enumها فقط برای وضعیت‌های بستهٔ گردش کار هستند.
+//  هر چیزی که کاربر باید بتواند مقدار جدید به آن اضافه کند (نوع وثیقه،
+//  نتیجهٔ بازرسی، نوع هزینه، نوع مجوز، پورت، بسته‌بندی و ...) در
+//  TradeReferenceValue نگه داشته می‌شود، نه enum.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// چرخهٔ عمر پروندهٔ بازرگانی
+enum TradeProjectStatus {
+  DRAFT          // پیش‌نویس — پرونده ایجاد شده ولی هنوز شروع نشده
+  ACTIVE         // فعال — در حال کار روی مراحل
+  WAITING_ORDER  // در انتظار ثبت سفارش
+  FX_PROCESS     // در حال عملیات ارزی
+  READY_TO_SHIP  // آمادهٔ حمل
+  IN_TRANSIT     // در مسیر
+  IN_CUSTOMS     // در گمرک
+  CLEARED        // ترخیص‌شده
+  DELIVERED      // تحویل‌شده
+  CLOSED         // بسته‌شده
+  CANCELLED      // لغوشده
+
+  @@schema("trading")
+}
+
+/// مراحل ثابت پرونده — ترتیب عددی همان ترتیب اجراست
+enum TradeStage {
+  PROJECT_SETUP // ۱. ایجاد پروژه و اطلاعات تجاری
+  ORDER         // ۲. ثبت سفارش
+  FX            // ۳. عملیات ارزی
+  INSURANCE     // ۴. بیمه و بازرسی
+  SHIPPING      // ۵. حمل و محموله
+  CUSTOMS       // ۶. ترخیص گمرکی
+  COMMITMENT    // ۷. رفع تعهد
+  COSTS         // ۸. هزینه‌ها
+
+  @@schema("trading")
+}
+
+/// وضعیت هر مرحله — هر مرحله جداگانه باز و بسته می‌شود
+enum StageStatus {
+  NOT_STARTED // شروع نشده
+  OPEN        // باز شده (فقط مرحلهٔ اول تا گرفتن کد ۸ رقمی باز است)
+  IN_PROGRESS // در حال انجام
+  BLOCKED     // متوقف — منتظر مجوز/مدرک/پاسخ
+  DONE        // انجام‌شده
+  SKIPPED     // رد‌شده (مثلاً بیمه‌ای که لازم نبود)
+  CANCELLED   // لغوشده
+
+  @@schema("trading")
+}
+
+/// نوع شخصیت حقوقی طرف تجاری
+enum PartyType {
+  LEGAL_ENTITY    // شخص حقوقی داخلی (شرکت)
+  NATURAL_PERSON  // شخص حقیقی
+  FOREIGN_ENTITY  // شرکت خارجی (تأمین‌کننده/فورواردر خارجی)
+
+  @@schema("trading")
+}
+
+/// وضعیت پروانه/کارت/مجوز طرف
+enum LicenseStatus {
+  NOT_ISSUED    // صادر نشده
+  IN_PROGRESS   // در حال صدور
+  VALID         // معتبر
+  EXPIRING_SOON // نزدیک انقضا (هشدار)
+  EXPIRED       // منقضی
+  SUSPENDED     // معلق
+  REVOKED       // باطل‌شده
+
+  @@schema("trading")
+}
+
+/// روش تعیین سهم طرف از تخصیص (ترخیص‌کار/فورواردر)
+enum AllocationRuleMode {
+  FIXED_PERCENT // درصد ثابت
+  FIXED_AMOUNT  // مبلغ ثابت
+  VARIABLE      // متغیر — هر پرونده دستی
+
+  @@schema("trading")
+}
+
+/// وضعیت سند ثبت سفارش
+enum OrderStatus {
+  DRAFT      // پیش‌نویس
+  SUBMITTED  // ثبت‌شده در سامانه
+  CONFIRMED  // تأییدشده
+  EXPIRED    // منقضی
+  CANCELLED  // لغوشده
+
+  @@schema("trading")
+}
+
+/// وضعیت مجوز (کد ۸ رقمی/مجوزهای ثبت سفارش)
+enum PermitStatus {
+  PENDING  // در انتظار بررسی
+  APPROVED // تأییدشده
+  REJECTED // رد‌شده
+  EXPIRED  // منقضی
+
+  @@schema("trading")
+}
+
+/// وضعیت پروندهٔ ارزی
+enum FxStatus {
+  DRAFT       // پیش‌نویس — تازه باز شده
+  OPEN        // باز — آمادهٔ ثبت تخصیص
+  IN_PROGRESS // در حال تخصیص/دریافت
+  CLOSED      // بسته‌شده
+  CANCELLED   // لغوشده
+
+  @@schema("trading")
+}
+
+/// وضعیت دریافت ارز — فقط دو حالت نهایی، جزئیات از مبالغ می‌آید
+enum ReceiptStatus {
+  NOT_RECEIVED // دریافت‌نشده
+  PARTIAL      // بخشی دریافت شده
+  RECEIVED     // دریافت‌شده
+
+  @@schema("trading")
+}
+
+/// وضعیت وثیقه (چک/سفته/ضمانت‌نامه)
+enum CollateralStatus {
+  ACTIVE       // فعال — صادر شده
+  HELD_BY_BANK // دست بانک
+  RELEASED     // آزادشده
+  MATURED      // سررسیدشده
+  RETURNED     // عودت‌داده‌شده
+  LOST         // مفقود
+
+  @@schema("trading")
+}
+
+/// وضعیت بیمه‌نامه
+enum InsuranceStatus {
+  DRAFT     // پیش‌نویس
+  ACTIVE    // جاری
+  EXPIRED   // منقضی
+  CANCELLED // لغوشده
+  CLAIMED   // خسارت گرفته‌شده
+
+  @@schema("trading")
+}
+
+/// روش حمل
+enum TransportMode {
+  SEA        // دریایی
+  AIR        // هوایی
+  ROAD       // زمینی
+  RAIL       // ریلی
+  MULTIMODAL // ترکیبی
+
+  @@schema("trading")
+}
+
+/// وضعیت محموله
+enum ShipmentStatus {
+  DRAFT              // پیش‌نویس
+  READY              // آمادهٔ حرکت
+  IN_TRANSIT         // در مسیر
+  ARRIVED            // رسیده به مقصد
+  IN_CUSTOMS         // در گمرک
+  PARTIALLY_CLEARED  // بخشی ترخیص شده
+  CLEARED            // ترخیص‌شده
+  DELIVERED          // تحویل‌شده
+  CANCELLED          // لغوشده
+
+  @@schema("trading")
+}
+
+/// وضعیت هر مرحله از مسیر حمل
+enum LegStatus {
+  PLANNED    // برنامه‌ریزی‌شده
+  DEPARTED   // حرکت کرده
+  IN_TRANSIT // در مسیر
+  ARRIVED    // رسیده
+  DELAYED    // تأخیر
+  CANCELLED  // لغوشده
+
+  @@schema("trading")
+}
+
+/// نوع ترخیص
+enum CustomsType {
+  DEFINITIVE // قطعی
+  TEMPORARY  // موقت
+  TRANSIT    // ترانزیت
+  RETURN     // برگشتی
+
+  @@schema("trading")
+}
+
+/// وضعیت پروندهٔ گمرکی
+enum CustomsStatus {
+  NOT_STARTED       // شروع نشده
+  DOCUMENTS_PENDING // منتظر مدارک
+  IN_PROGRESS       // در حال انجام
+  PARTIAL           // بخشی ترخیص
+  COMPLETE          // ترخیص کامل
+  BLOCKED           // متوقف
+  CANCELLED         // لغوشده
+
+  @@schema("trading")
+}
+
+/// وضعیت رفع تعهد
+enum CommitmentStatus {
+  OPEN      // باز — تعهدی که هنوز شروع نشده
+  PARTIAL   // بخشی تسویه شده
+  DONE      // انجام‌شده
+  EXPIRED   // مهلت گذشته بدون تسویه
+  EXTENDED  // تمدیدشده
+  CANCELLED // لغوشده
+
+  @@schema("trading")
+}
+
+/// وضعیت پرداخت هزینه
+enum CostPaymentStatus {
+  UNPAID    // پرداخت‌نشده
+  PARTIAL   // بخشی پرداخت‌شده
+  PAID      // پرداخت‌شده
+  CANCELLED // لغوشده
+
+  @@schema("trading")
+}
+
+/// مبنای تخصیص هزینه بین بخش‌ها
+enum CostAllocationBasis {
+  PROJECT_ONLY     // فقط روی پروژه (تخصیص نمی‌شود)
+  BY_GOODS_VALUE   // بر اساس ارزش کالا
+  BY_WEIGHT        // بر اساس وزن
+  BY_VOLUME        // بر اساس حجم
+  BY_QUANTITY      // بر اساس تعداد
+  MANUAL           // دستی — درصد را کاربر می‌دهد
+
+  @@schema("trading")
+}
+
+/// دامنه‌ای که هزینه به آن تخصیص می‌یابد
+enum AllocationScopeType {
+  PROJECT              // کل پرونده
+  ORDER_REGISTRATION   // ثبت سفارش
+  SHIPMENT             // محموله
+  SHIPMENT_ITEM        // قلم محموله
+  CUSTOMS_CASE         // پروندهٔ گمرکی
+  STAGE                // مرحله
+
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۰) تنظیمات و دیکشنری‌ها
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// دیکشنری واحد ماژول — جای جداول پراکندهٔ ports / package_types / incoterms
+/// referenceTypeهای استاندارد:
+///   PARTY_ROLE، LICENSE_TYPE، COLLATERAL_TYPE، FX_SOURCE، PERMIT_TYPE،
+///   INSPECTION_RESULT، INSPECTION_STATUS، PACKAGE_TYPE، PORT، INCOTERM،
+///   PAYMENT_METHOD، COST_PAYMENT_METHOD، COST_NATURE، PROJECT_DATE_TYPE،
+///   PRIORITY، CUSTOMS_OFFICE
+model TradeReferenceValue {
+  id            String  @id @default(uuid()) @db.Uuid                       // شناسهٔ یکتا
+  referenceType String  @db.VarChar(40)                                     // نوع دیکشنری (مثلاً COLLATERAL_TYPE)
+  code          String  @db.VarChar(40)                                      // کد ثابت برای ارجاع از بقیهٔ جدول‌ها
+  nameFa        String  @db.VarChar(200)                                     // نام فارسی برای نمایش
+  nameEn        String? @db.VarChar(200)                                     // نام انگلیسی
+  symbol        String? @db.VarChar(20)                                      // نماد (برای واحد/ارز/بسته‌بندی)
+  sortOrder     Int     @default(0)                                          // ترتیب نمایش در لیست‌ها
+  isActive      Boolean @default(true)                                       // فعال/غیرفعال — حذف نمی‌شود، غیرفعال می‌شود
+  countryId     String? @db.Uuid                                             // FK → reference_data.countries.Id (برای PORT)
+  extra         Json?   @db.JsonB                                            // فیلدهای اضافهٔ همان نوع (مثلاً نوع پورت)
+  notes         String? @db.VarChar(1000)                                    // توضیح
+  createdAtUtc  DateTime @default(now()) @db.Timestamptz(3)                  // تاریخ ثبت سیستمی
+  updatedAtUtc  DateTime @updatedAt @db.Timestamptz(3)                       // تاریخ آخرین ویرایش
+  version       Int      @default(1)                                         // نسخه — کنترل هم‌زمانی
+
+  @@unique([referenceType, code])                                            // کد در هر دیکشنری یکتاست
+  @@index([referenceType, isActive, sortOrder])                              // ایندکس لیست‌های کشویی
+  @@map("trade_reference_values")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۱) طرفین و شرکت‌ها  — رجیستری واحد
+//     مشتری، تأمین‌کننده، فورواردر، حامل، ترخیص‌کار، بیمه‌گر، بازرس و بانک
+//     همه یک رکورد TradeParty هستند و نقششان در TradePartyRole است.
+//     (ادغام سه منبع قبلی: forwarders + customs_offices + reference_values)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// شرکت/طرف تجاری — یک رکورد، چند نقش
+model TradeParty {
+  id                 String     @id @default(uuid()) @db.Uuid              // شناسهٔ یکتا
+  partyNumber        String     @unique @db.VarChar(32)                     // شمارهٔ داخلی طرف (مثلاً PTY-00012)
+  partyType          PartyType                                              // شخص حقوقی / حقیقی / خارجی
+  legalNameFa        String     @db.VarChar(250)                            // نام رسمی فارسی
+  legalNameEn        String?    @db.VarChar(250)                            // نام رسمی انگلیسی (برای طرف خارجی)
+  nationalId         String?    @db.VarChar(20)                             // شناسهٔ ملی / کد ملی
+  registrationNumber String?    @db.VarChar(30)                             // شمارهٔ ثبت شرکت
+  economicCode       String?    @db.VarChar(30)                             // کد اقتصادی
+  countryId          String?    @db.Uuid                                    // FK → reference_data.countries.Id
+  province           String?    @db.VarChar(100)                            // استان
+  city               String?    @db.VarChar(100)                            // شهر
+  address            String?    @db.VarChar(1000)                           // نشانی
+  phone              String?    @db.VarChar(50)                             // تلفن ثابت
+  mobile             String?    @db.VarChar(50)                             // موبایل
+  email              String?    @db.VarChar(200)                            // ایمیل
+  website            String?    @db.VarChar(200)                            // وب‌سایت
+  contactName        String?    @db.VarChar(150)                            // نام شخص رابط
+  contactPhone       String?    @db.VarChar(50)                             // تلفن شخص رابط
+  rating             Int?                                                   // امتیاز عملکرد ۱ تا ۵ (ارزیابی)
+  priority           Int?       @default(0)                                 // اولویت انتخاب در فرم‌ها (کمتر = بالاتر)
+  isActive           Boolean    @default(true)                              // فعال
+  isBlocked          Boolean    @default(false)                             // مسدود — نباید در فرم جدید انتخاب شود
+  blockReason        String?    @db.VarChar(500)                            // دلیل مسدودی
+  notes              String?    @db.VarChar(2000)                           // توضیحات
+  createdAtUtc       DateTime   @default(now()) @db.Timestamptz(3)          // تاریخ ثبت سیستمی
+  updatedAtUtc       DateTime   @updatedAt @db.Timestamptz(3)               // تاریخ آخرین ویرایش
+  createdByUserId    String?    @db.Uuid                                    // FK → identity.users.Id — ثبت‌کننده
+  updatedByUserId    String?    @db.Uuid                                    // FK → identity.users.Id — آخرین ویرایش‌کننده
+  version            Int        @default(1)                                 // نسخه
+
+  roles              TradePartyRole[]                                        // نقش‌های این طرف
+  licenses           TradePartyLicense[]                                    // پروانه‌ها و مجوزها
+  businessCards      BusinessCard[]                                         // کارت‌های بازرگانی
+  allocationRules    TradePartyAllocationRule[]                             // قواعد سهم تخصیص
+  collateralTerms    BankCollateralTerm[]  @relation("BankCollateralTerms") // شرایط وثیقه (اگر بانک باشد)
+  projectLinks       ProjectParty[]                                         // حضور در پرونده‌ها
+  customerProjects   TradeProject[]        @relation("ProjectCustomer")     // پرونده‌هایی که این طرف مشتری است
+  supplierProjects   TradeProject[]        @relation("ProjectSupplier")     // پرونده‌هایی که این طرف تأمین‌کننده است
+  bankOrders         OrderRegistration[]   @relation("OrderBank")           // ثبت سفارش‌هایی که بانک عاملش این طرف است
+  bankFxFiles        FxFile[]              @relation("FxBank")              // پرونده‌های ارزی این بانک
+  collaterals        Collateral[]                                           // وثایق صادرشده به این بانک
+  insurancePolicies  InsurancePolicy[]     @relation("PolicyInsurer")       // بیمه‌نامه‌هایی که این طرف بیمه‌گر است
+  inspections        Inspection[]          @relation("InspectionInspector") // بازرسی‌هایی که این طرف بازرس است
+  shipmentRoles      ShipmentParty[]                                        // نقش‌های حمل در محموله‌ها
+  forwarderShipments Shipment[]            @relation("ShipmentForwarder")   // محموله‌هایی که این طرف فورواردر است
+  carrierShipments   Shipment[]            @relation("ShipmentCarrier")     // محموله‌هایی که این طرف حامل اصلی است
+  carrierLegs        ShipmentLeg[]         @relation("LegCarrier")          // مراحل حملی که این طرف حامل است
+  customsCases       ShipmentCustoms[]     @relation("CustomsBroker")       // پرونده‌های گمرکی که این طرف ترخیص‌کار است
+  costsAsPayee       TradeCost[]           @relation("CostPayee")           // هزینه‌هایی که به این طرف پرداخت می‌شود
+
+  @@index([legalNameFa])                                                    // جست‌وجوی نام
+  @@index([partyType, isActive])                                            // فیلتر نوع و فعال
+  @@map("trade_parties")
+  @@schema("trading")
+}
+
+/// نقش طرف — یک شرکت می‌تواند هم‌زمان چند نقش داشته باشد
+model TradePartyRole {
+  id         String    @id @default(uuid()) @db.Uuid        // شناسهٔ یکتا
+  partyId    String    @db.Uuid                             // FK → TradeParty.Id
+  roleCode   String    @db.VarChar(40)                      // کد نقش از دیکشنری PARTY_ROLE
+                                                            //   CUSTOMER مشتری | SUPPLIER تأمین‌کننده
+                                                            //   FORWARDER فورواردر | CARRIER حامل
+                                                            //   CUSTOMS_BROKER ترخیص‌کار | INSURER بیمه‌گر
+                                                            //   INSPECTOR بازرس | BANK بانک
+                                                            //   CARD_OWNER صاحب کارت | OTHER سایر
+  isPrimary  Boolean   @default(false)                      // نقش اصلی این طرف
+  validFrom  DateTime? @db.Date                             // شروع اعتبار نقش
+  validTo    DateTime? @db.Date                             // پایان اعتبار نقش
+  isActive   Boolean   @default(true)                       // فعال
+  notes      String?   @db.VarChar(1000)                    // توضیح
+  party      TradeParty @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@unique([partyId, roleCode])                             // هر نقش فقط یک بار برای هر طرف
+  @@index([roleCode, isActive])                             // پیدا کردن همهٔ فورواردرها/ترخیص‌کارها
+  @@map("trade_party_roles")
+  @@schema("trading")
+}
+
+/// پروانه/مجوز طرف — وضعیت و تاریخ انقضا
+model TradePartyLicense {
+  id            String        @id @default(uuid()) @db.Uuid        // شناسهٔ یکتا
+  partyId       String        @db.Uuid                             // FK → TradeParty.Id
+  licenseTypeCode String      @db.VarChar(40)                      // نوع مجوز از دیکشنری LICENSE_TYPE
+                                                                   //   CUSTOMS_BROKER_LICENSE پروانه ترخیص
+                                                                   //   FORWARDER_LICENSE پروانه فورواردر
+                                                                   //   BUSINESS_LICENSE جواز کسب
+  licenseNumber String        @db.VarChar(80)                      // شمارهٔ پروانه
+  issuer        String?       @db.VarChar(200)                     // مرجع صدور
+  issueDate     DateTime?     @db.Date                             // تاریخ صدور
+  expiryDate    DateTime?     @db.Date                             // تاریخ انقضا (برای هشدار سیستمی)
+  status        LicenseStatus @default(NOT_ISSUED)                 // وضعیت: صادرنشده/در جریان/معتبر/نزدیک انقضا/منقضی/معلق/باطل
+  documentKey   String?       @db.VarChar(300)                     // کلید فایل تصویر پروانه در انبار اسناد
+  notes         String?       @db.VarChar(1000)                    // توضیحات
+  createdAtUtc  DateTime      @default(now()) @db.Timestamptz(3)   // تاریخ ثبت سیستمی
+  updatedAtUtc  DateTime      @updatedAt @db.Timestamptz(3)        // تاریخ آخرین ویرایش
+  version       Int           @default(1)                          // نسخه
+
+  party         TradeParty    @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@index([partyId, licenseTypeCode])                              // پروانه‌های هر طرف
+  @@index([status, expiryDate])                                    // گزارش پروانه‌های در حال انقضا
+  @@map("trade_party_licenses")
+  @@schema("trading")
+}
+
+/// کارت بازرگانی — شمارهٔ ثبت، شرکا، اعتبار و سهم تخصیص پیش‌فرض
+model BusinessCard {
+  id                    String        @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  partyId               String        @db.Uuid                           // FK → TradeParty.Id — صاحب کارت
+  cardNumber            String        @unique @db.VarChar(50)            // شمارهٔ کارت بازرگانی
+  registrationNumber    String?       @db.VarChar(30)                    // شمارهٔ ثبت همراه کارت
+  issueDate             DateTime?     @db.Date                           // تاریخ صدور
+  expiryDate            DateTime?     @db.Date                           // تاریخ انقضا (محاسبهٔ سیستمی هشدار)
+  status                LicenseStatus @default(NOT_ISSUED)               // وضعیت کارت
+  allocationPercent     Decimal?      @db.Decimal(9, 4)                  // درصد تخصیص پیش‌فرض این کارت
+  allocationAmount      Decimal?      @db.Decimal(24, 6)                 // مبلغ تخصیص پیش‌فرض
+  currencyId            String?       @db.Uuid                           // FK → reference_data.currencies.Id
+  partners              Json?         @db.JsonB                          // شرکای کارت: [{name, sharePercent, nationalId}]
+  documentKey           String?       @db.VarChar(300)                   // کلید فایل تصویر کارت
+  notes                 String?       @db.VarChar(1000)                  // توضیحات
+  createdAtUtc          DateTime      @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc          DateTime      @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version               Int           @default(1)                        // نسخه
+
+  party                 TradeParty    @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  projects              TradeProject[]                                   // پرونده‌هایی که با این کارت باز شده‌اند
+
+  @@index([partyId, status])                                             // کارت‌های هر طرف
+  @@index([expiryDate])                                                  // هشدار انقضا
+  @@map("business_cards")
+  @@schema("trading")
+}
+
+/// قاعدهٔ سهم طرف از تخصیص — «درصد و مقدار تخصیص» صفحهٔ ۶ دفترچه
+model TradePartyAllocationRule {
+  id          String            @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  partyId     String            @db.Uuid                           // FK → TradeParty.Id
+  roleCode    String?           @db.VarChar(40)                    // نقش مرتبط (مثلاً CUSTOMS_BROKER)
+  mode        AllocationRuleMode @default(VARIABLE)                // درصد ثابت / مبلغ ثابت / متغیر
+  percent     Decimal?          @db.Decimal(9, 4)                  // درصد سهم (وقتی mode = FIXED_PERCENT)
+  amount      Decimal?          @db.Decimal(24, 6)                 // مبلغ سهم (وقتی mode = FIXED_AMOUNT)
+  currencyId  String?           @db.Uuid                           // FK → reference_data.currencies.Id
+  unitId      String?           @db.Uuid                           // FK → reference_data.units.Id — واحد اندازه‌گیری
+  validFrom   DateTime?         @db.Date                           // شروع اعتبار قاعده
+  validTo     DateTime?         @db.Date                           // پایان اعتبار قاعده
+  isActive    Boolean           @default(true)                     // فعال
+  notes       String?           @db.VarChar(1000)                  // توضیح
+  createdAtUtc DateTime         @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc DateTime         @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version     Int               @default(1)                        // نسخه
+
+  party       TradeParty        @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@index([partyId, isActive])                                     // قواعد فعال هر طرف
+  @@map("trade_party_allocation_rules")
+  @@schema("trading")
+}
+
+/// نوع وثیقهٔ هر بانک — «نوع وثیقه برای هر بانک تعریف شود»
+model BankCollateralTerm {
+  id                 String   @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  bankPartyId        String   @db.Uuid                           // FK → TradeParty.Id (نقش BANK)
+  collateralTypeCode String   @db.VarChar(40)                    // نوع وثیقه از دیکشنری COLLATERAL_TYPE
+                                                                 //   CHECK چک | PROMISSORY_NOTE سفته
+                                                                 //   BANK_GUARANTEE ضمانت‌نامه | DEPOSIT سپرده
+  isRequired         Boolean  @default(true)                     // اجباری است؟
+  percent            Decimal? @db.Decimal(9, 4)                  // درصد پوشش وثیقه (مثلاً ۱۱۰٪ مبلغ ارز)
+  maxAmount          Decimal? @db.Decimal(24, 6)                 // سقف مبلغ
+  currencyId         String?  @db.Uuid                           // FK → reference_data.currencies.Id
+  notes              String?  @db.VarChar(1000)                  // توضیح
+  createdAtUtc       DateTime @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc       DateTime @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version            Int      @default(1)                        // نسخه
+
+  bankParty          TradeParty @relation("BankCollateralTerms", fields: [bankPartyId], references: [id], onDelete: Restrict)
+
+  @@unique([bankPartyId, collateralTypeCode])                     // هر نوع وثیقه یک بار برای هر بانک
+  @@map("bank_collateral_terms")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۲) پروژه و اطلاعات تجاری
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// پروندهٔ بازرگانی — ریشهٔ کل ماژول
+model TradeProject {
+  id                   String             @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectNumber        String             @unique @db.VarChar(32)            // شمارهٔ یکتای پرونده (TRD-1405-0001)
+  titleFa              String             @db.VarChar(250)                   // موضوع پرونده
+  titleEn              String?            @db.VarChar(250)                   // عنوان انگلیسی (اختیاری)
+  goodsSummary         String?            @db.VarChar(500)                   // خلاصهٔ کالا برای نمایش در لیست
+  customerPartyId      String?            @db.Uuid                           // FK → TradeParty.Id — مشتری
+  supplierPartyId      String?            @db.Uuid                           // FK → TradeParty.Id — تأمین‌کننده
+  businessCardId       String?            @db.Uuid                           // FK → BusinessCard.Id — کارت بازرگانی استفاده‌شده
+  priorityCode         String?            @db.VarChar(20)                    // اولویت از دیکشنری PRIORITY: NORMAL عادی / URGENT فوری / CRITICAL اورژانس
+  status               TradeProjectStatus @default(DRAFT)                    // وضعیت کل پرونده
+  currentStage         TradeStage?                                           // مرحلهٔ جاری (برای نمایش سریع)
+  responsibleUserId    String?            @db.Uuid                           // FK → identity.users.Id — مسئول پیگیری
+  registrationDate     DateTime           @default(now()) @db.Date           // تاریخ ثبت پرونده — سیستمی و غیرقابل ویرایش
+  targetDate           DateTime?          @db.Date                           // تاریخ هدف (مهلت)
+  eightDigitCode       String?            @unique @db.VarChar(8)             // کد ۸ رقمی بانک — کنار نام پرونده نمایش داده می‌شود
+  codeIssuedAt         DateTime?          @db.Date                           // تاریخ صدور کد ۸ رقمی
+  codeExpiresAt        DateTime?          @db.Date                           // تاریخ انقضای کد ۸ رقمی (سیستمی)
+  isLocked             Boolean            @default(false)                    // قفل پرونده — بعد از کد ۸ رقمی true می‌شود
+  lockedAtUtc          DateTime?          @db.Timestamptz(3)                 // زمان قفل شدن
+  lockReason           String?            @db.VarChar(500)                   // دلیل قفل (مثلاً «صدور کد ۸ رقمی»)
+  closedAtUtc          DateTime?          @db.Timestamptz(3)                 // زمان بستن پرونده
+  closedByUserId       String?            @db.Uuid                           // FK → identity.users.Id — بستن‌کننده
+  notes                String?            @db.VarChar(4000)                  // توضیحات کلی پرونده
+  createdAtUtc         DateTime           @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc         DateTime           @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  createdByUserId      String?            @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+  updatedByUserId      String?            @db.Uuid                           // FK → identity.users.Id — آخرین ویرایش‌کننده
+  version              Int                @default(1)                        // نسخه — کنترل هم‌زمانی
+
+  customerParty        TradeParty?        @relation("ProjectCustomer", fields: [customerPartyId], references: [id], onDelete: Restrict)
+  supplierParty        TradeParty?        @relation("ProjectSupplier", fields: [supplierPartyId], references: [id], onDelete: Restrict)
+  businessCard         BusinessCard?      @relation(fields: [businessCardId], references: [id], onDelete: Restrict)
+  stages               ProjectStage[]                                        // ۸ مرحلهٔ پرونده
+  parties              ProjectParty[]                                        // طرف‌های اضافه با نقش
+  keyDates             ProjectKeyDate[]                                      // تاریخ‌های کلیدی
+  documents            ProjectDocument[]                                     // مدارک و پیوست‌ها
+  orders               OrderRegistration[]                                   // ثبت سفارش‌ها
+  fxFiles              FxFile[]                                              // پرونده‌های ارزی
+  shipments            Shipment[]                                            // محموله‌های اصلی این پرونده
+  insurancePolicies    InsurancePolicy[]                                     // بیمه‌نامه‌ها
+  inspections          Inspection[]                                          // بازرسی‌ها
+  customsCases         ShipmentCustoms[]                                     // پرونده‌های گمرکی
+  commitments          Commitment[]                                          // رفع تعهدها
+  costs                TradeCost[]                                           // هزینه‌ها
+
+  @@index([status, targetDate])                                              // لیست پرونده‌های باز و سررسیدها
+  @@index([currentStage, status])                                            // نمای مرحله‌ای
+  @@index([responsibleUserId])                                               // پرونده‌های هر مسئول
+  @@index([customerPartyId])                                                 // پرونده‌های هر مشتری
+  @@index([supplierPartyId])                                                 // پرونده‌های هر تأمین‌کننده
+  @@map("trade_projects")
+  @@schema("trading")
+}
+
+/// مرحلهٔ پرونده — هر مرحله جدا باز/بسته می‌شود و مسئول و توضیح خودش را دارد
+model ProjectStage {
+  id               String      @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId        String      @db.Uuid                           // FK → TradeProject.Id
+  stage            TradeStage                                     // کدام مرحله
+  status           StageStatus @default(NOT_STARTED)              // وضعیت مرحله
+  responsibleUserId String?    @db.Uuid                           // FK → identity.users.Id — انجام‌دهنده/مسئول این مرحله
+  sortOrder        Int         @default(0)                        // ترتیب نمایش
+  startedAt        DateTime?   @db.Date                           // تاریخ شروع مرحله
+  dueDate          DateTime?   @db.Date                           // مهلت مرحله
+  completedAt      DateTime?   @db.Date                           // تاریخ پایان مرحله
+  isLocked         Boolean     @default(false)                    // قفل مرحله (پس از تکمیل یا صدور کد)
+  notes            String?     @db.VarChar(4000)                  // توضیحات مخصوص همین مرحله
+  createdAtUtc     DateTime    @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc     DateTime    @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  updatedByUserId  String?     @db.Uuid                           // FK → identity.users.Id — آخرین ویرایش‌کننده
+  version          Int         @default(1)                        // نسخه
+
+  project          TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, stage])                                    // هر مرحله فقط یک رکورد در هر پرونده
+  @@index([status, dueDate])                                      // گزارش مراحل عقب‌افتاده
+  @@map("project_stages")
+  @@schema("trading")
+}
+
+/// طرف‌های اضافهٔ پرونده با نقش — صاحب کارت، طرف خارجی، نماینده و ...
+model ProjectParty {
+  id          String      @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId   String      @db.Uuid                           // FK → TradeProject.Id
+  partyId     String      @db.Uuid                           // FK → TradeParty.Id — طرف باید در رجیستری ثبت شده باشد
+  roleCode    String      @db.VarChar(40)                    // نقش از دیکشنری PARTY_ROLE (CARD_OWNER, OTHER, ...)
+  displayName String?     @db.VarChar(250)                   // نام نمایشی — برای طرف ثبت‌نشده
+  isPrimary   Boolean     @default(false)                    // طرف اصلی این نقش
+  notes       String?     @db.VarChar(1000)                  // توضیح
+  createdAtUtc DateTime   @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  version     Int         @default(1)                        // نسخه
+
+  project     TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  party       TradeParty   @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, partyId, roleCode])                    // یک طرف با یک نقش تکراری نباشد
+  @@index([projectId, roleCode])                              // طرف‌های هر نقش در پرونده
+  @@map("project_parties")
+  @@schema("trading")
+}
+
+/// تاریخ‌های کلیدی پرونده — جای ستون‌های بی‌شمار تاریخ در هدر
+model ProjectKeyDate {
+  id             String       @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId      String       @db.Uuid                           // FK → TradeProject.Id
+  dateTypeCode   String       @db.VarChar(40)                    // نوع تاریخ از دیکشنری PROJECT_DATE_TYPE
+                                                                 //   DOCUMENT_RECEIVED دریافت اسناد
+                                                                 //   CARD_ISSUED صدور کارت
+                                                                 //   CAPACITY_END پایان ظرفیت
+                                                                 //   ALLOCATION تخصیص ارز
+                                                                 //   CARD_CONTROL کنترل کارت
+                                                                 //   COMMITMENT_END پایان تعهد
+  dateValue      DateTime     @db.Date                           // مقدار تاریخ (میلادی ذخیره، شمسی نمایش)
+  isSystem       Boolean      @default(false)                    // سیستمی (کاربر نمی‌تواند تغییر دهد)
+  sourceRef      String?      @db.VarChar(100)                   // مرجع سند/کد مربوطه
+  notes          String?      @db.VarChar(1000)                  // توضیح
+  createdAtUtc   DateTime     @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc   DateTime     @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version        Int          @default(1)                        // نسخه
+
+  project        TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, dateTypeCode])                             // تاریخ‌های هر پرونده به‌تفکیک نوع
+  @@index([dateValue])                                           // گزارش سررسیدها
+  @@map("project_key_dates")
+  @@schema("trading")
+}
+
+/// مدارک و پیوست‌های پرونده — هر مرحله مدرک خودش را دارد
+model ProjectDocument {
+  id              String       @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId       String       @db.Uuid                           // FK → TradeProject.Id
+  stage           TradeStage?                                     // مرحلهٔ مربوطه
+  documentTypeCode String      @db.VarChar(40)                    // نوع مدرک (پروفرما، بارنامه، بیمه‌نامه، ...)
+  title           String       @db.VarChar(250)                   // عنوان سند
+  fileName        String       @db.VarChar(300)                   // نام فایل اصلی
+  storageKey      String       @db.VarChar(500)                   // کلید فایل در انبار اسناد
+  mimeType        String?      @db.VarChar(120)                   // نوع فایل
+  fileSize        Int?                                            // حجم فایل (بایت)
+  uploadedByUserId String?     @db.Uuid                           // FK → identity.users.Id — بارگذارنده
+  uploadedAtUtc   DateTime     @default(now()) @db.Timestamptz(3) // زمان بارگذاری
+  notes           String?      @db.VarChar(1000)                  // توضیح
+
+  project         TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, stage])                                     // مدارک هر مرحله
+  @@map("project_documents")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۳) ثبت سفارش
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// سند ثبت سفارش — تا قبل از کد ۸ رقمی قابل ویرایش، بعد از آن فقط خواندنی
+model OrderRegistration {
+  id                  String      @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId           String      @db.Uuid                           // FK → TradeProject.Id
+  orderNumber         String      @unique @db.VarChar(80)            // شمارهٔ ثبت سفارش (سامانه جامع تجارت)
+  registrationDate    DateTime?   @db.Date                           // تاریخ ثبت سفارش
+  status              OrderStatus @default(DRAFT)                    // وضعیت سند
+  bankPartyId         String?     @db.Uuid                           // FK → TradeParty.Id (نقش BANK) — بانک عامل
+  currencyId          String      @db.Uuid                           // FK → reference_data.currencies.Id — ارز
+  declaredValueAmount Decimal     @db.Decimal(24, 6)                 // مبلغ ثبت سفارش (ارزش کالا)
+  currencyAmount      Decimal     @db.Decimal(24, 6)                 // مقدار ارز تخصیصی
+  exchangeRate        Decimal?    @db.Decimal(24, 8)                 // نرخ ارز مبنای ثبت سفارش
+  incotermCode        String?     @db.VarChar(10)                    // اینکوترم از دیکشنری INCOTERM (FOB/CIF/...)
+  paymentMethodCode   String?     @db.VarChar(40)                    // روش پرداخت از دیکشنری PAYMENT_METHOD
+  responsibleUserId   String?     @db.Uuid                           // FK → identity.users.Id — مسئول ثبت
+  notes               String?     @db.VarChar(4000)                  // توضیحات
+  createdAtUtc        DateTime    @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc        DateTime    @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  createdByUserId     String?     @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+  version             Int         @default(1)                        // نسخه
+
+  project             TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bankParty           TradeParty?  @relation("OrderBank", fields: [bankPartyId], references: [id], onDelete: Restrict)
+  lines               OrderRegistrationLine[]                        // اقلام کالا
+  permits             OrderPermit[]                                  // مجوزها و کدها
+  fxAllocations       FxAllocation[]                                 // خطوط تخصیص ارز مرتبط
+  commitments         Commitment[]                                   // تعهدهای مرتبط
+
+  @@index([projectId, status])                                       // سفارش‌های هر پرونده
+  @@index([registrationDate])                                        // گزارش زمانی
+  @@map("order_registrations")
+  @@schema("trading")
+}
+
+/// قلم ثبت سفارش — «عنوان کالا، تعداد، واحد، قیمت»
+model OrderRegistrationLine {
+  id                 String   @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  orderRegistrationId String  @db.Uuid                           // FK → OrderRegistration.Id
+  lineNumber         Int                                         // شمارهٔ ردیف
+  catalogItemId      String?  @db.Uuid                           // FK → catalog.items.Id (اختیاری، اگر کالا در ماستر باشد)
+  goodsTitle         String   @db.VarChar(300)                   // عنوان کالا
+  goodsDescription   String?  @db.VarChar(1000)                  // شرح تکمیلی
+  hsCode             String?  @db.VarChar(20)                    // کد تعرفهٔ گمرکی
+  brand              String?  @db.VarChar(100)                   // برند
+  model              String?  @db.VarChar(100)                   // مدل
+  originCountryId    String?  @db.Uuid                           // FK → reference_data.countries.Id — کشور مبدأ
+  quantity           Decimal  @db.Decimal(24, 6)                 // تعداد
+  unitId             String   @db.Uuid                           // FK → reference_data.units.Id — واحد سنجش
+  unitPrice          Decimal  @db.Decimal(24, 6)                 // قیمت واحد
+  lineTotal          Decimal  @db.Decimal(24, 6)                 // جمع ردیف (تعداد × قیمت واحد)
+  notes              String?  @db.VarChar(1000)                  // توضیح
+
+  orderRegistration  OrderRegistration @relation(fields: [orderRegistrationId], references: [id], onDelete: Cascade)
+  shipmentItems      ShipmentItem[]                                // اقلام محموله‌هایی که از این ردیف آمده‌اند
+
+  @@unique([orderRegistrationId, lineNumber])                      // شمارهٔ ردیف یکتا در هر سند
+  @@index([catalogItemId])                                         // ردیف‌های هر کالا
+  @@map("order_registration_lines")
+  @@schema("trading")
+}
+
+/// مجوزهای ثبت سفارش — با گردش تأیید/رد
+model OrderPermit {
+  id                  String       @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  orderRegistrationId String       @db.Uuid                           // FK → OrderRegistration.Id
+  permitTypeCode      String       @db.VarChar(40)                    // نوع مجوز از دیکشنری PERMIT_TYPE
+  permitNumber        String?      @db.VarChar(80)                    // شمارهٔ مجوز
+  issuedBy            String?      @db.VarChar(200)                   // مرجع صدور
+  issueDate           DateTime?    @db.Date                           // تاریخ صدور
+  expiryDate          DateTime?    @db.Date                           // تاریخ انقضا
+  status              PermitStatus @default(PENDING)                  // در انتظار / تأیید / رد / منقضی
+  decidedByUserId     String?      @db.Uuid                           // FK → identity.users.Id — تصمیم‌گیرنده
+  decidedAt           DateTime?    @db.Timestamptz(3)                 // زمان تصمیم
+  rejectionReason     String?      @db.VarChar(1000)                  // دلیل رد
+  notes               String?      @db.VarChar(1000)                  // توضیح
+  createdAtUtc        DateTime     @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+
+  orderRegistration   OrderRegistration @relation(fields: [orderRegistrationId], references: [id], onDelete: Cascade)
+
+  @@index([orderRegistrationId, status])                              // مجوزهای هر سند
+  @@map("order_permits")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۴) عملیات ارزی و بانک
+//     اول پروندهٔ ارزی باز می‌شود، بعد تخصیص و دریافت ثبت می‌شود.
+//     نرخ‌ها: ناخالص = ریال ÷ تخصیص | خالص = ریال ÷ دریافت
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// پروندهٔ ارزی — هدر عملیات ارزی یک پرونده
+model FxFile {
+  id                  String        @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId           String        @db.Uuid                           // FK → TradeProject.Id
+  fxNumber            String        @unique @db.VarChar(40)            // شمارهٔ پروندهٔ ارزی
+  bankPartyId         String        @db.Uuid                           // FK → TradeParty.Id (نقش BANK) — بانک عامل
+  fxSourceCode        String        @db.VarChar(40)                    // منبع تأمین ارز از دیکشنری FX_SOURCE
+                                                                       //   NIMA نیما | BANKING بانکی | EXPORT صادراتی | FREE آزاد
+  currencyId          String        @db.Uuid                           // FK → reference_data.currencies.Id — ارز
+  requestDate         DateTime      @db.Date                           // تاریخ شروع ثبت/درخواست
+  allocationNumber    String?       @db.VarChar(80)                    // شمارهٔ تخصیص
+  allocationNumberDate DateTime?    @db.Date                           // تاریخ شمارهٔ تخصیص
+  allocatedAmount     Decimal       @default(0) @db.Decimal(24, 6)     // جمع مبلغ تخصیص‌یافته (جمع خطوط)
+  receivedAmount      Decimal       @default(0) @db.Decimal(24, 6)     // جمع مبلغ دریافت‌شده (جمع رسیدها)
+  paidRialAmount      Decimal?      @db.Decimal(24, 6)                 // مبلغ ریال پرداختی
+  grossRate           Decimal?      @db.Decimal(24, 8)                 // نرخ ناخالص = ریال ÷ تخصیص (محاسبهٔ سرور)
+  netRate             Decimal?      @db.Decimal(24, 8)                 // نرخ خالص = ریال ÷ دریافت (محاسبهٔ سرور)
+  status              FxStatus      @default(DRAFT)                    // وضعیت پروندهٔ ارزی
+  receiptStatus       ReceiptStatus @default(NOT_RECEIVED)             // وضعیت دریافت: دریافت‌نشده/بخشی/دریافت‌شده
+  responsibleUserId   String?       @db.Uuid                           // FK → identity.users.Id — مسئول ارزی
+  notes               String?       @db.VarChar(4000)                  // توضیحات
+  createdAtUtc        DateTime      @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc        DateTime      @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  createdByUserId     String?       @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+  version             Int           @default(1)                        // نسخه
+
+  project             TradeProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bankParty           TradeParty    @relation("FxBank", fields: [bankPartyId], references: [id], onDelete: Restrict)
+  allocations         FxAllocation[]                                   // خطوط تخصیص
+  receipts            FxReceipt[]                                      // رسیدهای دریافت
+  collaterals         Collateral[]                                     // وثایق این پرونده
+  commitments         Commitment[]                                     // تعهدهای مرتبط
+
+  @@index([projectId, status])                                         // پرونده‌های ارزی هر پروژه
+  @@index([bankPartyId, requestDate])                                  // گزارش بانک
+  @@index([receiptStatus])                                             // پیگیری دریافت‌نشده‌ها
+  @@map("fx_files")
+  @@schema("trading")
+}
+
+/// خط تخصیص ارز — هر خط می‌تواند به یک ثبت سفارش وصل شود
+model FxAllocation {
+  id                  String      @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  fxFileId            String      @db.Uuid                           // FK → FxFile.Id
+  orderRegistrationId String?     @db.Uuid                           // FK → OrderRegistration.Id (اختیاری)
+  allocatedAmount     Decimal     @db.Decimal(24, 6)                 // مبلغ تخصیص‌یافتهٔ این خط
+  allocationDate      DateTime?   @db.Date                           // تاریخ تخصیص
+  bankReferenceNumber String?     @db.VarChar(100)                   // شمارهٔ پیگیری/ارجاع بانک
+  notes               String?     @db.VarChar(1000)                  // توضیح
+  createdAtUtc        DateTime    @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  createdByUserId     String?     @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+
+  fxFile              FxFile           @relation(fields: [fxFileId], references: [id], onDelete: Cascade)
+  orderRegistration   OrderRegistration? @relation(fields: [orderRegistrationId], references: [id], onDelete: Restrict)
+
+  @@index([fxFileId, allocationDate])                                 // خطوط هر پرونده
+  @@map("fx_allocations")
+  @@schema("trading")
+}
+
+/// رسید دریافت ارز — امکان دریافت جزئی
+model FxReceipt {
+  id                  String   @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  fxFileId            String   @db.Uuid                           // FK → FxFile.Id
+  receivedAmount      Decimal  @db.Decimal(24, 6)                 // مبلغ دریافتی این رسید
+  receivedAt          DateTime @db.Date                           // تاریخ دریافت
+  bankReferenceNumber String?  @db.VarChar(100)                   // شمارهٔ ارجاع بانک
+  notes               String?  @db.VarChar(1000)                  // توضیح
+  createdAtUtc        DateTime @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  createdByUserId     String?  @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+
+  fxFile              FxFile   @relation(fields: [fxFileId], references: [id], onDelete: Cascade)
+
+  @@index([fxFileId, receivedAt])                                 // رسیدهای هر پرونده
+  @@map("fx_receipts")
+  @@schema("trading")
+}
+
+/// وثیقه — چک/سفته/ضمانت‌نامه؛ «دست بانک هست یا نه»
+model Collateral {
+  id                 String           @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  fxFileId           String           @db.Uuid                           // FK → FxFile.Id
+  bankPartyId        String           @db.Uuid                           // FK → TradeParty.Id (نقش BANK)
+  collateralTypeCode String           @db.VarChar(40)                    // نوع وثیقه از دیکشنری COLLATERAL_TYPE
+  instrumentNumber   String?          @db.VarChar(80)                    // شمارهٔ چک/سفته/ضمانت‌نامه
+  amount             Decimal          @db.Decimal(24, 6)                 // مبلغ وثیقه
+  currencyId         String           @db.Uuid                           // FK → reference_data.currencies.Id
+  issueDate          DateTime?        @db.Date                           // تاریخ صدور
+  dueDate            DateTime?        @db.Date                           // تاریخ سررسید
+  heldByBank         Boolean          @default(true)                     // دست بانک است؟ (خیر = نزد ما)
+  heldAt             DateTime?        @db.Date                           // تاریخ تحویل به بانک
+  status             CollateralStatus @default(ACTIVE)                   // وضعیت وثیقه
+  releasedAt         DateTime?        @db.Date                           // تاریخ آزادسازی
+  documentKey        String?          @db.VarChar(300)                   // کلید فایل تصویر سند
+  notes              String?          @db.VarChar(1000)                  // توضیح
+  createdAtUtc       DateTime         @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc       DateTime         @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version            Int              @default(1)                        // نسخه
+
+  fxFile             FxFile           @relation(fields: [fxFileId], references: [id], onDelete: Cascade)
+  bankParty          TradeParty       @relation(fields: [bankPartyId], references: [id], onDelete: Restrict)
+
+  @@index([fxFileId, status])                                            // وثایق هر پرونده
+  @@index([dueDate, status])                                             // گزارش سررسید وثایق
+  @@map("collaterals")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۵) بیمه و بازرسی
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// بیمه‌نامهٔ بازرگانی — حق بیمه، درصد، اعتبار
+model InsurancePolicy {
+  id                 String          @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId          String          @db.Uuid                           // FK → TradeProject.Id
+  shipmentId         String?         @db.Uuid                           // FK → Shipment.Id (اگر بیمهٔ محموله است)
+  insurerPartyId     String?         @db.Uuid                           // FK → TradeParty.Id (نقش INSURER) — شرکت بیمه
+  policyNumber       String          @db.VarChar(80)                    // شمارهٔ بیمه‌نامه
+  coverageTypeCode   String?         @db.VarChar(40)                    // نوع پوشش (CIF، باربری، ...)
+  premiumRatePercent Decimal?        @db.Decimal(9, 4)                  // درصد حق بیمه
+  premiumAmount      Decimal         @db.Decimal(24, 6)                 // مبلغ حق بیمه
+  currencyId         String          @db.Uuid                           // FK → reference_data.currencies.Id
+  issueDate          DateTime?       @db.Date                           // تاریخ صدور
+  startDate          DateTime?       @db.Date                           // شروع پوشش
+  expiryDate         DateTime?       @db.Date                           // پایان پوشش (محاسبهٔ هشدار سیستمی)
+  status             InsuranceStatus @default(DRAFT)                    // وضعیت بیمه‌نامه
+  documentKey        String?         @db.VarChar(300)                   // کلید فایل بیمه‌نامه
+  notes              String?         @db.VarChar(2000)                  // توضیح
+  createdAtUtc       DateTime        @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc       DateTime        @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version            Int             @default(1)                        // نسخه
+
+  project            TradeProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  shipment           Shipment?       @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  insurerParty       TradeParty?     @relation("PolicyInsurer", fields: [insurerPartyId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, status])                                          // بیمه‌های هر پرونده
+  @@index([expiryDate])                                                 // گزارش بیمه‌های در حال انقضا
+  @@map("insurance_policies")
+  @@schema("trading")
+}
+
+/// بازرسی — وضعیت و نتیجه enum نیست، از دیکشنری می‌آید
+model Inspection {
+  id                    String       @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId             String       @db.Uuid                           // FK → TradeProject.Id
+  shipmentId            String?      @db.Uuid                           // FK → Shipment.Id
+  inspectorPartyId      String?      @db.Uuid                           // FK → TradeParty.Id (نقش INSPECTOR) — شرکت بازرسی
+  requestDate           DateTime?    @db.Date                           // تاریخ درخواست بازرسی
+  inspectionDate        DateTime?    @db.Date                           // تاریخ انجام بازرسی
+  certificateNumber     String?      @db.VarChar(80)                    // شمارهٔ گواهی بازرسی
+  statusCode            String       @default("REQUESTED") @db.VarChar(40) // وضعیت از دیکشنری INSPECTION_STATUS
+                                                                        //   REQUESTED درخواست | IN_PROGRESS در حال انجام
+                                                                        //   DONE انجام‌شده | REJECTED رد‌شده | CANCELLED لغو
+  resultCode            String?      @db.VarChar(40)                    // نتیجه از دیکشنری INSPECTION_RESULT
+                                                                        //   PASS قبول | FAIL رد | CONDITIONAL مشروط
+  resultNotes           String?      @db.VarChar(2000)                  // شرح نتیجه
+  documentKey           String?      @db.VarChar(300)                   // کلید فایل گواهی
+  responsibleUserId     String?      @db.Uuid                           // FK → identity.users.Id — مسئول پیگیری
+  notes                 String?      @db.VarChar(2000)                  // توضیح
+  createdAtUtc          DateTime     @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc          DateTime     @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version               Int          @default(1)                        // نسخه
+
+  project               TradeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  shipment              Shipment?    @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  inspectorParty        TradeParty?  @relation("InspectionInspector", fields: [inspectorPartyId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, statusCode])                                      // بازرسی‌های هر پرونده
+  @@map("inspections")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۶) حمل و ترخیص
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// محموله — هدر حمل؛ محتویات در ShipmentItem و طرف‌ها در ShipmentParty
+model Shipment {
+  id                   String         @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  shipmentNumber       String         @unique @db.VarChar(40)            // شمارهٔ محموله
+  title                String?        @db.VarChar(250)                   // عنوان/خلاصهٔ محموله
+  projectId            String?        @db.Uuid                           // FK → TradeProject.Id — پروندهٔ اصلی
+  transportMode        TransportMode  @default(SEA)                      // روش حمل
+  forwarderPartyId     String?        @db.Uuid                           // FK → TradeParty.Id (نقش FORWARDER) — فورواردر
+  carrierPartyId       String?        @db.Uuid                           // FK → TradeParty.Id (نقش CARRIER) — حامل اصلی
+  originPortCode       String?        @db.VarChar(40)                    // کد پورت مبدأ از دیکشنری PORT
+  destinationPortCode  String?        @db.VarChar(40)                    // کد پورت مقصد از دیکشنری PORT
+  originText           String?        @db.VarChar(200)                   // مبدأ به‌صورت متنی (اسنپ‌شات)
+  destinationText      String?        @db.VarChar(200)                   // مقصد به‌صورت متنی (اسنپ‌شات)
+  hasInsurance         Boolean        @default(false)                    // بیمه دارد؟
+  billOfLadingNumber   String?        @db.VarChar(80)                    // شمارهٔ بارنامه (اختیاری)
+  packageCount         Int?                                              // تعداد بسته
+  packageTypeCode      String?        @db.VarChar(40)                    // نوع بسته‌بندی از دیکشنری PACKAGE_TYPE
+  grossWeight          Decimal?       @db.Decimal(24, 6)                 // وزن ناخالص
+  weightUnitId         String?        @db.Uuid                           // FK → reference_data.units.Id — واحد وزن
+  volume               Decimal?       @db.Decimal(24, 6)                 // حجم
+  volumeUnitId         String?        @db.Uuid                           // FK → reference_data.units.Id — واحد حجم
+  estimatedDeparture   DateTime?      @db.Date                           // تاریخ حرکت (تخمینی)
+  estimatedArrival     DateTime?      @db.Date                           // تاریخ رسیدن (تخمینی)
+  actualDeparture      DateTime?      @db.Date                           // تاریخ حرکت واقعی
+  actualArrival        DateTime?      @db.Date                           // تاریخ رسیدن واقعی
+  status               ShipmentStatus @default(DRAFT)                    // وضعیت محموله
+  responsibleUserId    String?        @db.Uuid                           // FK → identity.users.Id — مسئول حمل
+  notes                String?        @db.VarChar(4000)                  // توضیحات
+  createdAtUtc         DateTime       @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc         DateTime       @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  createdByUserId      String?        @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+  version              Int            @default(1)                        // نسخه
+
+  project              TradeProject?  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  forwarderParty       TradeParty?    @relation("ShipmentForwarder", fields: [forwarderPartyId], references: [id], onDelete: Restrict)
+  carrierParty         TradeParty?    @relation("ShipmentCarrier", fields: [carrierPartyId], references: [id], onDelete: Restrict)
+  items                ShipmentItem[]                                    // محتویات محموله
+  parties              ShipmentParty[]                                   // طرف‌های حمل
+  legs                 ShipmentLeg[]                                     // مراحل مسیر
+  customsCases         ShipmentCustoms[]                                 // پرونده‌های گمرکی
+  insurancePolicies    InsurancePolicy[]                                 // بیمه‌نامه‌های این محموله
+  inspections          Inspection[]                                      // بازرسی‌های این محموله
+
+  @@index([projectId, status])                                           // محموله‌های هر پرونده
+  @@index([status, estimatedArrival])                                    // رهگیری محموله‌های در راه
+  @@map("shipments")
+  @@schema("trading")
+}
+
+/// قلم محموله — «محتویات» به‌جای نام؛ اتصال به پروژه و ردیف سفارش
+model ShipmentItem {
+  id                      String    @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  shipmentId              String    @db.Uuid                           // FK → Shipment.Id
+  projectId               String?   @db.Uuid                           // FK → TradeProject.Id — اگر محموله چندپروژه‌ای است
+  orderRegistrationLineId String?   @db.Uuid                           // FK → OrderRegistrationLine.Id — ردیف سفارش مبدأ
+  lineNumber              Int                                          // شمارهٔ ردیف داخل محموله
+  goodsTitle              String    @db.VarChar(300)                   // عنوان کالا
+  quantity                Decimal   @db.Decimal(24, 6)                 // تعداد
+  unitId                  String    @db.Uuid                           // FK → reference_data.units.Id — واحد سنجش
+  grossWeight             Decimal?  @db.Decimal(24, 6)                 // وزن این قلم
+  volume                  Decimal?  @db.Decimal(24, 6)                 // حجم این قلم
+  packageCount            Int?                                         // تعداد بستهٔ این قلم
+  packageTypeCode         String?   @db.VarChar(40)                    // نوع بسته‌بندی این قلم
+  notes                   String?   @db.VarChar(1000)                  // توضیح
+  createdAtUtc            DateTime  @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  version                 Int       @default(1)                        // نسخه
+
+  shipment                Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  orderRegistrationLine   OrderRegistrationLine? @relation(fields: [orderRegistrationLineId], references: [id], onDelete: Restrict)
+
+  @@unique([shipmentId, lineNumber])                                   // شمارهٔ ردیف یکتا در هر محموله
+  @@index([projectId])                                                 // اقلام هر پروژه در محموله
+  @@map("shipment_items")
+  @@schema("trading")
+}
+
+/// طرف‌های حمل — فورواردر، حامل، ترخیص‌کار، بیمه‌گر، نماینده
+model ShipmentParty {
+  id          String   @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  shipmentId  String   @db.Uuid                           // FK → Shipment.Id
+  partyId     String   @db.Uuid                           // FK → TradeParty.Id
+  roleCode    String   @db.VarChar(40)                    // نقش از دیکشنری PARTY_ROLE
+  isPrimary   Boolean  @default(false)                    // طرف اصلی این نقش
+  contactName String?  @db.VarChar(150)                   // نام رابط
+  phone       String?  @db.VarChar(50)                    // تلفن رابط
+  notes       String?  @db.VarChar(1000)                  // توضیح
+  createdAtUtc DateTime @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  party       TradeParty @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@unique([shipmentId, partyId, roleCode])               // یک طرف با یک نقش تکراری نباشد
+  @@index([shipmentId, roleCode])                         // طرف‌های هر نقش
+  @@map("shipment_parties")
+  @@schema("trading")
+}
+
+/// مرحلهٔ مسیر حمل — پورت مبدأ/مقصد، تاریخ حرکت و رسیدن
+model ShipmentLeg {
+  id                 String         @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  shipmentId         String         @db.Uuid                           // FK → Shipment.Id
+  sequence           Int                                               // ترتیب مرحله
+  fromPortCode       String?        @db.VarChar(40)                    // کد پورت مبدأ از دیکشنری PORT
+  toPortCode         String?        @db.VarChar(40)                    // کد پورت مقصد از دیکشنری PORT
+  fromText           String?        @db.VarChar(200)                   // مبدأ متنی
+  toText             String?        @db.VarChar(200)                   // مقصد متنی
+  transportMode      TransportMode  @default(SEA)                      // روش حمل این مرحله
+  carrierPartyId     String?        @db.Uuid                           // FK → TradeParty.Id — حامل این مرحله
+  vehicleOrVessel    String?        @db.VarChar(150)                   // نام کشتی/شمارهٔ کامیون/پرواز
+  trackingNumber     String?        @db.VarChar(100)                   // شمارهٔ رهگیری
+  status             LegStatus      @default(PLANNED)                  // وضعیت مرحله
+  estimatedDeparture DateTime?      @db.Date                           // حرکت تخمینی
+  estimatedArrival   DateTime?      @db.Date                           // رسیدن تخمینی
+  actualDeparture    DateTime?      @db.Date                           // حرکت واقعی
+  actualArrival      DateTime?      @db.Date                           // رسیدن واقعی
+  notes              String?        @db.VarChar(2000)                  // توضیح
+  createdAtUtc       DateTime       @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc       DateTime       @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version            Int            @default(1)                        // نسخه
+
+  shipment           Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  carrierParty       TradeParty?    @relation("LegCarrier", fields: [carrierPartyId], references: [id], onDelete: Restrict)
+
+  @@unique([shipmentId, sequence])                                      // ترتیب یکتا در هر محموله
+  @@index([status, estimatedArrival])                                   // مراحل عقب‌افتاده
+  @@map("shipment_legs")
+  @@schema("trading")
+}
+
+/// پروندهٔ گمرکی/ترخیص — ترخیص‌کار، اظهارنامه، حقوق گمرکی
+model ShipmentCustoms {
+  id                  String        @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  shipmentId          String        @db.Uuid                           // FK → Shipment.Id
+  projectId           String?       @db.Uuid                           // FK → TradeProject.Id
+  clearanceNumber     String?       @db.VarChar(80)                    // شمارهٔ پرونده/اظهارنامه
+  clearanceType       CustomsType   @default(DEFINITIVE)               // نوع ترخیص
+  brokerPartyId       String?       @db.Uuid                           // FK → TradeParty.Id (نقش CUSTOMS_BROKER) — ترخیص‌کار
+  customsOfficeCode   String?       @db.VarChar(40)                    // ادارهٔ گمرک از دیکشنری CUSTOMS_OFFICE
+  declarationDate     DateTime?     @db.Date                           // تاریخ اظهار
+  releaseDate         DateTime?     @db.Date                           // تاریخ ترخیص
+  documentsCompletedAt DateTime?    @db.Date                           // تاریخ تکمیل مدارک
+  dutyAmount          Decimal?      @db.Decimal(24, 6)                 // حقوق و عوارض گمرکی
+  dutyCurrencyId      String?       @db.Uuid                           // FK → reference_data.currencies.Id
+  status              CustomsStatus @default(NOT_STARTED)              // وضعیت پروندهٔ گمرکی
+  responsibleUserId   String?       @db.Uuid                           // FK → identity.users.Id — مسئول
+  notes               String?       @db.VarChar(4000)                  // توضیحات
+  createdAtUtc        DateTime      @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc        DateTime      @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version             Int           @default(1)                        // نسخه
+
+  shipment            Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  project             TradeProject? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  brokerParty         TradeParty?   @relation("CustomsBroker", fields: [brokerPartyId], references: [id], onDelete: Restrict)
+
+  @@index([shipmentId, status])                                        // پرونده‌های گمرکی هر محموله
+  @@map("shipment_customs")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۷) رفع تعهد
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// تعهد ارزی — مهلت، تمدید، تسویهٔ جزئی
+model Commitment {
+  id                  String           @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId           String           @db.Uuid                           // FK → TradeProject.Id
+  orderRegistrationId String?          @db.Uuid                           // FK → OrderRegistration.Id
+  fxFileId            String?          @db.Uuid                           // FK → FxFile.Id
+  eightDigitCode      String?          @db.VarChar(8)                     // کد ۸ رقمی مرتبط با این تعهد
+  currencyId          String           @db.Uuid                           // FK → reference_data.currencies.Id
+  committedAmount     Decimal          @db.Decimal(24, 6)                 // مبلغ تعهد
+  dischargedAmount    Decimal          @default(0) @db.Decimal(24, 6)     // مبلغ تسویه‌شده (جمع تسویه‌ها)
+  deadlineDate        DateTime         @db.Date                           // مهلت تعهد
+  extendedToDate      DateTime?        @db.Date                           // مهلت پس از تمدید
+  extensionCount      Int              @default(0)                        // تعداد تمدید
+  status              CommitmentStatus @default(OPEN)                     // وضعیت تعهد
+  completedAt         DateTime?        @db.Date                           // تاریخ انجام کامل
+  responsibleUserId   String?          @db.Uuid                           // FK → identity.users.Id — مسئول
+  notes               String?          @db.VarChar(2000)                  // توضیح
+  createdAtUtc        DateTime         @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc        DateTime         @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version             Int              @default(1)                        // نسخه
+
+  project             TradeProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orderRegistration   OrderRegistration? @relation(fields: [orderRegistrationId], references: [id], onDelete: Restrict)
+  fxFile              FxFile?          @relation(fields: [fxFileId], references: [id], onDelete: Restrict)
+  discharges          CommitmentDischarge[]                               // تسویه‌های این تعهد
+
+  @@index([projectId, status])                                            // تعهدهای هر پرونده
+  @@index([status, deadlineDate])                                         // هشدار سررسید
+  @@map("commitments")
+  @@schema("trading")
+}
+
+/// تسویهٔ تعهد — هر بار بخشی از تعهد انجام می‌شود
+model CommitmentDischarge {
+  id             String     @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  commitmentId   String     @db.Uuid                           // FK → Commitment.Id
+  dischargeDate  DateTime   @db.Date                           // تاریخ تسویه
+  amount         Decimal    @db.Decimal(24, 6)                 // مبلغ تسویه‌شده
+  currencyId     String     @db.Uuid                           // FK → reference_data.currencies.Id
+  methodCode     String?    @db.VarChar(40)                    // روش تسویه از دیکشنری PAYMENT_METHOD
+  documentNumber String?    @db.VarChar(80)                    // شمارهٔ سند/اظهارنامه
+  notes          String?    @db.VarChar(1000)                  // توضیح
+  createdAtUtc   DateTime   @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  createdByUserId String?   @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+
+  commitment     Commitment @relation(fields: [commitmentId], references: [id], onDelete: Cascade)
+
+  @@index([commitmentId, dischargeDate])                       // تسویه‌های هر تعهد
+  @@map("commitment_discharges")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۸) هزینه‌ها
+//     نوع هزینه + اجباری‌بودن مرحله‌ای + تخصیص چندبخشی + پرداخت
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// نوع هزینه — «جاری، ثابت، بازاریابی، حمل، ترخیص، انبار، مواد اولیه»
+model CostType {
+  id                String              @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  code              String              @unique @db.VarChar(40)            // کد یکتا (FREIGHT, CUSTOMS_DUTY, ...)
+  nameFa            String              @db.VarChar(200)                   // نام فارسی
+  nameEn            String?             @db.VarChar(200)                   // نام انگلیسی
+  natureCode        String?             @db.VarChar(40)                    // ماهیت هزینه از دیکشنری COST_NATURE
+                                                                           //   CURRENT جاری | FIXED ثابت | MARKETING بازاریابی
+                                                                           //   FREIGHT حمل | CLEARANCE ترخیص | WAREHOUSE انبار | RAW_MATERIAL مواد اولیه
+  stage             TradeStage?                                            // مرحله‌ای که این هزینه در آن ثبت می‌شود
+  isMandatory       Boolean             @default(false)                    // ثبت آن در مرحله اجباری است؟
+  allocationBasis   CostAllocationBasis @default(PROJECT_ONLY)             // مبنای تخصیص بین بخش‌ها
+  defaultCurrencyId String?             @db.Uuid                           // FK → reference_data.currencies.Id — ارز پیش‌فرض
+  sortOrder         Int                 @default(0)                        // ترتیب نمایش
+  isActive          Boolean             @default(true)                     // فعال
+  notes             String?             @db.VarChar(1000)                  // توضیح
+  createdAtUtc      DateTime            @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc      DateTime            @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  version           Int                 @default(1)                        // نسخه
+
+  costs             TradeCost[]                                            // هزینه‌های این نوع
+
+  @@index([stage, isMandatory])                                            // هزینه‌های اجباری هر مرحله
+  @@map("cost_types")
+  @@schema("trading")
+}
+
+/// هزینهٔ بازرگانی — مبلغ، ارز، معادل ریالی، وضعیت پرداخت
+model TradeCost {
+  id                  String            @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  projectId           String            @db.Uuid                           // FK → TradeProject.Id
+  costTypeId          String            @db.Uuid                           // FK → CostType.Id
+  stage               TradeStage?                                          // مرحلهٔ ثبت هزینه
+  description         String            @db.VarChar(500)                   // شرح هزینه
+  amount              Decimal           @db.Decimal(24, 6)                 // مبلغ به ارز اصلی
+  currencyId          String            @db.Uuid                           // FK → reference_data.currencies.Id
+  effectiveDate       DateTime          @db.Date                           // تاریخ هزینه
+  exchangeRateSnapshot Decimal?         @db.Decimal(24, 8)                 // نرخ تسعیر لحظهٔ ثبت
+  paidRialAmount      Decimal?          @db.Decimal(24, 6)                 // مبلغ ریالی پرداختی
+  rialEquivalent      Decimal?          @db.Decimal(24, 6)                 // معادل ریالی محاسبه‌شده
+  taxPercent          Decimal?          @db.Decimal(9, 4)                  // درصد مالیات
+  dutyPercent         Decimal?          @db.Decimal(9, 4)                  // درصد عوارض
+  paymentStatus       CostPaymentStatus @default(UNPAID)                   // وضعیت پرداخت
+  paymentMethodCode   String?           @db.VarChar(40)                    // روش پرداخت از دیکشنری COST_PAYMENT_METHOD
+                                                                            //   CASH نقدی | TRANSFER حواله | CHEQUE چک
+  payeePartyId        String?           @db.Uuid                           // FK → TradeParty.Id — دریافت‌کننده (دیدبان/پیمانکار)
+  referenceNumber     String?           @db.VarChar(100)                   // شمارهٔ فاکتور/رسید
+  responsibleUserId   String?           @db.Uuid                           // FK → identity.users.Id — مسئول هزینه
+  isVoided            Boolean           @default(false)                    // ابطال‌شده
+  voidedAtUtc         DateTime?         @db.Timestamptz(3)                 // زمان ابطال
+  voidedByUserId      String?           @db.Uuid                           // FK → identity.users.Id — ابطال‌کننده
+  voidReason          String?           @db.VarChar(1000)                  // دلیل ابطال
+  notes               String?           @db.VarChar(2000)                  // توضیحات
+  createdAtUtc        DateTime          @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  updatedAtUtc        DateTime          @updatedAt @db.Timestamptz(3)      // تاریخ آخرین ویرایش
+  createdByUserId     String?           @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+  version             Int               @default(1)                        // نسخه
+
+  project             TradeProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  costType            CostType          @relation(fields: [costTypeId], references: [id], onDelete: Restrict)
+  payeeParty          TradeParty?       @relation("CostPayee", fields: [payeePartyId], references: [id], onDelete: Restrict)
+  allocations         CostAllocation[]                                     // سهم هر بخش از این هزینه
+  payments            CostPayment[]                                        // پرداخت‌های این هزینه
+
+  @@index([projectId, stage])                                              // هزینه‌های هر مرحله
+  @@index([costTypeId, effectiveDate])                                     // گزارش انواع هزینه
+  @@index([paymentStatus])                                                 // پیگیری پرداخت‌نشده‌ها
+  @@map("trade_costs")
+  @@schema("trading")
+}
+
+/// تخصیص هزینه — «هر هزینه برای هر بخش و مجموع»
+model CostAllocation {
+  id                String              @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  costId            String              @db.Uuid                           // FK → TradeCost.Id
+  scopeType         AllocationScopeType                                    // نوع بخش: پروژه/سفارش/محموله/قلم/گمرک/مرحله
+  scopeId           String?             @db.Uuid                           // شناسهٔ آن بخش
+  stage             TradeStage?                                            // اگر scopeType = STAGE
+  allocationPercent Decimal             @db.Decimal(9, 4)                  // درصد سهم
+  allocatedAmount   Decimal             @db.Decimal(24, 6)                 // مبلغ سهم
+  currencyId        String              @db.Uuid                           // FK → reference_data.currencies.Id
+  notes             String?             @db.VarChar(1000)                  // توضیح
+
+  cost              TradeCost           @relation(fields: [costId], references: [id], onDelete: Cascade)
+
+  @@index([costId])                                                        // سهم‌های هر هزینه
+  @@index([scopeType, scopeId])                                            // هزینه‌های هر بخش
+  @@map("cost_allocations")
+  @@schema("trading")
+}
+
+/// پرداخت هزینه — چند پرداخت/عودت برای یک هزینه
+model CostPayment {
+  id              String   @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  costId          String   @db.Uuid                           // FK → TradeCost.Id
+  paidAt          DateTime @db.Date                           // تاریخ پرداخت
+  amount          Decimal  @db.Decimal(24, 6)                 // مبلغ پرداخت
+  currencyId      String   @db.Uuid                           // FK → reference_data.currencies.Id
+  methodCode      String   @db.VarChar(40)                    // روش پرداخت از دیکشنری COST_PAYMENT_METHOD
+  isReturn        Boolean  @default(false)                    // عودت؟ (true = برگشت وجه)
+  referenceNumber String?  @db.VarChar(100)                   // شمارهٔ سند/چک
+  notes           String?  @db.VarChar(1000)                  // توضیح
+  createdAtUtc    DateTime @default(now()) @db.Timestamptz(3) // تاریخ ثبت سیستمی
+  createdByUserId String?  @db.Uuid                           // FK → identity.users.Id — ثبت‌کننده
+
+  cost            TradeCost @relation(fields: [costId], references: [id], onDelete: Cascade)
+
+  @@index([costId, paidAt])                                   // پرداخت‌های هر هزینه
+  @@map("cost_payments")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ۹) کنترل و ممیزی
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// رخداد ممیزی — فقط افزودنی؛ «هر عملی که انجام می‌شود، انجام‌دهنده هم ثبت شود»
+model TradeAuditEvent {
+  id                String     @id @default(uuid()) @db.Uuid      // شناسهٔ یکتا
+  entityType        String     @db.VarChar(80)                    // نوع موجودیت (TradeProject, TradeCost, ...)
+  entityId          String     @db.Uuid                           // شناسهٔ رکورد
+  entityLabel       String?    @db.VarChar(200)                   // برچسب خوانا برای نمایش (مثلاً شمارهٔ پرونده)
+  action            String     @db.VarChar(60)                    // عمل (CREATE, UPDATE, STATUS_CHANGE, LOCK, VOID, ...)
+  stage             TradeStage?                                    // مرحله‌ای که عمل در آن رخ داده
+  actorUserId       String     @db.Uuid                           // FK → identity.users.Id — انجام‌دهنده
+  actorNameSnapshot String?    @db.VarChar(150)                   // نام انجام‌دهنده در لحظهٔ عمل (اسنپ‌شات)
+  previousJson      Json?      @db.JsonB                          // وضعیت قبل
+  currentJson       Json?      @db.JsonB                          // وضعیت بعد
+  notes             String?    @db.VarChar(2000)                  // توضیح انجام‌دهنده
+  reason            String?    @db.VarChar(1000)                  // دلیل تغییر (برای اصلاح/بازگشت)
+  occurredAtUtc     DateTime   @default(now()) @db.Timestamptz(3) // زمان وقوع
+
+  @@index([entityType, entityId, occurredAtUtc])                  // تاریخچهٔ هر رکورد
+  @@index([actorUserId, occurredAtUtc])                           // فعالیت هر کاربر
+  @@index([stage, occurredAtUtc])                                 // گردش هر مرحله
+  @@map("trade_audit_events")
+  @@schema("trading")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  قواعدی که در Prisma قابل بیان نیستند و باید در سرویس/تریگر دیتابیس باشند
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  ۱) قفل کد ۸ رقمی
+//     اگر TradeProject.eightDigitCode پر شود ⇒ isLocked=true، lockedAtUtc=now،
+//     تمام مراحل به‌جز COSTS قفل می‌شوند و هر Update روی پرونده/سفارش/ارز/حمل
+//     با خطای 409 رد می‌شود. بازکردن فقط با مجوز trading.project.unlock و دلیل.
+//
+//  ۲) باز بودن فقط مرحلهٔ اول
+//     تا وقتی eightDigitCode خالی است، تنها ProjectStage با stage=PROJECT_SETUP
+//     در وضعیت OPEN است و بقیه NOT_STARTED می‌مانند.
+//
+//  ۳) پل زدن مرحله‌ها (Gate)
+//     بستن مرحله‌ای که CostType(stage=X, isMandatory=true) ثبت‌نشده دارد ممنوع است.
+//     بستن مرحلهٔ CUSTOMS بدون ShipmentCustoms.status=COMPLETE ممنوع است.
+//
+//  ۴) نرخ ارز
+//     grossRate = paidRialAmount / allocatedAmount
+//     netRate   = paidRialAmount / receivedAmount
+//     هر دو در سرور محاسبه و ذخیره می‌شوند؛ ورود دستی ندارند.
+//
+//  ۵) تاریخ‌ها
+//     registrationDate، createdAtUtc و codeExpiresAt فقط سیستمی‌اند و در API
+//     قابل نوشتن نیستند. تاریخ کسب‌وکار میلادی ذخیره می‌شود؛ شمسی فقط نمایش.
+//
+//  ۶) انجام‌دهنده
+//     هر Insert/Update باید createdByUserId/updatedByUserId را از توکن
+//     احراز هویت پر کند؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود.
+//
+//  ۷) ممیزی
+//     هیچ UPDATE/DELETE روی trade_audit_events مجاز نیست (فقط INSERT).
+//
+//  ۸) حذف
+//     هیچ موجودیت عملیاتی Hard Delete نمی‌شود: isVoided/voidReason یا
+//     CANCELLED. حذف فقط برای پیش‌نویس‌های بدون سند فرزند.
+// ═══════════════════════════════════════════════════════════════════════════

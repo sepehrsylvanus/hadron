@@ -1,0 +1,92 @@
+{
+  "status": "owner-approved-narrow-scope; instructional-deliverable",
+  "selectionPolicy": "Explicit table allowlist only. Never select a complete PostgreSQL schema and never expand automatically through foreign keys. Supporting tables do not authorize additional business modules or API pages.",
+  "frontend": "React shell only; no business-module pages",
+  "businessTables": {
+    "products_parts_components": [
+      "catalog.items",
+      "catalog.products",
+      "catalog.material_item_profiles"
+    ],
+    "bom": [
+      "engineering.bom_revisions",
+      "engineering.bom_lines",
+      "engineering.bom_item_applicabilities"
+    ],
+    "suppliers_and_material_sourcing": [
+      "procurement.suppliers",
+      "procurement.supplier_contacts",
+      "procurement.supplier_payment_profiles",
+      "procurement.sourcing_options",
+      "procurement.sourcing_prices"
+    ],
+    "material_planning_only": [
+      "planning.mrp_runs",
+      "planning.mrp_run_item_inputs",
+      "planning.mrp_run_bom_inputs",
+      "planning.mrp_run_inventory_inputs",
+      "planning.mrp_run_forecast_inputs",
+      "planning.mrp_run_forecast_period_inputs",
+      "planning.mrp_run_firm_supply_inputs",
+      "planning.mrp_run_external_source_inputs",
+      "planning.mrp_run_daily_results",
+      "planning.mrp_run_demand_traces",
+      "planning.mrp_run_exceptions",
+      "planning.mrp_run_item_summaries",
+      "planning.planner_saved_views",
+      "planning.planner_work_items",
+      "planning.planner_work_item_events"
+    ],
+    "current_trading_project_setup_and_order_headers": [
+      "trading.trade_projects",
+      "trading.order_registrations",
+      "trading.trade_audit_events"
+    ]
+  },
+  "supportingTables": {
+    "reference_lookups_only": [
+      "reference_data.units",
+      "reference_data.currencies",
+      "reference_data.countries",
+      "reference_data.reference_types",
+      "reference_data.reference_values"
+    ],
+    "responsible_user_and_supplier_owner_references_only": [
+      "identity.users",
+      "organization.organizational_units",
+      "organization.internal_people"
+    ],
+    "trading_setup_lookup_and_start_date_mapping_only": [
+      "trading.trade_reference_values",
+      "trading.trade_parties",
+      "trading.trade_party_roles",
+      "trading.business_cards",
+      "trading.project_stages"
+    ]
+  },
+  "supportingTableRestrictions": [
+    "No standalone identity/organization administration implementation is authorized by these supporting references.",
+    "Material planning input snapshots do not authorize forecast-management, daily-production, inventory-ledger, purchase-order or production-order modules.",
+    "Trading business cards/parties are setup lookups only; no full licensing/card lifecycle implementation.",
+    "project_stages is retained only to map the already implemented project start/referral date, not to implement future Trading stages.",
+    "Source-only fields such as project priority, eight-digit bank code, FX, customs and future workflow fields must not be exposed by current DTOs merely because their table is selected."
+  ],
+  "explicitlyOutOfScope": [
+    "finance",
+    "sales",
+    "cash_flow",
+    "collaboration",
+    "purchase orders and receipts",
+    "delivery schedules",
+    "lead-time analytics",
+    "inventory transactions, transfers and warehouse administration",
+    "production orders, reporting, work centers and manufacturing routes",
+    "standalone forecast and daily-production management",
+    "what-if scenarios and advanced MRP route/certificate/outbox extensions",
+    "full identity, roles, permissions, sessions and security-administration module",
+    "Trading order lines and permits",
+    "Trading licensing lifecycle",
+    "Trading FX, bank allocations, insurance, shipments, customs, commitments and costs",
+    "Trading project document management and future stage workflows"
+  ]
+}
