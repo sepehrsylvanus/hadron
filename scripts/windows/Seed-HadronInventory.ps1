@@ -46,6 +46,7 @@ function Invoke-Api {
     $uri = $script:BaseUrl + $Path
     $httpMethod = New-Object System.Net.Http.HttpMethod($Method)
     $request = New-Object System.Net.Http.HttpRequestMessage($httpMethod, $uri)
+    $json = $null
     if ($null -ne $Body) {
         $json = ConvertTo-Json -InputObject $Body -Depth 30 -Compress
         $request.Content = New-Object System.Net.Http.StringContent($json, $script:Utf8, 'application/json')
@@ -61,10 +62,22 @@ function Invoke-Api {
     }
     if (-not $response.IsSuccessStatusCode) {
         if ($AllowNotFound -and [int]$response.StatusCode -eq 404) { return $null }
-        throw ('{0} {1} failed ({2}): {3}' -f $Method, $Path, [int]$response.StatusCode, $text)
+        $message = '{0} {1} failed ({2}): {3}' -f $Method, $Path, [int]$response.StatusCode, $text
+        if ($Method -eq 'POST' -and $Path -eq '/api/products' -and $json) {
+            $message += "`nProduct request JSON: $json"
+        }
+        throw $message
     }
     if ([string]::IsNullOrWhiteSpace($text)) { return $null }
     return ($text | ConvertFrom-Json)
+}
+
+function Assert-SeedGuid {
+    param([string]$Value, [string]$Label)
+    $parsed = [Guid]::Empty
+    if (-not [Guid]::TryParse($Value, [ref]$parsed) -or $parsed -eq [Guid]::Empty) {
+        throw ('Seed lookup did not resolve a valid {0} ID. Check the account permissions and reference-data API response.' -f $Label)
+    }
 }
 
 function Get-Collection {
@@ -122,7 +135,14 @@ function Invoke-Seed {
     foreach ($p in $dataset.products) {
         $existing = Get-Collection '/api/products?page=1&pageSize=100' | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
         if (-not $existing) {
-            $r = Invoke-Api POST '/api/products' @{ nameFa=$p.nameFa; nameEn=$p.nameEn; productCategoryId=$references[$p.categoryKey]; baseUnitId=$units[$p.baseUnitCode]; businessUnitId=$references[$p.businessUnitKey]; safetyStockQty=$p.safetyStockQty; criticalDays=$p.criticalDays; safeStartDays=$p.safeStartDays; excessStartDays=$p.excessStartDays; notes=$p.notes }
+            $categoryId = [string]$references[$p.categoryKey]
+            $unitId = [string]$units[$p.baseUnitCode]
+            $businessUnitId = [string]$references[$p.businessUnitKey]
+            Assert-SeedGuid $categoryId ('product category ' + $p.categoryKey)
+            Assert-SeedGuid $unitId ('base unit ' + $p.baseUnitCode)
+            Assert-SeedGuid $businessUnitId ('business unit ' + $p.businessUnitKey)
+            $payload = @{ nameFa=$p.nameFa; nameEn=$p.nameEn; productCategoryId=$categoryId; baseUnitId=$unitId; businessUnitId=$businessUnitId; safetyStockQty=$p.safetyStockQty; criticalDays=$p.criticalDays; safeStartDays=$p.safeStartDays; excessStartDays=$p.excessStartDays; notes=$p.notes }
+            $r = Invoke-Api POST '/api/products' $payload
             $existing = $r.product
         }
         $items[$p.key] = $existing.id
