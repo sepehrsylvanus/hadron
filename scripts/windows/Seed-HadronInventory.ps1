@@ -7,6 +7,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 may not load System.Net.Http until explicitly requested.
+try {
+    Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+} catch {
+    throw ('Could not load the .NET System.Net.Http assembly: {0}' -f $_.Exception.Message)
+}
 $script:Utf8 = New-Object System.Text.UTF8Encoding($false)
 $script:Cookies = New-Object System.Net.CookieContainer
 $script:Handler = New-Object System.Net.Http.HttpClientHandler
