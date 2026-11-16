@@ -108,19 +108,19 @@ function Invoke-Seed {
     # API mutations intentionally use server-generated identifiers and are performed in dependency order.
     $units = @{}
     foreach ($u in $dataset.units) {
-        $existing = Get-Collection '/api/reference-data/units?page=1&pageSize=500' | Where-Object { $_.code -eq $u.code } | Select-Object -First 1
+        $existing = Get-Collection '/api/reference-data/units?page=1&pageSize=100' | Where-Object { $_.code -eq $u.code } | Select-Object -First 1
         if (-not $existing) { $existing = Invoke-Api POST '/api/reference-data/units' $u }
         $units[$u.code] = $existing.id
     }
     $references = @{}
     foreach ($v in $dataset.referenceValues) {
-        $existing = Get-Collection ('/api/reference-data/types/{0}/values?page=1&pageSize=500' -f $v.typeCode) | Where-Object { $_.nameEn -eq $v.nameEn -or $_.nameFa -eq $v.nameFa } | Select-Object -First 1
+        $existing = Get-Collection ('/api/reference-data/types/{0}/values?page=1&pageSize=100' -f $v.typeCode) | Where-Object { $_.nameEn -eq $v.nameEn -or $_.nameFa -eq $v.nameFa } | Select-Object -First 1
         if (-not $existing) { $existing = Invoke-Api POST ('/api/reference-data/types/{0}/values' -f $v.typeCode) @{ nameFa=$v.nameFa; nameEn=$v.nameEn; sortOrder=$v.sortOrder } }
         $references[$v.key] = $existing.id
     }
     $items = @{}
     foreach ($p in $dataset.products) {
-        $existing = Get-Collection '/api/products?page=1&pageSize=500' | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
+        $existing = Get-Collection '/api/products?page=1&pageSize=100' | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
         if (-not $existing) {
             $r = Invoke-Api POST '/api/products' @{ nameFa=$p.nameFa; nameEn=$p.nameEn; productCategoryId=$references[$p.categoryKey]; baseUnitId=$units[$p.baseUnitCode]; businessUnitId=$references[$p.businessUnitKey]; safetyStockQty=$p.safetyStockQty; criticalDays=$p.criticalDays; safeStartDays=$p.safeStartDays; excessStartDays=$p.excessStartDays; notes=$p.notes }
             $existing = $r.product
@@ -129,7 +129,7 @@ function Invoke-Seed {
     }
     foreach ($type in @(@{ rows=$dataset.parts; endpoint='/api/parts'; cat='PART_CATEGORY' }, @{ rows=$dataset.components; endpoint='/api/components'; cat='COMPONENT_CATEGORY' })) {
         foreach ($p in $type.rows) {
-            $existing = Get-Collection ($type.endpoint + '?page=1&pageSize=500') | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
+            $existing = Get-Collection ($type.endpoint + '?page=1&pageSize=100') | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
             if (-not $existing) {
                 $r = Invoke-Api POST $type.endpoint @{ nameFa=$p.nameFa; nameEn=$p.nameEn; categoryId=$references[$p.categoryKey]; baseUnitId=$units[$p.baseUnitCode]; supplyMethod=$p.supplyMethod; netWeightKg=$p.netWeightKg; defaultPlanningScrapPercent=$p.defaultPlanningScrapPercent; safetyStockQty=$p.safetyStockQty; criticalDays=$p.criticalDays; safeStartDays=$p.safeStartDays; excessStartDays=$p.excessStartDays; notes=$p.notes }
                 $existing = $r.item
