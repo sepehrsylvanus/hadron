@@ -83,10 +83,13 @@ function Assert-SeedGuid {
 function Get-Collection {
     param([string]$Path)
     $result = Invoke-Api GET $Path $null
-    if ($result -is [System.Array]) { return ,$result }
-    if ($result.items) { return ,$result.items }
-    if ($result.values) { return ,$result.values }
-    return ,@()
+    # Let PowerShell enumerate collection members into the pipeline. Returning an array
+    # with the unary comma makes Where-Object see the whole array as one row, which can
+    # turn a matching reference ID into an array instead of a single Guid.
+    if ($result -is [System.Array]) { return $result }
+    if ($result.items) { return $result.items }
+    if ($result.values) { return $result.values }
+    return @()
 }
 
 function Ensure-Csrf {
