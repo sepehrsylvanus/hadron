@@ -21,8 +21,14 @@ RUN dotnet publish src/backend/Hadron.Erp.Api/Hadron.Erp.Api.csproj \
     /p:UseAppHost=false
 
 # The migration bundle is deliberately a separate image target. It is invoked
-# only through the explicit "maintenance" Compose profile and never at API boot.
-FROM build AS migration-bundle
+# only through the explicit "maintenance" or local "migrate" Compose profile
+# and never at API boot. Restoring dotnet-ef before copying source keeps the
+# tool layer cached across backend code changes and allows parallel builds.
+FROM restore AS migration-tools
+RUN dotnet tool restore
+
+FROM migration-tools AS migration-bundle
+COPY src/backend/Hadron.Erp.Api/ src/backend/Hadron.Erp.Api/
 ENV ASPNETCORE_ENVIRONMENT=Build \
     POSTGRES_HOST=postgres \
     POSTGRES_PORT=5432 \
@@ -33,7 +39,6 @@ ENV ASPNETCORE_ENVIRONMENT=Build \
     MINIO_ACCESS_KEY=build-only-placeholder \
     MINIO_SECRET_KEY=build-only-placeholder \
     MINIO_PROFILE_BUCKET=hadron-profile-photos
-RUN dotnet tool restore
 RUN dotnet tool run dotnet-ef migrations bundle \
     --project src/backend/Hadron.Erp.Api/Hadron.Erp.Api.csproj \
     --startup-project src/backend/Hadron.Erp.Api/Hadron.Erp.Api.csproj \

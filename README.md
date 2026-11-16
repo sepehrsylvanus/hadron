@@ -57,23 +57,41 @@ The API uses `http://localhost:5080` in Development. Vite reads frontend variabl
 
 ### Interactive Windows launcher
 
-After configuring `.env`, run `run-hadron.cmd` from the repository root. It starts
-PostgreSQL and MinIO with Docker Compose, applies migrations, and runs the API
-and frontend on loopback. It prints the frontend URL and the selected ports.
-If a preferred port is occupied, the launcher selects the next available TCP
-port and passes it to the dependent services; existing running Compose database
-and MinIO bindings are reused. It does not change `.env` or stop unrelated
-processes. Closing the launcher stops the API and frontend, but leaves Docker
-containers and their data intact. Port selection is best-effort: another process
-can acquire a port between checking and starting; rerun if that happens.
+Run `run-hadron.cmd` from the repository root (if `.env` does not exist yet, it
+creates one from `.env.example` with generated local-only secrets; an existing
+`.env` is never modified). It starts PostgreSQL and MinIO with Docker Compose,
+applies EF Core migrations, waits for readiness, and opens the application on
+loopback.
+
+- **Automatic mode (`run-hadron.cmd`)**: uses local `.NET SDK` (matching
+  `global.json`) and `Node.js` when available (also checking standard Windows
+  install directories and registry `PATH`). If either SDK is missing or
+  incompatible on Windows, it automatically runs migrations, the API, and the
+  web frontend inside Docker Compose (`--profile migrate` / `--profile app`) so
+  only Docker Desktop is required.
+- **Fast re-runs**: already-healthy PostgreSQL/MinIO containers are reused
+  without rebuilding, Docker image rebuilds are skipped when local source
+  fingerprints match existing images, and Host mode builds the API once and
+  passes `--no-build` to EF migrations.
+- **Optional switches**: `run-hadron.cmd -Mode Docker`,
+  `run-hadron.cmd -Mode Host`, `run-hadron.cmd -Rebuild`,
+  `run-hadron.cmd -Detach` (Docker mode background run), and
+  `run-hadron.cmd -NoBrowser`.
+
+If a preferred port is occupied, the launcher selects the next available
+loopback TCP port and passes it to dependent services; existing running Compose
+bindings are reused. It does not stop unrelated processes. Closing the launcher
+(Ctrl+C) stops the API and frontend, leaving PostgreSQL, MinIO, and their data
+volumes intact. Port selection is best-effort: another process can acquire a
+port between checking and starting; rerun if that happens.
 
 This launcher is for local development only: it uses local PostgreSQL and MinIO,
 not custom remote endpoints, and does not start the optional LiveKit profile.
 The separate managed company-LAN host below intentionally retains its fixed,
 firewall-scoped ports. Do not use the two launch modes at the same time.
 MinIO is built locally from checksum-verified upstream GitHub release binaries.
-Docker Desktop must be able to reach GitHub release downloads and Docker Hub
-(for the Alpine base image and PostgreSQL). The first build may take longer.
+Docker Desktop must be able to reach GitHub release downloads, Docker Hub, and
+Microsoft Container Registry (in Docker mode). The first build may take longer.
 
 ### Persistent local Windows test host
 
