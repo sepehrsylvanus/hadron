@@ -3,6 +3,8 @@
 .codex
 .codex-build
 .codex-test
+.docker
+.local-host
 .runtime
 .vite
 
