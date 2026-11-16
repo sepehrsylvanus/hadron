@@ -51,8 +51,14 @@ function Invoke-Api {
         $request.Content = New-Object System.Net.Http.StringContent($json, $script:Utf8, 'application/json')
     }
     if ($script:Csrf) { [void]$request.Headers.TryAddWithoutValidation('X-CSRF-TOKEN', $script:Csrf) }
-    $response = $script:Client.SendAsync($request).GetAwaiter().GetResult()
-    $text = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    try {
+        $response = $script:Client.SendAsync($request).GetAwaiter().GetResult()
+        $text = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    } catch {
+        $detail = $_.Exception.Message
+        if ($_.Exception.InnerException) { $detail = $_.Exception.InnerException.Message }
+        throw ('Could not connect to Hadron API at {0}. Start Hadron with run-hadron.cmd, then retry. If Hadron is running on another address, pass -ApiBaseUrl. Network detail: {1}' -f $uri, $detail)
+    }
     if (-not $response.IsSuccessStatusCode) {
         if ($AllowNotFound -and [int]$response.StatusCode -eq 404) { return $null }
         throw ('{0} {1} failed ({2}): {3}' -f $Method, $Path, [int]$response.StatusCode, $text)
@@ -83,6 +89,7 @@ function Invoke-Seed {
     if ($script:BaseUrl.EndsWith('/api')) { $script:BaseUrl = $script:BaseUrl.Substring(0, $script:BaseUrl.Length - 4) }
     $dataset = [System.IO.File]::ReadAllText((Resolve-Path $DataFile), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 
+    Write-Host ('Checking Hadron API at {0}' -f $script:BaseUrl)
     $null = Invoke-Api GET '/api/auth/bootstrap-status' $null
     Ensure-Csrf
     if (-not $UserName) { $UserName = $env:HADRON_SEED_USERNAME }
