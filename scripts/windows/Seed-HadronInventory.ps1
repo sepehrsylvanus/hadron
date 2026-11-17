@@ -89,7 +89,30 @@ function Get-Collection {
     if ($result -is [System.Array]) { return $result }
     if ($result.items) { return $result.items }
     if ($result.values) { return $result.values }
+    # Invoke-Api's pipeline unwraps a top-level JSON array containing one object.
+    if ($null -ne $result -and $result.PSObject.Properties['id']) { return $result }
     return @()
+}
+
+function Get-PagedCollection {
+    param([string]$Path)
+    $page = 1
+    $seen = 0
+    $separator = if ($Path.Contains('?')) { '&' } else { '?' }
+    do {
+        $result = Invoke-Api GET ('{0}{1}page={2}&pageSize=100' -f $Path, $separator, $page) $null
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['items'] -or
+            $null -eq $result.PSObject.Properties['totalCount']) {
+            throw ('Expected a paginated response from {0}.' -f $Path)
+        }
+        $rows = @($result.items)
+        if ($rows.Count -eq 0 -and $seen -lt [int]$result.totalCount) {
+            throw ('Incomplete paginated response from {0}; refusing to continue seed.' -f $Path)
+        }
+        $rows
+        $seen += $rows.Count
+        $page++
+    } while ($seen -lt [int]$result.totalCount)
 }
 
 function Ensure-Csrf {
@@ -138,7 +161,7 @@ function Invoke-Seed {
     }
     $items = @{}
     foreach ($p in $dataset.products) {
-        $existing = Get-Collection '/api/products?includeInactive=true&page=1&pageSize=100' | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
+        $existing = Get-PagedCollection '/api/products?includeInactive=true' | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
         if ($existing -and -not $existing.isActive) { $existing = Invoke-Api POST ('/api/products/{0}/reactivate' -f $existing.id) @{ expectedVersion=$existing.version; reason='Reactivated by inventory demo seed' } }
         if (-not $existing) {
             $categoryId = [string]$references[$p.categoryKey]
@@ -155,7 +178,7 @@ function Invoke-Seed {
     }
     foreach ($type in @(@{ rows=$dataset.parts; endpoint='/api/parts'; cat='PART_CATEGORY' }, @{ rows=$dataset.components; endpoint='/api/components'; cat='COMPONENT_CATEGORY' })) {
         foreach ($p in $type.rows) {
-            $existing = Get-Collection ($type.endpoint + '?includeInactive=true&page=1&pageSize=100') | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
+            $existing = Get-PagedCollection ($type.endpoint + '?includeInactive=true') | Where-Object { $_.nameEn -eq $p.nameEn } | Select-Object -First 1
             if ($existing -and -not $existing.isActive) { $existing = Invoke-Api POST ($type.endpoint + '/' + $existing.id + '/reactivate') @{ expectedVersion=$existing.version; reason='Reactivated by inventory demo seed' } }
             if (-not $existing) {
                 $r = Invoke-Api POST $type.endpoint @{ nameFa=$p.nameFa; nameEn=$p.nameEn; categoryId=$references[$p.categoryKey]; baseUnitId=$units[$p.baseUnitCode]; supplyMethod=$p.supplyMethod; netWeightKg=$p.netWeightKg; defaultPlanningScrapPercent=$p.defaultPlanningScrapPercent; safetyStockQty=$p.safetyStockQty; criticalDays=$p.criticalDays; safeStartDays=$p.safeStartDays; excessStartDays=$p.excessStartDays; notes=$p.notes }
@@ -173,7 +196,7 @@ function Invoke-Seed {
     Assert-SeedGuid $responsibleId 'warehouse responsible user'
 
     # Resolve/create all warehouses first; codes are always allocated by the API.
-    $warehouseRows = Get-Collection '/api/inventory/warehouses?includeInactive=true&page=1&pageSize=100'
+    $warehouseRows = @(Get-PagedCollection '/api/inventory/warehouses?includeInactive=true')
     $warehouses = @{}
     foreach ($w in $dataset.warehouses) {
         $warehouse = $warehouseRows | Where-Object { $_.nameEn -eq $w.nameEn } | Select-Object -First 1
@@ -215,7 +238,7 @@ function Invoke-Seed {
     }
 
     # Post tagged transactions in chronological order. Tags make reruns idempotent.
-    $postedTransactions = @(Get-Collection '/api/inventory/transactions?page=1&pageSize=100')
+    $postedTransactions = @(Get-PagedCollection '/api/inventory/transactions')
     foreach ($transaction in ($dataset.transactions | Sort-Object -Property daysAgo -Descending)) {
         $already = $postedTransactions | Where-Object { $_.reason -and $_.reason.Contains($transaction.seedTag) } | Select-Object -First 1
         if ($already) { continue }
@@ -247,7 +270,7 @@ function Invoke-Seed {
     }
 
     foreach ($reversal in $dataset.reversals) {
-        $postedTransactions = @(Get-Collection '/api/inventory/transactions?page=1&pageSize=100')
+        $postedTransactions = @(Get-PagedCollection '/api/inventory/transactions')
         $already = $postedTransactions | Where-Object { $_.reason -and $_.reason.Contains('[INV-SEED:REV-01]') } | Select-Object -First 1
         if (-not $already) {
             $original = $postedTransactions | Where-Object { $_.reason -and $_.reason.Contains($reversal.targetSeedTag) } | Select-Object -First 1
@@ -257,7 +280,7 @@ function Invoke-Seed {
     }
 
     # Create/continue the two-step transfer workflows, preserving current API versions on each mutation.
-    $transferRows = Get-Collection '/api/inventory/transfers?page=1&pageSize=100'
+    $transferRows = @(Get-PagedCollection '/api/inventory/transfers')
     foreach ($transferData in $dataset.transfers) {
         $transfer = $transferRows | Where-Object { $_.reason -and $_.reason.Contains($transferData.seedTag) } | Select-Object -First 1
         if (-not $transfer) {
